@@ -1,6 +1,6 @@
-# Pixel Pocket Town
+# 小镇观察模拟器
 
-一个带开罗风像素气质的轻量经营 demo。玩家通过放置设施、触发街区联动、接待访客并提升评价，逐步把小商店街经营起来。
+一个带开罗风像素气质的轻量经营 demo。玩家通过放置设施、触发街区联动、接待访客并提升评价，逐步把小商店街经营起来；新版本还加入了街坊 NPC 对白、多格大型设施，以及天气和季节变化。
 
 ## 项目描述
 
@@ -29,8 +29,16 @@
 
 - `Snack Bar`：前期主力赚钱点，遇到 `Sunny Park` 会更受欢迎
 - `Sunny Park`：提高人气，也是多个设施的联动核心
-- `Mini Arcade` / `Pocket Bath` / `Idol Tower`：需要更高评价解锁
+- `Mini Arcade` / `Pocket Bath` / `Idol Tower`：需要更高评价解锁，且会占用更多格子
 - 每天会刷新一个 `Trend today` 热潮设施，对应设施会拿到额外收入和评价
+
+### 新增系统
+
+- `Town Talk`：顾客会低频冒出跟随自身移动的简短自言自语，对天气、时段和目标店铺做出反应
+- `Large Footprints`：高阶设施会占据 `2x1`、`2x2`、`3x2` 等更大地块，布局需要提前留空间
+- `Weather & Season`：春夏秋冬、每日天气和昼夜时段会共同影响客流、设施收益与评价倾向
+- `Festival Hooks`：状态输出里已保留年度节庆和事件/事故队列字段，方便后续扩展节日活动与随机事件
+- `Visitor Routing`：顾客会从多个方向进入，并优先沿建筑周边的步行引导格绕开阻挡去接近目标设施
 
 ### 操作
 
@@ -71,6 +79,12 @@ npm test
 
 - `output/web-game/shot-0.png`
 - `output/web-game/state-0.json`
+
+`state-0.json` 现在还会额外输出：
+
+- `world`：季节、天气、年度节庆占位信息
+- `facilities.width / height`：多格设施占地信息
+- `npcs` / `dialogue`：NPC 对白状态
 
 ## 主要文件
 

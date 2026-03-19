@@ -28,16 +28,22 @@ const simulationTuning = automationDriven
 
 const layout = {
   gridX: 36,
-  gridY: 122,
-  cols: 11,
-  rows: 8,
-  tile: 52,
-  sidebarX: 650,
+  gridY: 132,
+  cols: 12,
+  rows: 9,
+  tile: 54,
+  sidebarX: 700,
   sidebarY: 108,
-  sidebarW: 276,
-  sidebarH: 498,
-  roadY: 566,
-  roadH: 46,
+  sidebarW: 368,
+  sidebarH: 586,
+  roadY: 620,
+  roadH: 54,
+};
+
+const calendarTuning = {
+  daysPerYear: 360,
+  seasonLength: 90,
+  calendarDayStep: 15,
 };
 
 const facilityTypes = [
@@ -49,6 +55,7 @@ const facilityTypes = [
     appeal: 6,
     unlockAt: 0,
     color: "#f06b4d",
+    footprint: { w: 1, h: 1 },
     bonusText: "靠近 Park 时人气更高",
     synergy: { park: { income: 2, rating: 2, pop: 4 } },
     sprite: [
@@ -87,6 +94,7 @@ const facilityTypes = [
     appeal: 9,
     unlockAt: 0,
     color: "#67b353",
+    footprint: { w: 1, h: 1 },
     bonusText: "和 Snack / Bath 形成休闲区",
     synergy: {
       snack: { income: 2, rating: 2, pop: 3 },
@@ -124,6 +132,7 @@ const facilityTypes = [
     appeal: 8,
     unlockAt: 22,
     color: "#5f74df",
+    footprint: { w: 2, h: 1 },
     bonusText: "挨着 Snack 时更会赚钱",
     synergy: { snack: { income: 4, rating: 2, pop: 3 } },
     sprite: [
@@ -162,6 +171,7 @@ const facilityTypes = [
     appeal: 11,
     unlockAt: 48,
     color: "#72c7d5",
+    footprint: { w: 2, h: 2 },
     bonusText: "靠近 Park 时评价涨得快",
     synergy: { park: { income: 3, rating: 5, pop: 2 } },
     sprite: [
@@ -199,6 +209,7 @@ const facilityTypes = [
     appeal: 13,
     unlockAt: 88,
     color: "#ef5aa1",
+    footprint: { w: 3, h: 2 },
     bonusText: "和 Arcade 配套会爆红",
     synergy: { arcade: { income: 5, rating: 6, pop: 5 } },
     sprite: [
@@ -235,6 +246,12 @@ const visitorPalette = [
   { shirt: "#ffd43b", hair: "#5a4638" },
 ];
 
+const npcProfiles = [
+  { id: "mika", name: "美佳", shirt: "#ff8aa1", hair: "#5c3d31", accent: "#fff0c5" },
+  { id: "taichi", name: "太一", shirt: "#6db8ff", hair: "#48352f", accent: "#f6f3ce" },
+  { id: "yuzu", name: "柚子", shirt: "#8edc74", hair: "#6b4c3d", accent: "#fff7d9" },
+];
+
 const goalDefinitions = [
   {
     id: "build-3",
@@ -258,15 +275,365 @@ const goalDefinitions = [
     id: "rating-80",
     title: "街区评价达到 80★",
     rewardMoney: 90,
-    rewardRating: 6,
+    rewardRating: 5,
   },
 ];
 
+const seasonDefinitions = [
+  {
+    id: "spring",
+    name: "Spring",
+    label: "春季",
+    visitorMultiplier: 1.04,
+    color: "#ffd7e6",
+    facilityBonuses: {
+      park: { income: 1, rating: 1, pop: 3 },
+      snack: { rating: 1 },
+    },
+  },
+  {
+    id: "summer",
+    name: "Summer",
+    label: "夏季",
+    visitorMultiplier: 1.1,
+    color: "#ffe48c",
+    facilityBonuses: {
+      snack: { income: 2, pop: 2 },
+      arcade: { income: 1, rating: 1 },
+    },
+  },
+  {
+    id: "autumn",
+    name: "Autumn",
+    label: "秋季",
+    visitorMultiplier: 1,
+    color: "#ffc17a",
+    facilityBonuses: {
+      arcade: { income: 1, pop: 2 },
+      tower: { rating: 2, pop: 1 },
+    },
+  },
+  {
+    id: "winter",
+    name: "Winter",
+    label: "冬季",
+    visitorMultiplier: 0.92,
+    color: "#dcecff",
+    facilityBonuses: {
+      bath: { income: 3, rating: 2, pop: 4 },
+      park: { income: -1, pop: -2 },
+    },
+  },
+];
+
+const weatherDefinitions = [
+  {
+    id: "sunny",
+    name: "Sunny",
+    label: "晴天",
+    weights: { spring: 5, summer: 5, autumn: 4, winter: 2 },
+    visitorMultiplier: 1.08,
+    facilityBonuses: {
+      park: { pop: 2, rating: 1 },
+      snack: { income: 1 },
+    },
+  },
+  {
+    id: "cloudy",
+    name: "Cloudy",
+    label: "多云",
+    weights: { spring: 3, summer: 2, autumn: 3, winter: 3 },
+    visitorMultiplier: 1,
+    facilityBonuses: {},
+  },
+  {
+    id: "drizzle",
+    name: "Drizzle",
+    label: "小雨",
+    weights: { spring: 3, summer: 1, autumn: 3, winter: 1 },
+    visitorMultiplier: 0.9,
+    facilityBonuses: {
+      bath: { income: 2, pop: 2 },
+      park: { income: -1, pop: -2 },
+    },
+  },
+  {
+    id: "festival-breeze",
+    name: "Festival Breeze",
+    label: "祭典微风",
+    weights: { spring: 1, summer: 3, autumn: 2, winter: 0 },
+    visitorMultiplier: 1.12,
+    facilityBonuses: {
+      tower: { rating: 2, pop: 2 },
+      arcade: { income: 1, pop: 1 },
+    },
+  },
+  {
+    id: "snow",
+    name: "Soft Snow",
+    label: "小雪",
+    weights: { spring: 0, summer: 0, autumn: 1, winter: 4 },
+    visitorMultiplier: 0.82,
+    facilityBonuses: {
+      bath: { income: 3, rating: 1, pop: 2 },
+      snack: { income: 1 },
+      park: { income: -1, pop: -3 },
+    },
+  },
+];
+
+const annualFestivalDefinitions = [
+  { id: "new-year", dayOfYear: 1, name: "新年大卖场" },
+  { id: "flower", dayOfYear: 90, name: "花见步行祭" },
+  { id: "summer-fair", dayOfYear: 180, name: "夏日烟火夜" },
+  { id: "harvest", dayOfYear: 270, name: "丰收感恩市" },
+];
+
+const timeOfDayDefinitions = [
+  {
+    id: "midnight",
+    label: "深夜",
+    start: 0,
+    end: 6,
+    visitorMultiplier: 0.28,
+    overlay: "rgba(28, 38, 88, 0.34)",
+    accent: "#9cb5ff",
+  },
+  {
+    id: "morning",
+    label: "清晨",
+    start: 6,
+    end: 10,
+    visitorMultiplier: 0.78,
+    overlay: "rgba(255, 229, 182, 0.08)",
+    accent: "#ffd38c",
+  },
+  {
+    id: "daytime",
+    label: "白天",
+    start: 10,
+    end: 18,
+    visitorMultiplier: 1.12,
+    overlay: "rgba(255, 255, 255, 0)",
+    accent: "#fff0b0",
+  },
+  {
+    id: "evening",
+    label: "傍晚",
+    start: 18,
+    end: 24,
+    visitorMultiplier: 0.88,
+    overlay: "rgba(115, 67, 33, 0.16)",
+    accent: "#ffb56d",
+  },
+];
+
+const dialogueTemplates = {
+  start: [
+    () => "今天开街第一天，感觉会有不少人来逛。",
+    () => "招牌一亮起来，这条街一下就有味道了。",
+  ],
+  build: [
+    ({ facilityName }) => `${facilityName} 新开张，路过的人已经在偷看菜单了。`,
+    ({ facilityName }) => `${facilityName} 摆上去以后，街景立刻像样多了。`,
+  ],
+  "big-build": [
+    ({ facilityName }) => `${facilityName} 这排面够大，已经有点地标建筑的意思。`,
+    ({ facilityName }) => `这么大的 ${facilityName} 一落地，整条街都显得热闹了。`,
+  ],
+  combo: [
+    ({ comboText }) => `${comboText} 贴在一起真搭，看着就像热门街区。`,
+    ({ comboText }) => `${comboText} 这组合很开罗味，顾客一看就会拐进来。`,
+  ],
+  removal: [
+    ({ facilityName }) => `${facilityName} 撤掉以后视野清爽了，重新规划也不错。`,
+    ({ facilityName }) => `${facilityName} 先收起来吧，等资金宽裕再换更大的配置。`,
+  ],
+  unlock: [
+    ({ facilityName }) => `${facilityName} 总算解锁了，街区的档次要往上跳一截。`,
+    ({ facilityName }) => `评价够高了，${facilityName} 可以摆上台面了。`,
+  ],
+  goal: [
+    () => "这个目标完成得很顺，街区节奏起来了。",
+    ({ title }) => `${title} 已经拿下，今天的账面会好看很多。`,
+  ],
+  weather: [
+    ({ weatherLabel }) => `${weatherLabel} 的日子，客人脚步会跟着天气变。`,
+    ({ weatherLabel }) => `今天是 ${weatherLabel}，得看准哪类店更吃香。`,
+  ],
+  season: [
+    ({ seasonLabel }) => `${seasonLabel} 一到，整条街的气质都跟着换了。`,
+    ({ seasonLabel }) => `${seasonLabel} 的配色真舒服，适合把招牌做得更亮一点。`,
+  ],
+  trend: [
+    ({ trendName }) => `今天大家都在聊 ${trendName}，这股热度得接住。`,
+    ({ trendName }) => `${trendName} 成了今日热潮，摆得好就能吃满这波流量。`,
+  ],
+  service: [
+    ({ facilityName }) => `${facilityName} 又接了一单，门口的人气越来越稳。`,
+    ({ facilityName }) => `${facilityName} 的客人出得很快，这个点位挑对了。`,
+  ],
+  levelup: [
+    ({ facilityName, level }) => `${facilityName} 升到 Lv.${level} 了，老顾客开始认这家招牌了。`,
+    ({ facilityName, level }) => `${facilityName} 做到 Lv.${level}，这就是口碑慢慢堆起来的感觉。`,
+  ],
+  day: [
+    ({ seasonLabel }) => `新的一天开始了，${seasonLabel} 的街景还是很耐看。`,
+    () => "今天继续把街区铺顺，别让黄金地段空着。",
+  ],
+  generic: [
+    () => "慢慢把店铺连成一片，街区就会自己活起来。",
+  ],
+};
+
 const state = createInitialState();
+
+function createGrid() {
+  return Array.from({ length: layout.rows }, () =>
+    Array.from({ length: layout.cols }, () => null),
+  );
+}
+
+function createNPCs() {
+  return npcProfiles.map((profile, index) => ({
+    ...profile,
+    x: 92 + index * 70,
+    y: layout.roadY + 10 + (index % 2) * 4,
+    bobPhase: index * 0.8,
+  }));
+}
+
+function getSeasonDefinition(dayOfYear) {
+  const index = Math.floor((dayOfYear - 1) / calendarTuning.seasonLength);
+  return seasonDefinitions[index] || seasonDefinitions[0];
+}
+
+function pickWeighted(items, weightKey) {
+  const total = items.reduce((sum, item) => sum + (item[weightKey] || 0), 0);
+  if (total <= 0) {
+    return items[0];
+  }
+  let cursor = Math.random() * total;
+  for (const item of items) {
+    cursor -= item[weightKey] || 0;
+    if (cursor <= 0) {
+      return item;
+    }
+  }
+  return items[items.length - 1];
+}
+
+function buildCalendar(day) {
+  const absoluteDay = 1 + (day - 1) * calendarTuning.calendarDayStep;
+  const year =
+    1 + Math.floor((absoluteDay - 1) / calendarTuning.daysPerYear);
+  const dayOfYear =
+    ((absoluteDay - 1) % calendarTuning.daysPerYear) + 1;
+  const season = getSeasonDefinition(dayOfYear);
+  const seasonDay =
+    ((dayOfYear - 1) % calendarTuning.seasonLength) + 1;
+  return {
+    year,
+    dayOfYear,
+    seasonDay,
+    label: `Y${year} / D${dayOfYear}`,
+    seasonId: season.id,
+    seasonName: season.label,
+  };
+}
+
+function getUpcomingFestival(dayOfYear) {
+  const ordered = annualFestivalDefinitions
+    .map((festival) => ({
+      ...festival,
+      offset:
+        festival.dayOfYear >= dayOfYear
+          ? festival.dayOfYear - dayOfYear
+          : calendarTuning.daysPerYear - dayOfYear + festival.dayOfYear,
+    }))
+    .sort((a, b) => a.offset - b.offset);
+  return ordered[0];
+}
+
+function getActiveFestival(dayOfYear) {
+  return annualFestivalDefinitions.find(
+    (festival) => festival.dayOfYear === dayOfYear,
+  ) || null;
+}
+
+function buildWeather(seasonId) {
+  const weightedWeather = weatherDefinitions.map((weather) => ({
+    ...weather,
+    chance: weather.weights[seasonId] || 0,
+  }));
+  return pickWeighted(weightedWeather, "chance");
+}
+
+function buildWorld(day, previousWorld = null) {
+  const calendar = buildCalendar(day);
+  const season = seasonDefinitions.find(
+    (item) => item.id === calendar.seasonId,
+  ) || seasonDefinitions[0];
+  const weather = buildWeather(season.id);
+  return {
+    calendar,
+    season,
+    weather,
+    activeFestival: getActiveFestival(calendar.dayOfYear),
+    upcomingFestival: getUpcomingFestival(calendar.dayOfYear),
+    eventQueue: previousWorld?.eventQueue || [],
+    incidentQueue: previousWorld?.incidentQueue || [],
+  };
+}
+
+function getCurrentHour() {
+  return (
+    8 +
+    Math.floor(
+      ((state.dayTimer % simulationTuning.dayLength) / simulationTuning.dayLength) * 24,
+    )
+  ) % 24;
+}
+
+function getTimeOfDay(hour) {
+  return (
+    timeOfDayDefinitions.find(
+      (definition) => hour >= definition.start && hour < definition.end,
+    ) || timeOfDayDefinitions[0]
+  );
+}
+
+function getTrafficModifier() {
+  const eventTraffic = state.world.eventQueue.reduce(
+    (product, event) => product * (event.trafficModifier || 1),
+    1,
+  );
+  const incidentTraffic = state.world.incidentQueue.reduce(
+    (product, incident) => product * (incident.trafficModifier || 1),
+    1,
+  );
+  return (
+    (state.world.weather.visitorMultiplier || 1) *
+    (state.world.season.visitorMultiplier || 1) *
+    (state.timeOfDay.visitorMultiplier || 1) *
+    eventTraffic *
+    incidentTraffic
+  );
+}
+
+function setEnvironmentNotice(text, color = "#ffe7a3", ttl = 3.8) {
+  state.environmentNotice = {
+    text,
+    color,
+    ttl,
+  };
+}
 
 function createInitialState() {
   const initialRating = 12;
   const initialDay = 1;
+  const initialWorld = buildWorld(initialDay);
+  const initialHour = 8;
   return {
     mode: "menu",
     money: 160,
@@ -274,13 +641,13 @@ function createInitialState() {
     day: initialDay,
     clock: 0.18,
     selectedType: "snack",
-    grid: Array.from({ length: layout.rows }, () =>
-      Array.from({ length: layout.cols }, () => null),
-    ),
+    grid: createGrid(),
+    facilities: [],
     visitors: [],
     floaters: [],
     messages: ["点击开始经营，做出一条热闹的商店街。"],
     nextVisitorId: 1,
+    nextFacilityId: 1,
     spawnTimer: simulationTuning.initialSpawnDelay,
     dayTimer: 0,
     lastCombo: "暂无",
@@ -295,6 +662,22 @@ function createInitialState() {
       completed: false,
     })),
     winCelebrated: false,
+    world: initialWorld,
+    npcs: createNPCs(),
+    activeDialogue: null,
+    dialogueFeed: [],
+    dialoguePointer: 0,
+    dialogueCooldown: 1.6,
+    visitorTalkTimer: 6.5,
+    timeOfDay: getTimeOfDay(initialHour),
+    environmentNotice: {
+      text: "白天营业开始，街区人流最旺。",
+      color: "#ffe7a3",
+      ttl: 3.2,
+    },
+    announcedUnlocks: facilityTypes
+      .filter((def) => def.unlockAt <= 0)
+      .map((def) => def.id),
   };
 }
 
@@ -341,6 +724,109 @@ function buildTrend(rating, day) {
   };
 }
 
+function maybeTriggerVisitorThought() {
+  const candidates = state.visitors.filter(
+    (visitor) =>
+      visitor.phase === "going" ||
+      visitor.phase === "entering" ||
+      visitor.phase === "leaving",
+  );
+  if (!candidates.length) {
+    return;
+  }
+  const visitor =
+    candidates[Math.floor(Math.random() * candidates.length)];
+  const facility = getFacilityById(visitor.targetFacilityId);
+  const facilityName = facility ? getFacilityDef(facility.type).name : "店铺";
+  const lines = [
+    `${state.world.weather.label} 出门逛街，感觉这条街还挺舒服。`,
+    `${facilityName} 看起来不错，今天就去这家看看。`,
+    `${state.timeOfDay.label} 的人果然少一点，逛起来更轻松。`,
+    `${state.world.season.label} 的街景真有味道，像小镇庆典前夕。`,
+    `那边的 ${facilityName} 好像挺热闹，排一会儿也值。`,
+  ];
+  triggerDialogue(
+    "thought",
+    {},
+    {
+      chance: 1,
+      speakerId: visitor.id,
+      force: true,
+    },
+  );
+  if (state.activeDialogue) {
+    state.activeDialogue.text =
+      lines[Math.floor(Math.random() * lines.length)];
+    state.dialogueFeed[0].text = state.activeDialogue.text;
+  }
+}
+
+function triggerDialogue(topic, payload = {}, options = {}) {
+  const { force = false, chance = 0.28, speakerId = null } = options;
+  if (!force && Math.random() > chance) {
+    return;
+  }
+  if (state.dialogueCooldown > 0) {
+    return;
+  }
+  if (!force && state.activeDialogue && state.activeDialogue.ttl > 1.5) {
+    return;
+  }
+  const lines = dialogueTemplates[topic] || dialogueTemplates.generic;
+  const template =
+    lines[Math.floor(Math.random() * lines.length)] ||
+    dialogueTemplates.generic[0];
+  const candidates = state.visitors.filter(
+    (visitor) =>
+      visitor.phase === "going" ||
+      visitor.phase === "entering" ||
+      visitor.phase === "leaving",
+  );
+  const speaker =
+    (speakerId ? getVisitorById(speakerId) : null) ||
+    candidates[Math.floor(Math.random() * candidates.length)];
+  if (!speaker) {
+    return;
+  }
+  const text = template(payload);
+  state.activeDialogue = {
+    speakerId: speaker.id,
+    speakerKind: "visitor",
+    speakerName: "顾客",
+    text,
+    topic,
+    ttl: 3.2,
+  };
+  state.dialogueFeed.unshift({
+    speakerName: "顾客",
+    text,
+    topic,
+  });
+  state.dialogueFeed = state.dialogueFeed.slice(0, 4);
+  state.dialogueCooldown = 5.2;
+}
+
+function updateDialogue(delta) {
+  state.dialogueCooldown = Math.max(0, state.dialogueCooldown - delta);
+  if (state.environmentNotice) {
+    state.environmentNotice.ttl -= delta;
+    if (state.environmentNotice.ttl <= 0) {
+      state.environmentNotice = null;
+    }
+  }
+  if (!state.activeDialogue) {
+    return;
+  }
+  if (!getVisitorById(state.activeDialogue.speakerId)) {
+    state.activeDialogue = null;
+    return;
+  }
+  state.activeDialogue.ttl -= delta;
+  if (state.activeDialogue.ttl <= 0) {
+    state.activeDialogue = null;
+  }
+}
+
 function tileToScreen(col, row) {
   return {
     x: layout.gridX + col * layout.tile,
@@ -357,64 +843,356 @@ function screenToTile(x, y) {
   return { col, row };
 }
 
-function getTileCenter(col, row) {
+function getTileCenter(col, row, width = 1, height = 1) {
   const pos = tileToScreen(col, row);
   return {
-    x: pos.x + layout.tile / 2,
-    y: pos.y + layout.tile / 2 + 4,
+    x: pos.x + (width * layout.tile) / 2,
+    y: pos.y + (height * layout.tile) / 2 + 4,
   };
 }
 
-function calculateBonuses(col, row, type) {
-  const def = getFacilityDef(type);
+function getFootprintTiles(col, row, width, height) {
+  const result = [];
+  for (let dr = 0; dr < height; dr += 1) {
+    for (let dc = 0; dc < width; dc += 1) {
+      result.push({ col: col + dc, row: row + dr });
+    }
+  }
+  return result;
+}
+
+function getFacilityTiles(facility) {
+  return getFootprintTiles(
+    facility.col,
+    facility.row,
+    facility.width,
+    facility.height,
+  );
+}
+
+function getFacilityById(id) {
+  return state.facilities.find((facility) => facility.id === id) || null;
+}
+
+function getVisitorById(id) {
+  return state.visitors.find((visitor) => visitor.id === id) || null;
+}
+
+function getFacilityAt(col, row) {
+  const cell = state.grid[row]?.[col];
+  if (!cell) {
+    return null;
+  }
+  return getFacilityById(cell.facilityId);
+}
+
+function isWalkableTile(col, row, allowedFacilityId = null) {
+  if (col < 0 || row < 0 || col >= layout.cols || row >= layout.rows) {
+    return false;
+  }
+  const occupant = getFacilityAt(col, row);
+  return !occupant || occupant.id === allowedFacilityId;
+}
+
+function getFacilityEntranceTiles(facility, options = {}) {
+  const { includeFallback = false } = options;
+  const entrances = [];
+  const frontRow = facility.row + facility.height;
+  if (frontRow < layout.rows) {
+    const frontCols = [];
+    if (facility.width === 1) {
+      frontCols.push(facility.col);
+    } else if (facility.width === 2) {
+      frontCols.push(facility.col, facility.col + 1);
+    } else {
+      frontCols.push(facility.col + Math.floor((facility.width - 1) / 2));
+      frontCols.push(facility.col + Math.ceil((facility.width - 1) / 2));
+    }
+    for (const col of [...new Set(frontCols)]) {
+      if (isWalkableTile(col, frontRow)) {
+        entrances.push({ col, row: frontRow, side: "front" });
+      }
+    }
+  }
+  if (entrances.length || !includeFallback) {
+    return entrances;
+  }
+
+  const fallback = [];
+  const sideRows = [];
+  if (facility.height === 1) {
+    sideRows.push(facility.row);
+  } else {
+    sideRows.push(facility.row + Math.floor((facility.height - 1) / 2));
+  }
+  for (const row of [...new Set(sideRows)]) {
+    const leftCol = facility.col - 1;
+    const rightCol = facility.col + facility.width;
+    if (isWalkableTile(leftCol, row)) {
+      fallback.push({ col: leftCol, row, side: "left" });
+    }
+    if (isWalkableTile(rightCol, row)) {
+      fallback.push({ col: rightCol, row, side: "right" });
+    }
+  }
+  return fallback;
+}
+
+function getApproachTiles(facility, options = {}) {
+  return getFacilityEntranceTiles(facility, options);
+}
+
+function findGridPath(start, goals) {
+  const goalSet = new Set(goals.map((goal) => `${goal.col},${goal.row}`));
+  const queue = [start];
+  const visited = new Set([`${start.col},${start.row}`]);
+  const parents = new Map();
+  while (queue.length) {
+    const current = queue.shift();
+    const currentKey = `${current.col},${current.row}`;
+    if (goalSet.has(currentKey)) {
+      const path = [current];
+      let cursor = currentKey;
+      while (parents.has(cursor)) {
+        const previous = parents.get(cursor);
+        path.push(previous);
+        cursor = `${previous.col},${previous.row}`;
+      }
+      return path.reverse();
+    }
+    for (const [dc, dr] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
+      const next = { col: current.col + dc, row: current.row + dr };
+      const key = `${next.col},${next.row}`;
+      if (visited.has(key) || !isWalkableTile(next.col, next.row)) {
+        continue;
+      }
+      visited.add(key);
+      parents.set(key, current);
+      queue.push(next);
+    }
+  }
+  return null;
+}
+
+function chooseWeightedFacility(facilities) {
+  const weights = facilities.map((facility) => {
+    const queuedVisitors = state.visitors.filter(
+      (visitor) => visitor.targetFacilityId === facility.id,
+    ).length;
+    const weight =
+      Math.max(3, getFacilityPopularity(facility)) *
+        (0.72 + Math.random() * 0.9) +
+      Math.max(0, 8 - facility.visits * 2) -
+      queuedVisitors * 3;
+    return { facility, weight };
+  });
+  const totalWeight = weights.reduce((sum, item) => sum + item.weight, 0);
+  let cursor = Math.random() * totalWeight;
+  for (const item of weights) {
+    cursor -= item.weight;
+    if (cursor <= 0) {
+      return item.facility;
+    }
+  }
+  return weights[weights.length - 1]?.facility || facilities[0];
+}
+
+function getRoadPoint(kind, referenceCol = Math.floor(layout.cols / 2)) {
+  const playfieldWidth = layout.sidebarX - 20;
+  const clampedCol = Math.max(0, Math.min(layout.cols - 1, referenceCol));
+  const anchorX = layout.gridX + clampedCol * layout.tile + layout.tile / 2;
+  switch (kind) {
+    case "left":
+      return { x: 18, y: layout.roadY + 28, kind };
+    case "right":
+      return { x: playfieldWidth - 14, y: layout.roadY + 28, kind };
+    default:
+      return { x: anchorX, y: layout.roadY + 30, kind: "center" };
+  }
+}
+
+function buildVisitorRoute(facility) {
+  const approachTiles = getApproachTiles(facility);
+  if (!approachTiles.length) {
+    return null;
+  }
+  const bestEntrance = approachTiles[0];
+  const roadStartTile = {
+    col: Math.max(0, Math.min(layout.cols - 1, bestEntrance.col)),
+    row: layout.rows - 1,
+  };
+  const path = findGridPath(roadStartTile, approachTiles);
+  if (!path) {
+    return null;
+  }
+  const entryKinds = ["left", "right", "center"];
+  const entryKind = entryKinds[Math.floor(Math.random() * entryKinds.length)];
+  const exitKinds = entryKinds.filter((kind) => kind !== entryKind);
+  const exitKind =
+    exitKinds[Math.floor(Math.random() * exitKinds.length)] || "center";
+  return {
+    approachTile: path[path.length - 1],
+    path,
+    roadEntry: getRoadPoint(entryKind, roadStartTile.col),
+    roadExit: getRoadPoint(exitKind, roadStartTile.col + (Math.random() > 0.5 ? 1 : -1)),
+  };
+}
+
+function canPlaceFacility(col, row, def) {
+  const { w, h } = def.footprint;
+  if (col + w > layout.cols || row + h > layout.rows) {
+    return {
+      ok: false,
+      reason: "这块地摆不下这么大的设施。",
+    };
+  }
+  for (const tile of getFootprintTiles(col, row, w, h)) {
+    if (state.grid[tile.row][tile.col]) {
+      return {
+        ok: false,
+        reason: "地块被占了，得先挪开现有设施。",
+      };
+    }
+  }
+  return { ok: true, reason: "" };
+}
+
+function occupyFacility(facility) {
+  for (const tile of getFacilityTiles(facility)) {
+    state.grid[tile.row][tile.col] = { facilityId: facility.id };
+  }
+}
+
+function clearFacilityOccupancy(facility) {
+  for (const tile of getFacilityTiles(facility)) {
+    state.grid[tile.row][tile.col] = null;
+  }
+}
+
+function listFacilities() {
+  return [...state.facilities];
+}
+
+function getAdjacentFacilities(facilityLike) {
+  const seen = new Set();
+  const result = [];
+  const tiles = getFootprintTiles(
+    facilityLike.col,
+    facilityLike.row,
+    facilityLike.width,
+    facilityLike.height,
+  );
+  for (const tile of tiles) {
+    for (const [dc, dr] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
+      const nextCol = tile.col + dc;
+      const nextRow = tile.row + dr;
+      if (
+        nextCol < 0 ||
+        nextRow < 0 ||
+        nextCol >= layout.cols ||
+        nextRow >= layout.rows
+      ) {
+        continue;
+      }
+      if (
+        nextCol >= facilityLike.col &&
+        nextCol < facilityLike.col + facilityLike.width &&
+        nextRow >= facilityLike.row &&
+        nextRow < facilityLike.row + facilityLike.height
+      ) {
+        continue;
+      }
+      const neighbor = getFacilityAt(nextCol, nextRow);
+      if (!neighbor || neighbor.id === facilityLike.id || seen.has(neighbor.id)) {
+        continue;
+      }
+      seen.add(neighbor.id);
+      result.push(neighbor);
+    }
+  }
+  return result;
+}
+
+function calculateBonuses(facilityLike) {
+  const def = getFacilityDef(facilityLike.type);
   const bonus = { income: 0, rating: 0, pop: 0, names: [] };
-  const offsets = [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1],
-  ];
-  for (const [dc, dr] of offsets) {
-    const nextCol = col + dc;
-    const nextRow = row + dr;
-    if (
-      nextCol < 0 ||
-      nextRow < 0 ||
-      nextCol >= layout.cols ||
-      nextRow >= layout.rows
-    ) {
-      continue;
-    }
-    const neighbor = state.grid[nextRow][nextCol];
-    if (!neighbor) {
-      continue;
-    }
+  for (const neighbor of getAdjacentFacilities(facilityLike)) {
     const effect = def.synergy[neighbor.type];
-    if (effect) {
-      bonus.income += effect.income;
-      bonus.rating += effect.rating;
-      bonus.pop += effect.pop;
-      bonus.names.push(getFacilityDef(neighbor.type).name);
+    if (!effect) {
+      continue;
     }
+    bonus.income += effect.income;
+    bonus.rating += effect.rating;
+    bonus.pop += effect.pop;
+    bonus.names.push(getFacilityDef(neighbor.type).name);
   }
   return bonus;
 }
 
+function getWorldFacilityBonus(facility) {
+  const effect = { income: 0, rating: 0, pop: 0 };
+  const seasonEffect =
+    state.world.season.facilityBonuses[facility.type] || {};
+  const weatherEffect =
+    state.world.weather.facilityBonuses[facility.type] || {};
+  effect.income += seasonEffect.income || 0;
+  effect.income += weatherEffect.income || 0;
+  effect.rating += seasonEffect.rating || 0;
+  effect.rating += weatherEffect.rating || 0;
+  effect.pop += seasonEffect.pop || 0;
+  effect.pop += weatherEffect.pop || 0;
+  return effect;
+}
+
 function getFacilityPopularity(facility) {
   const def = getFacilityDef(facility.type);
-  const bonus = calculateBonuses(facility.col, facility.row, facility.type);
+  const bonus = calculateBonuses(facility);
+  const worldBonus = getWorldFacilityBonus(facility);
   const trendBoost =
     state.todayTrend && facility.type === state.todayTrend.type
       ? state.todayTrend.incomeBonus + state.todayTrend.ratingBonus
       : 0;
-  return def.appeal + bonus.pop + facility.level * 2 + trendBoost;
+  return (
+    def.appeal +
+    bonus.pop +
+    worldBonus.pop +
+    facility.level * 2 +
+    trendBoost +
+    facility.width * facility.height
+  );
+}
+
+function checkUnlockAnnouncements() {
+  for (const def of facilityTypes) {
+    if (state.rating < def.unlockAt || state.announcedUnlocks.includes(def.id)) {
+      continue;
+    }
+    state.announcedUnlocks.push(def.id);
+    pushMessage(`${def.name} 解锁，可在右侧卡片中建造。`);
+    triggerDialogue("unlock", { facilityName: def.name }, { chance: 0.36 });
+  }
 }
 
 function placeFacility(col, row, type) {
-  if (state.mode !== "play" || state.grid[row][col]) {
+  if (state.mode !== "play") {
     return false;
   }
   const def = getFacilityDef(type);
+  const placement = canPlaceFacility(col, row, def);
+  if (!placement.ok) {
+    pushMessage(placement.reason);
+    return false;
+  }
   if (!isUnlocked(def)) {
     pushMessage(`${def.name} 还没解锁，先把街区评价再抬高一点。`);
     return false;
@@ -424,16 +1202,22 @@ function placeFacility(col, row, type) {
     return false;
   }
 
-  state.money -= def.cost;
-  state.grid[row][col] = {
+  const facility = {
+    id: state.nextFacilityId,
     type,
     col,
     row,
+    width: def.footprint.w,
+    height: def.footprint.h,
     level: 1,
     visits: 0,
   };
+  state.nextFacilityId += 1;
+  state.money -= def.cost;
+  state.facilities.push(facility);
+  occupyFacility(facility);
 
-  const bonus = calculateBonuses(col, row, type);
+  const bonus = calculateBonuses(facility);
   const facilityName = def.name;
   if (bonus.names.length) {
     const comboText = `${facilityName} + ${bonus.names[0]}`;
@@ -441,33 +1225,105 @@ function placeFacility(col, row, type) {
     state.rating += bonus.rating;
     state.money += bonus.income;
     state.comboCount += 1;
+    const center = getTileCenter(
+      facility.col,
+      facility.row,
+      facility.width,
+      facility.height,
+    );
     state.floaters.push({
-      x: getTileCenter(col, row).x,
-      y: getTileCenter(col, row).y - 16,
+      x: center.x,
+      y: center.y - 16,
       text: `Combo +${bonus.rating}★`,
       color: "#fff4a4",
       ttl: 1.6,
     });
     pushMessage(`${comboText} 触发街区联动，评价上涨。`);
+    triggerDialogue("combo", { comboText }, { chance: 0.42 });
   } else {
     state.rating += 1;
     pushMessage(`${facilityName} 开业，等顾客上门。`);
+    triggerDialogue(
+      facility.width * facility.height > 1 ? "big-build" : "build",
+      { facilityName },
+      { chance: facility.width * facility.height > 2 ? 0.4 : 0.2 },
+    );
   }
+  checkUnlockAnnouncements();
   evaluateGoals();
   return true;
 }
 
 function removeFacility(col, row) {
-  const facility = state.grid[row][col];
+  const facility = getFacilityAt(col, row);
   if (!facility) {
     return;
   }
   const def = getFacilityDef(facility.type);
   state.money += Math.floor(def.cost * 0.6);
-  state.grid[row][col] = null;
-  state.rating = Math.max(0, state.rating - 2);
+  clearFacilityOccupancy(facility);
+  state.facilities = state.facilities.filter((item) => item.id !== facility.id);
+  state.rating = Math.max(
+    0,
+    state.rating - Math.max(2, facility.width * facility.height - 1),
+  );
   pushMessage(`${def.name} 已拆除，回收一部分资金。`);
+  triggerDialogue("removal", { facilityName: def.name }, { chance: 0.16 });
   evaluateGoals();
+}
+
+function getVisitorSpawnDelay() {
+  const rawDelay =
+    simulationTuning.spawnBaseDelay - state.day * simulationTuning.spawnDaySlope;
+  return Math.max(
+    simulationTuning.minSpawnDelay,
+    rawDelay / Math.max(0.24, getTrafficModifier()),
+  );
+}
+
+function setVisitorTargetToTile(visitor, tile) {
+  const center = getTileCenter(tile.col, tile.row);
+  visitor.targetX = center.x;
+  visitor.targetY = center.y;
+}
+
+function setVisitorTargetToFacility(visitor, facility) {
+  const center = getTileCenter(
+    facility.col,
+    facility.row,
+    facility.width,
+    facility.height,
+  );
+  visitor.targetX = center.x;
+  visitor.targetY = center.y + 8;
+}
+
+function startVisitorLeaving(visitor) {
+  if (visitor.phase === "to-grid") {
+    visitor.phase = "leaving-road";
+    visitor.targetX = visitor.exitRoadX;
+    visitor.targetY = visitor.exitRoadY;
+    return;
+  }
+  if (visitor.phase === "entering" || visitor.phase === "inside") {
+    visitor.phase = "exiting";
+    setVisitorTargetToTile(visitor, visitor.path[visitor.path.length - 1]);
+    return;
+  }
+  if (
+    visitor.phase === "going" ||
+    visitor.phase === "entering" ||
+    visitor.phase === "inside"
+  ) {
+    visitor.phase = "leaving";
+    return;
+  }
+  if (visitor.phase === "exiting") {
+    return;
+  }
+  visitor.phase = "leaving-road";
+  visitor.targetX = visitor.exitRoadX;
+  visitor.targetY = visitor.exitRoadY;
 }
 
 function spawnVisitor() {
@@ -475,52 +1331,48 @@ function spawnVisitor() {
   if (!facilities.length) {
     return;
   }
-  const palette = visitorPalette[(state.nextVisitorId - 1) % visitorPalette.length];
-  const best = [...facilities].sort(
-    (a, b) => getFacilityPopularity(b) - getFacilityPopularity(a),
-  );
-  const target =
-    best[Math.floor(Math.random() * Math.min(2, best.length))] ||
-    facilities[0];
-  const center = getTileCenter(target.col, target.row);
+  const target = chooseWeightedFacility(facilities);
+  const route = buildVisitorRoute(target);
+  if (!route) {
+    return;
+  }
+  const palette =
+    visitorPalette[(state.nextVisitorId - 1) % visitorPalette.length];
+  const firstTile = route.path[0];
+  const firstCenter = getTileCenter(firstTile.col, firstTile.row);
   state.visitors.push({
-    id: state.nextVisitorId++,
-    x: layout.gridX + 40 + Math.random() * (layout.cols * layout.tile - 80),
-    y: layout.roadY + 26 + Math.random() * 8,
-    speed: (52 + Math.random() * 16) * simulationTuning.visitorSpeedMultiplier,
+    id: state.nextVisitorId,
+    x: route.roadEntry.x,
+    y: route.roadEntry.y,
+    speed:
+      (52 + Math.random() * 16) * simulationTuning.visitorSpeedMultiplier,
     mood: 1,
+    targetFacilityId: target.id,
     targetCol: target.col,
     targetRow: target.row,
-    phase: "going",
+    targetApproachCol: route.approachTile.col,
+    targetApproachRow: route.approachTile.row,
+    phase: "to-grid",
     wait: 0,
     colors: palette,
-    targetX: center.x,
-    targetY: center.y + 10,
+    path: route.path,
+    pathIndex: 0,
+    targetX: firstCenter.x,
+    targetY: layout.roadY + 18,
+    exitRoadX: route.roadExit.x,
+    exitRoadY: route.roadExit.y,
   });
-}
-
-function listFacilities() {
-  const result = [];
-  for (let row = 0; row < layout.rows; row += 1) {
-    for (let col = 0; col < layout.cols; col += 1) {
-      const facility = state.grid[row][col];
-      if (facility) {
-        result.push(facility);
-      }
-    }
-  }
-  return result;
+  state.nextVisitorId += 1;
 }
 
 function visitFacility(visitor) {
-  const facility = state.grid[visitor.targetRow]?.[visitor.targetCol];
+  const facility = getFacilityById(visitor.targetFacilityId);
   if (!facility) {
-    visitor.phase = "leaving";
-    visitor.targetY = layout.roadY + 24;
+    startVisitorLeaving(visitor);
     return;
   }
   const def = getFacilityDef(facility.type);
-  const bonus = calculateBonuses(facility.col, facility.row, facility.type);
+  const bonus = calculateBonuses(facility);
   const trendIncome =
     state.todayTrend && facility.type === state.todayTrend.type
       ? state.todayTrend.incomeBonus
@@ -529,12 +1381,20 @@ function visitFacility(visitor) {
     state.todayTrend && facility.type === state.todayTrend.type
       ? state.todayTrend.ratingBonus
       : 0;
-  const income = def.baseIncome + bonus.income + facility.level + trendIncome;
-  const ratingGain = 1 + bonus.rating + trendRating;
+  const worldBonus = getWorldFacilityBonus(facility);
+  const income =
+    def.baseIncome +
+    bonus.income +
+    facility.level +
+    trendIncome +
+    worldBonus.income;
+  const ratingGain =
+    1 + bonus.rating + trendRating + worldBonus.rating;
   facility.visits += 1;
   if (facility.visits % 5 === 0) {
     facility.level += 1;
     pushMessage(`${def.name} 升到 Lv.${facility.level}，更能吸金了。`);
+    triggerDialogue("levelup", { facilityName: def.name, level: facility.level }, { chance: 0.28 });
   }
   state.money += income;
   state.rating += ratingGain;
@@ -553,34 +1413,97 @@ function visitFacility(visitor) {
     ttl: 1.8,
   });
   pushMessage(`${def.name} 接待顾客，收入 +${income}G。`);
+  if (state.servedVisitors % 3 === 0) {
+    triggerDialogue("service", { facilityName: def.name }, { chance: 0.18, speakerId: visitor.id });
+  }
+  checkUnlockAnnouncements();
   evaluateGoals();
 }
 
 function updateVisitors(delta) {
   for (const visitor of state.visitors) {
-    if (visitor.phase === "going" || visitor.phase === "leaving") {
+    if (
+      visitor.phase === "to-grid" ||
+      visitor.phase === "going" ||
+      visitor.phase === "entering" ||
+      visitor.phase === "exiting" ||
+      visitor.phase === "leaving" ||
+      visitor.phase === "leaving-road"
+    ) {
+      if (
+        visitor.phase !== "leaving" &&
+        visitor.phase !== "leaving-road" &&
+        !getFacilityById(visitor.targetFacilityId)
+      ) {
+        startVisitorLeaving(visitor);
+      }
       const dx = visitor.targetX - visitor.x;
       const dy = visitor.targetY - visitor.y;
       const dist = Math.hypot(dx, dy);
       if (dist < 2) {
-        if (visitor.phase === "going") {
-          visitor.phase = "waiting";
+        if (visitor.phase === "to-grid") {
+          visitor.phase = "going";
+          const waypoint = visitor.path[visitor.pathIndex];
+          setVisitorTargetToTile(visitor, waypoint);
+        } else if (visitor.phase === "going") {
+          if (visitor.pathIndex < visitor.path.length - 1) {
+            visitor.pathIndex += 1;
+            setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+          } else {
+            const facility = getFacilityById(visitor.targetFacilityId);
+            if (!facility) {
+              startVisitorLeaving(visitor);
+              continue;
+            }
+            visitor.phase = "entering";
+            setVisitorTargetToFacility(visitor, facility);
+          }
+        } else if (visitor.phase === "entering") {
+          visitor.phase = "inside";
           visitor.wait = simulationTuning.visitorWait;
+        } else if (visitor.phase === "exiting") {
+          visitor.phase = "leaving";
+          visitor.pathIndex = Math.max(0, visitor.path.length - 1);
+          if (visitor.pathIndex > 0) {
+            visitor.pathIndex -= 1;
+            setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+          } else {
+            visitor.phase = "leaving-road";
+            visitor.targetX = visitor.exitRoadX;
+            visitor.targetY = visitor.exitRoadY;
+          }
+        } else if (visitor.phase === "leaving") {
+          if (visitor.pathIndex > 0) {
+            visitor.pathIndex -= 1;
+            setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+          } else {
+            visitor.phase = "leaving-road";
+            visitor.targetX = visitor.exitRoadX;
+            visitor.targetY = visitor.exitRoadY;
+          }
         } else {
-          visitor.done = true;
+          if (
+            Math.abs(visitor.x - visitor.exitRoadX) < 8 &&
+            Math.abs(visitor.y - visitor.exitRoadY) < 8
+          ) {
+            visitor.done = true;
+          } else {
+            visitor.targetX = visitor.exitRoadX;
+            visitor.targetY = visitor.exitRoadY;
+          }
         }
       } else {
         const move = Math.min(dist, visitor.speed * delta);
         visitor.x += (dx / dist) * move;
         visitor.y += (dy / dist) * move;
       }
-    } else if (visitor.phase === "waiting") {
+    } else if (visitor.phase === "inside") {
       visitor.wait -= delta;
       if (visitor.wait <= 0) {
         visitFacility(visitor);
-        visitor.phase = "leaving";
-        visitor.targetX += (Math.random() - 0.5) * 20;
-        visitor.targetY = layout.roadY + 24;
+        const approachTile = visitor.path[visitor.path.length - 1];
+        visitor.phase = "exiting";
+        setVisitorTargetToTile(visitor, approachTile);
       }
     }
   }
@@ -596,6 +1519,7 @@ function updateFloaters(delta) {
 }
 
 function advanceDay() {
+  const previousSeasonId = state.world.season.id;
   state.day += 1;
   state.rating += 2;
   const upkeep = Math.max(0, listFacilities().length - 4) * 3;
@@ -605,36 +1529,65 @@ function advanceDay() {
   } else {
     pushMessage("今天顺顺利利，街区口碑又涨了一点。");
   }
-  const extraVisitors = 1 + Math.floor(state.day / 4);
+  const extraVisitors = Math.max(
+    1,
+    Math.round(
+      (1 + Math.floor(state.day / 4)) *
+        (state.world.weather.visitorMultiplier || 1),
+    ),
+  );
   for (let i = 0; i < extraVisitors; i += 1) {
     spawnVisitor();
   }
+  state.world = buildWorld(state.day);
   state.todayTrend = buildTrend(state.rating, state.day);
   pushMessage(
     `今日热潮：${state.todayTrend.name}，额外 +${state.todayTrend.incomeBonus}G / +${state.todayTrend.ratingBonus}★。`,
   );
+  pushMessage(
+    `${state.world.season.label} ${state.world.weather.label}，下一场节庆：${state.world.upcomingFestival.name}。`,
+  );
+  setEnvironmentNotice(
+    `${state.world.season.label} ${state.world.weather.label}，${state.world.upcomingFestival.name} 将近。`,
+    state.world.season.color,
+    4.4,
+  );
+  triggerDialogue("trend", { trendName: state.todayTrend.name }, { chance: 0.2 });
+  triggerDialogue("weather", { weatherLabel: state.world.weather.label }, { chance: 0.18 });
+  if (previousSeasonId !== state.world.season.id) {
+    triggerDialogue("season", { seasonLabel: state.world.season.label }, { chance: 0.32 });
+  } else {
+    triggerDialogue("day", { seasonLabel: state.world.season.label }, { chance: 0.12 });
+  }
+  checkUnlockAnnouncements();
   evaluateGoals();
 }
 
 function update(delta) {
+  state.cameraPulse += delta;
+  updateDialogue(delta);
   if (state.mode !== "play") {
-    state.cameraPulse += delta;
     updateFloaters(delta);
     return;
   }
 
-  state.cameraPulse += delta;
   state.spawnTimer -= delta;
   state.dayTimer += delta;
-  state.clock =
-    0.15 + ((state.dayTimer % simulationTuning.dayLength) / simulationTuning.dayLength) * 0.7;
+  const currentHour = getCurrentHour();
+  state.clock = currentHour / 24;
+  const nextTimeOfDay = getTimeOfDay(currentHour);
+  if (nextTimeOfDay.id !== state.timeOfDay.id) {
+    state.timeOfDay = nextTimeOfDay;
+    setEnvironmentNotice(
+      `${state.timeOfDay.label} 时段，人流会明显${state.timeOfDay.visitorMultiplier < 1 ? "减少" : "上升"}。`,
+      state.timeOfDay.accent,
+      3.6,
+    );
+  }
 
   if (state.spawnTimer <= 0) {
     spawnVisitor();
-    state.spawnTimer = Math.max(
-      simulationTuning.minSpawnDelay,
-      simulationTuning.spawnBaseDelay - state.day * simulationTuning.spawnDaySlope,
-    );
+    state.spawnTimer = getVisitorSpawnDelay();
   }
 
   if (state.dayTimer >= simulationTuning.dayLength) {
@@ -644,6 +1597,11 @@ function update(delta) {
 
   updateVisitors(delta);
   updateFloaters(delta);
+  state.visitorTalkTimer -= delta;
+  if (state.visitorTalkTimer <= 0) {
+    maybeTriggerVisitorThought();
+    state.visitorTalkTimer = 7 + Math.random() * 4;
+  }
 }
 
 function getGoalProgress(goal) {
@@ -698,10 +1656,15 @@ function evaluateGoals() {
       pushMessage(
         `目标完成：${goal.title}，奖励 ${goal.rewardMoney}G / ${goal.rewardRating}★。`,
       );
+      triggerDialogue("goal", { title: goal.title }, { chance: 0.22 });
     }
   }
 
-  if (completedNow && state.goals.every((goal) => goal.completed) && !state.winCelebrated) {
+  if (
+    completedNow &&
+    state.goals.every((goal) => goal.completed) &&
+    !state.winCelebrated
+  ) {
     state.winCelebrated = true;
     state.mode = "complete";
     pushMessage("商店街目标全达成，这一轮已经能拿去当完整 demo 了。");
@@ -714,8 +1677,7 @@ function getActiveGoal() {
 }
 
 function syncButtons() {
-  startButton.disabled = state.mode !== "menu";
-  startButton.textContent = state.mode === "menu" ? "开始经营" : "经营中";
+  startButton.disabled = state.mode === "play" || state.mode === "complete";
   restartButton.textContent = state.mode === "complete" ? "再开一轮" : "重新开档";
 }
 
@@ -736,23 +1698,57 @@ function drawSprite(sprite, palette, x, y, scale = 3) {
   }
 }
 
+function drawFittedSprite(sprite, palette, x, y, width, height) {
+  const scale = Math.max(
+    2,
+    Math.floor(
+      Math.min(
+        (width - 18) / sprite[0].length,
+        (height - 18) / sprite.length,
+      ),
+    ),
+  );
+  const drawWidth = sprite[0].length * scale;
+  const drawHeight = sprite.length * scale;
+  const drawX = x + Math.max(6, Math.floor((width - drawWidth) / 2));
+  const drawY = y + Math.max(4, Math.floor((height - drawHeight) / 2) - 2);
+  drawSprite(sprite, palette, drawX, drawY, scale);
+}
+
 function drawBackground() {
+  const skyPalette = {
+    spring: ["#9be0ff", "#d2f2ff", "#ffe2b3"],
+    summer: ["#80d2ff", "#bfe9ff", "#ffd88c"],
+    autumn: ["#9ad2f2", "#d8efff", "#ffcf99"],
+    winter: ["#b9d9f8", "#edf6ff", "#e8f0ff"],
+  };
+  const skyStops =
+    skyPalette[state.world.season.id] || skyPalette.spring;
   const sky = ctx.createLinearGradient(0, 0, 0, layout.roadY);
-  sky.addColorStop(0, "#8bd3ff");
-  sky.addColorStop(0.6, "#bfe9ff");
-  sky.addColorStop(1, "#ffe9b4");
+  sky.addColorStop(0, skyStops[0]);
+  sky.addColorStop(0.6, skyStops[1]);
+  sky.addColorStop(1, skyStops[2]);
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const sunX = 110 + Math.sin(state.cameraPulse * 0.25) * 8;
-  ctx.fillStyle = "rgba(255, 240, 170, 0.95)";
-  ctx.fillRect(sunX, 48, 44, 44);
+  if (state.world.weather.id !== "snow") {
+    const sunX = 110 + Math.sin(state.cameraPulse * 0.25) * 8;
+    ctx.fillStyle =
+      state.world.weather.id === "drizzle" ? "rgba(255, 245, 198, 0.55)" : "rgba(255, 240, 170, 0.95)";
+    ctx.fillRect(sunX, 48, 44, 44);
+  }
+
   ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
   ctx.fillRect(180, 58, 62, 18);
   ctx.fillRect(208, 50, 48, 24);
   ctx.fillRect(260, 82, 58, 16);
 
-  const mountainColors = ["#99c27f", "#87b36a", "#6b9460"];
+  const mountainColors =
+    state.world.season.id === "winter"
+      ? ["#b9cad6", "#9eb3c0", "#8799a8"]
+      : state.world.season.id === "autumn"
+        ? ["#c9af7f", "#bc9765", "#9d7a56"]
+        : ["#99c27f", "#87b36a", "#6b9460"];
   mountainColors.forEach((color, index) => {
     ctx.fillStyle = color;
     ctx.beginPath();
@@ -766,9 +1762,17 @@ function drawBackground() {
     ctx.fill();
   });
 
-  ctx.fillStyle = "#d4ef8d";
+  const lawnColors = {
+    spring: ["#d9f3a4", "#92cf63"],
+    summer: ["#c9eb78", "#84c362"],
+    autumn: ["#d8d28b", "#aab25e"],
+    winter: ["#e7f0f6", "#a0bbd2"],
+  };
+  const [grassLight, grassDark] =
+    lawnColors[state.world.season.id] || lawnColors.spring;
+  ctx.fillStyle = grassLight;
   ctx.fillRect(0, layout.gridY - 26, 640, layout.rows * layout.tile + 44);
-  ctx.fillStyle = "#84c362";
+  ctx.fillStyle = grassDark;
   ctx.fillRect(0, layout.roadY - 22, 640, 22);
 
   ctx.fillStyle = "#72606a";
@@ -777,6 +1781,98 @@ function drawBackground() {
   for (let x = 20; x < 640; x += 80) {
     ctx.fillRect(x, layout.roadY + 20, 34, 6);
   }
+
+  if (state.world.weather.id === "drizzle") {
+    ctx.fillStyle = "rgba(88, 133, 188, 0.45)";
+    for (let i = 0; i < 36; i += 1) {
+      const x = (i * 27 + state.cameraPulse * 80) % 640;
+      const y = 90 + (i * 18) % 410;
+      ctx.fillRect(x, y, 2, 12);
+    }
+  }
+
+  if (state.world.weather.id === "snow") {
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    for (let i = 0; i < 42; i += 1) {
+      const x = (i * 31 + state.cameraPulse * 24) % 640;
+      const y = 78 + (i * 22 + state.cameraPulse * 14) % 420;
+      ctx.fillRect(x, y, 3, 3);
+    }
+  }
+
+  if (state.world.season.id === "autumn") {
+    const leafColors = ["#ffb347", "#f18f43", "#d96f32"];
+    for (let i = 0; i < 10; i += 1) {
+      ctx.fillStyle = leafColors[i % leafColors.length];
+      ctx.fillRect(70 + i * 44, 162 + ((i + 1) % 3) * 18, 5, 3);
+    }
+  }
+
+  if (state.timeOfDay.overlay) {
+    ctx.fillStyle = state.timeOfDay.overlay;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  if (state.timeOfDay.id === "midnight") {
+    ctx.fillStyle = "#ffe7a8";
+    for (let index = 0; index < 6; index += 1) {
+      const x = 84 + index * 92;
+      ctx.fillRect(x, layout.roadY - 18, 5, 20);
+      ctx.fillRect(x - 6, layout.roadY - 8, 16, 10);
+    }
+  }
+}
+
+function drawPlacementPreview() {
+  if (!state.hoveredTile || state.mode !== "play") {
+    return;
+  }
+  const def = getFacilityDef(state.selectedType);
+  const placement = canPlaceFacility(state.hoveredTile.col, state.hoveredTile.row, def);
+  const color = placement.ok ? "rgba(255, 244, 163, 0.48)" : "rgba(255, 120, 120, 0.4)";
+  for (const tile of getFootprintTiles(
+    state.hoveredTile.col,
+    state.hoveredTile.row,
+    def.footprint.w,
+    def.footprint.h,
+  )) {
+    if (
+      tile.col < 0 ||
+      tile.row < 0 ||
+      tile.col >= layout.cols ||
+      tile.row >= layout.rows
+    ) {
+      continue;
+    }
+    const pos = tileToScreen(tile.col, tile.row);
+    ctx.fillStyle = color;
+    ctx.fillRect(pos.x + 2, pos.y + 2, layout.tile - 6, layout.tile - 6);
+  }
+}
+
+function drawApproachMarkers() {
+  for (const facility of state.facilities) {
+    const approachTiles = getApproachTiles(facility);
+    for (const tile of approachTiles) {
+      const pos = tileToScreen(tile.col, tile.row);
+      ctx.fillStyle = "rgba(255, 248, 220, 0.72)";
+      if (tile.side === "left") {
+        ctx.fillRect(pos.x + layout.tile - 10, pos.y + 18, 8, 18);
+        ctx.fillStyle = "rgba(124, 92, 68, 0.38)";
+        ctx.fillRect(pos.x + layout.tile - 8, pos.y + 20, 4, 14);
+        continue;
+      }
+      if (tile.side === "right") {
+        ctx.fillRect(pos.x + 2, pos.y + 18, 8, 18);
+        ctx.fillStyle = "rgba(124, 92, 68, 0.38)";
+        ctx.fillRect(pos.x + 4, pos.y + 20, 4, 14);
+        continue;
+      }
+      ctx.fillRect(pos.x + 18, pos.y + 4, 18, 8);
+      ctx.fillStyle = "rgba(124, 92, 68, 0.38)";
+      ctx.fillRect(pos.x + 20, pos.y + 6, 14, 4);
+    }
+  }
 }
 
 function drawGrid() {
@@ -784,12 +1880,19 @@ function drawGrid() {
     for (let col = 0; col < layout.cols; col += 1) {
       const pos = tileToScreen(col, row);
       const even = (col + row) % 2 === 0;
-      ctx.fillStyle = even ? "#b8e27c" : "#a2d36d";
+      const winterTile = state.world.season.id === "winter";
+      ctx.fillStyle = winterTile
+        ? even
+          ? "#e8f5fb"
+          : "#d8eaf2"
+        : even
+          ? "#b8e27c"
+          : "#a2d36d";
       ctx.fillRect(pos.x, pos.y, layout.tile - 2, layout.tile - 2);
 
-      ctx.fillStyle = "#90c35e";
+      ctx.fillStyle = winterTile ? "#c1dbe7" : "#90c35e";
       ctx.fillRect(pos.x + 4, pos.y + layout.tile - 14, layout.tile - 10, 6);
-      ctx.fillStyle = "#7aac4e";
+      ctx.fillStyle = winterTile ? "#a7c5d3" : "#7aac4e";
       ctx.fillRect(pos.x + 6, pos.y + layout.tile - 8, layout.tile - 14, 4);
 
       if (
@@ -800,33 +1903,62 @@ function drawGrid() {
       ) {
         ctx.strokeStyle = "#fff8d6";
         ctx.lineWidth = 3;
-        ctx.strokeRect(pos.x + 1.5, pos.y + 1.5, layout.tile - 5, layout.tile - 5);
-      }
-
-      const facility = state.grid[row][col];
-      if (facility) {
-        drawFacility(facility);
+        ctx.strokeRect(
+          pos.x + 1.5,
+          pos.y + 1.5,
+          layout.tile - 5,
+          layout.tile - 5,
+        );
       }
     }
+  }
+  drawApproachMarkers();
+  drawPlacementPreview();
+  const facilities = [...state.facilities].sort(
+    (a, b) => a.row + a.height - (b.row + b.height),
+  );
+  for (const facility of facilities) {
+    drawFacility(facility);
   }
 }
 
 function drawFacility(facility) {
   const pos = tileToScreen(facility.col, facility.row);
   const def = getFacilityDef(facility.type);
+  const width = facility.width * layout.tile - 6;
+  const height = facility.height * layout.tile - 8;
   ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
-  ctx.fillRect(pos.x + 8, pos.y + 34, 38, 8);
-  drawSprite(def.sprite, def.palette, pos.x + 2, pos.y + 2, 3);
+  ctx.fillRect(pos.x + 8, pos.y + height - 10, width - 10, 9);
+
+  ctx.fillStyle =
+    facility.width * facility.height > 1 ? "rgba(255, 247, 214, 0.82)" : "rgba(255, 247, 214, 0.64)";
+  ctx.fillRect(pos.x + 2, pos.y + 3, width, height);
+  ctx.strokeStyle = def.color;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(pos.x + 4, pos.y + 5, width - 4, height - 4);
+
+  drawFittedSprite(def.sprite, def.palette, pos.x + 1, pos.y + 1, width, height);
 
   ctx.fillStyle = "#2e2131";
-  ctx.fillRect(pos.x + 4, pos.y + 4, 16, 10);
+  ctx.fillRect(pos.x + 6, pos.y + 6, 28, 12);
   ctx.fillStyle = "#fff4d6";
   ctx.font = "bold 11px monospace";
-  ctx.fillText(`L${facility.level}`, pos.x + 6, pos.y + 12);
+  ctx.fillText(`L${facility.level}`, pos.x + 8, pos.y + 15);
+
+  if (facility.width * facility.height > 1) {
+    ctx.fillStyle = "#2e2131";
+    ctx.fillRect(pos.x + width - 44, pos.y + 6, 36, 12);
+    ctx.fillStyle = "#ffe9a8";
+    ctx.font = "bold 10px monospace";
+    ctx.fillText(`${facility.width}x${facility.height}`, pos.x + width - 40, pos.y + 15);
+  }
 }
 
 function drawVisitors() {
   for (const visitor of state.visitors) {
+    if (visitor.phase === "inside") {
+      continue;
+    }
     const x = Math.round(visitor.x);
     const y = Math.round(visitor.y);
     ctx.fillStyle = "rgba(0,0,0,0.18)";
@@ -843,33 +1975,85 @@ function drawVisitors() {
   }
 }
 
+function drawNPCs() {
+  for (const npc of state.npcs) {
+    const active =
+      state.activeDialogue && state.activeDialogue.speakerId === npc.id;
+    const bob = Math.sin(state.cameraPulse * 2 + npc.bobPhase) * 2;
+    const x = Math.round(npc.x);
+    const y = Math.round(npc.y + bob);
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(x - 9, y + 10, 18, 4);
+    ctx.fillStyle = npc.hair;
+    ctx.fillRect(x - 5, y - 11, 10, 5);
+    ctx.fillStyle = "#f4d8be";
+    ctx.fillRect(x - 6, y - 6, 12, 10);
+    ctx.fillStyle = npc.shirt;
+    ctx.fillRect(x - 7, y + 4, 14, 12);
+    ctx.fillStyle = "#4c3d37";
+    ctx.fillRect(x - 4, y + 16, 3, 9);
+    ctx.fillRect(x + 1, y + 16, 3, 9);
+    if (active) {
+      ctx.strokeStyle = npc.accent;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x - 11, y - 14, 22, 31);
+    }
+  }
+}
+
 function drawSidebar() {
   ctx.fillStyle = "#2f2231";
   ctx.fillRect(layout.sidebarX, layout.sidebarY, layout.sidebarW, layout.sidebarH);
   ctx.fillStyle = "#fff0ce";
-  ctx.fillRect(layout.sidebarX + 10, layout.sidebarY + 10, layout.sidebarW - 20, layout.sidebarH - 20);
+  ctx.fillRect(
+    layout.sidebarX + 10,
+    layout.sidebarY + 10,
+    layout.sidebarW - 20,
+    layout.sidebarH - 20,
+  );
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(
+    layout.sidebarX + 12,
+    layout.sidebarY + 12,
+    layout.sidebarW - 24,
+    layout.sidebarH - 24,
+  );
+  ctx.clip();
 
   ctx.fillStyle = "#362734";
   ctx.fillRect(layout.sidebarX + 18, layout.sidebarY + 18, layout.sidebarW - 36, 118);
   ctx.fillStyle = "#ffefbd";
   ctx.font = "bold 19px Trebuchet MS";
-  ctx.fillText(`Day ${state.day}`, layout.sidebarX + 34, layout.sidebarY + 48);
-  ctx.fillText(`${state.money} G`, layout.sidebarX + 34, layout.sidebarY + 74);
-  ctx.fillText(`${state.rating} ★`, layout.sidebarX + 34, layout.sidebarY + 100);
+  ctx.fillText(`Day ${state.day}`, layout.sidebarX + 34, layout.sidebarY + 46);
+  ctx.fillText(`${state.money} G`, layout.sidebarX + 34, layout.sidebarY + 72);
+  ctx.fillText(`${state.rating} ★`, layout.sidebarX + 34, layout.sidebarY + 98);
 
+  ctx.fillStyle = state.world.season.color;
+  ctx.font = "bold 12px Trebuchet MS";
+  ctx.fillText(state.world.season.label, layout.sidebarX + 162, layout.sidebarY + 40);
+  ctx.fillStyle = "#ffefbd";
+  ctx.fillText(state.world.weather.label, layout.sidebarX + 162, layout.sidebarY + 58);
   ctx.fillStyle = "#8a6f79";
-  ctx.font = "12px Trebuchet MS";
-  ctx.fillText("Trend today", layout.sidebarX + 166, layout.sidebarY + 42);
+  ctx.font = "11px Trebuchet MS";
+  ctx.fillText("Trend today", layout.sidebarX + 162, layout.sidebarY + 78);
   wrapText(
     `${state.todayTrend.name} +${state.todayTrend.incomeBonus}G/+${state.todayTrend.ratingBonus}★`,
-    layout.sidebarX + 166,
-    layout.sidebarY + 58,
-    96,
-    14,
+    layout.sidebarX + 162,
+    layout.sidebarY + 92,
+    160,
+    13,
     2,
   );
-  ctx.fillText("Best combo", layout.sidebarX + 166, layout.sidebarY + 92);
-  wrapText(state.lastCombo, layout.sidebarX + 166, layout.sidebarY + 108, 96, 14, 2);
+  ctx.fillText("Next fest", layout.sidebarX + 162, layout.sidebarY + 112);
+  wrapText(
+    state.world.upcomingFestival.name,
+    layout.sidebarX + 162,
+    layout.sidebarY + 126,
+    160,
+    13,
+    2,
+  );
 
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 14px Trebuchet MS";
@@ -890,36 +2074,49 @@ function drawSidebar() {
     ctx.fillRect(cardX + 10, cardY + 6, 28, 28);
     drawSprite(def.sprite, def.palette, cardX + 10, cardY + 7, 2);
 
-    ctx.fillStyle = "#2f2231";
-    ctx.font = "bold 11px Trebuchet MS";
-    ctx.fillText(def.name, cardX + 46, cardY + 17);
+  ctx.fillStyle = "#2f2231";
+  ctx.font = "bold 11px Trebuchet MS";
+    ctx.fillText(fitTextToWidth(def.name, 160), cardX + 46, cardY + 17);
     ctx.font = "10px Trebuchet MS";
-    const price = unlocked ? `${def.cost}G` : `Unlock ${def.unlockAt}★`;
+    const price = unlocked ? `${def.cost}G | ${def.footprint.w}x${def.footprint.h}` : `Unlock ${def.unlockAt}★`;
     ctx.fillText(price, cardX + 46, cardY + 29);
     ctx.fillStyle = "#7f6470";
-    ctx.fillText(def.bonusText, cardX + 46, cardY + 39);
+    ctx.fillText(fitTextToWidth(def.bonusText, 170), cardX + 46, cardY + 39);
   });
 
   const activeGoal = getActiveGoal();
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 14px Trebuchet MS";
-  ctx.fillText("Goal & Feed", layout.sidebarX + 24, layout.sidebarY + 444);
+  ctx.fillText("Goal & Town Talk", layout.sidebarX + 24, layout.sidebarY + 472);
   ctx.fillStyle = "#6f5a62";
   if (activeGoal) {
     const progress = getGoalProgress(activeGoal);
     wrapText(
       `${activeGoal.title} (${Math.min(progress.value, progress.target)}/${progress.target})`,
       layout.sidebarX + 24,
-      layout.sidebarY + 462,
-      232,
+      layout.sidebarY + 492,
+      layout.sidebarW - 48,
       15,
       2,
     );
   } else {
-    wrapText("全部目标达成，商店街已进入展示完成态。", layout.sidebarX + 24, layout.sidebarY + 462, 232, 15, 2);
+    wrapText(
+      "全部目标达成，商店街已进入展示完成态。",
+      layout.sidebarX + 24,
+      layout.sidebarY + 492,
+      layout.sidebarW - 48,
+      15,
+      2,
+    );
   }
+  const talk =
+    state.activeDialogue?.text ||
+    state.dialogueFeed[0]?.text ||
+    state.messages[0] ||
+    "暂无消息";
   ctx.fillStyle = "#6f5a62";
-  wrapText(state.messages[0] || "暂无消息", layout.sidebarX + 24, layout.sidebarY + 478, 232, 14, 1);
+  wrapText(talk, layout.sidebarX + 24, layout.sidebarY + 526, layout.sidebarW - 48, 14, 3);
+  ctx.restore();
 }
 
 function fitTextToWidth(text, maxWidth, suffix = "") {
@@ -930,44 +2127,70 @@ function fitTextToWidth(text, maxWidth, suffix = "") {
   return current + (current !== text ? suffix : "");
 }
 
-function wrapText(text, x, y, maxWidth, lineHeight, maxLines = Number.POSITIVE_INFINITY) {
+function getWrappedLines(
+  text,
+  maxWidth,
+  maxLines = Number.POSITIVE_INFINITY,
+) {
   const chunks = String(text).split("");
+  const lines = [];
   let line = "";
-  let lineIndex = 0;
   for (let index = 0; index < chunks.length; index += 1) {
     const char = chunks[index];
     const test = line + char;
     if (ctx.measureText(test).width > maxWidth && line) {
-      if (lineIndex + 1 >= maxLines) {
-        const remaining = line + chunks.slice(index).join("");
-        ctx.fillText(fitTextToWidth(remaining, maxWidth, "…"), x, y + lineIndex * lineHeight);
-        return;
-      }
-      ctx.fillText(line, x, y + lineIndex * lineHeight);
+      lines.push(line);
       line = char;
-      lineIndex += 1;
+      if (lines.length + 1 >= maxLines) {
+        const remaining = line + chunks.slice(index + 1).join("");
+        lines.push(fitTextToWidth(remaining, maxWidth, "…"));
+        return lines.slice(0, maxLines);
+      }
     } else {
       line = test;
     }
   }
-  if (line && lineIndex < maxLines) {
-    ctx.fillText(line, x, y + lineIndex * lineHeight);
+  if (line) {
+    lines.push(line);
   }
+  return lines.slice(0, maxLines);
+}
+
+function wrapText(
+  text,
+  x,
+  y,
+  maxWidth,
+  lineHeight,
+  maxLines = Number.POSITIVE_INFINITY,
+) {
+  const lines = getWrappedLines(text, maxWidth, maxLines);
+  lines.forEach((line, index) => {
+    ctx.fillText(line, x, y + index * lineHeight);
+  });
+  return lines.length;
 }
 
 function drawHeader() {
   ctx.fillStyle = "#2f2231";
-  ctx.fillRect(18, 18, 924, 72);
+  ctx.fillRect(18, 18, canvas.width - 36, 72);
   ctx.fillStyle = "#ffe8a8";
-  ctx.fillRect(28, 28, 904, 52);
+  ctx.fillRect(28, 28, canvas.width - 56, 52);
 
   ctx.fillStyle = "#2f2231";
   ctx.font = "bold 24px Trebuchet MS";
-  ctx.fillText("Pixel Pocket Town", 42, 60);
+  ctx.fillText("小镇观察模拟器", 42, 60);
   ctx.font = "13px Trebuchet MS";
-  const hours = 8 + Math.floor(state.clock * 12);
-  ctx.fillText(`Town buzz ${hours}:00`, 254, 60);
-  ctx.fillText("Build -> attract -> earn -> unlock", 364, 60);
+  const hours = getCurrentHour();
+  ctx.fillText(`Town buzz ${hours}:00`, 252, 60);
+  ctx.fillText(
+    fitTextToWidth(
+      `${state.timeOfDay.label} / ${state.world.season.label} / ${state.world.weather.label} / ${state.world.calendar.label}`,
+      canvas.width - 410,
+    ),
+    362,
+    60,
+  );
 }
 
 function drawFloaters() {
@@ -976,6 +2199,47 @@ function drawFloaters() {
     ctx.fillStyle = floater.color;
     ctx.fillText(floater.text, floater.x - 26, floater.y);
   }
+}
+
+function drawDialogueOverlay() {
+  if (!state.activeDialogue) {
+    return;
+  }
+  const speaker = getVisitorById(state.activeDialogue.speakerId);
+  if (!speaker) {
+    return;
+  }
+  const lines = getWrappedLines(state.activeDialogue.text, 164, 3);
+  const boxW = 184;
+  const boxH = 24 + lines.length * 13;
+  const boxX = Math.max(18, Math.min(layout.sidebarX - boxW - 16, speaker.x - boxW / 2));
+  const boxY = Math.max(98, speaker.y - 58 - (lines.length - 1) * 8);
+  ctx.fillStyle = "rgba(255, 244, 214, 0.96)";
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+  ctx.strokeStyle = "#3d2b35";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(boxX + 1.5, boxY + 1.5, boxW - 3, boxH - 3);
+  ctx.fillStyle = "#2f2231";
+  ctx.font = "11px Trebuchet MS";
+  wrapText(state.activeDialogue.text, boxX + 10, boxY + 18, 164, 13, 3);
+}
+
+function drawEnvironmentNotice() {
+  if (!state.environmentNotice) {
+    return;
+  }
+  const width = 296;
+  const height = 42;
+  const x = Math.round((canvas.width - width) / 2);
+  const y = 92;
+  ctx.fillStyle = "rgba(47, 34, 49, 0.88)";
+  ctx.fillRect(x, y, width, height);
+  ctx.strokeStyle = state.environmentNotice.color;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(x + 1.5, y + 1.5, width - 3, height - 3);
+  ctx.fillStyle = state.environmentNotice.color;
+  ctx.font = "bold 13px Trebuchet MS";
+  wrapText(state.environmentNotice.text, x + 12, y + 18, width - 24, 14, 2);
 }
 
 function drawMenuOverlay() {
@@ -989,19 +2253,19 @@ function drawMenuOverlay() {
 
   ctx.fillStyle = "#2f2231";
   ctx.font = "bold 28px Trebuchet MS";
-  ctx.fillText("Tiny Kairo-ish Demo", 170, 222);
+  ctx.fillText("小镇观察模拟器", 170, 222);
   ctx.font = "16px Trebuchet MS";
   wrapText(
-    "目标是拼出有联动的小商店街。先用 Snack 和 Park 打底，评价上来后会解锁 Arcade、Bath 和 Tower。",
+    "目标是拼出有联动、有季节感的小商店街。先用 Snack 和 Park 打底，后面会解锁更大的设施。",
     170,
     254,
     350,
     22,
   );
   wrapText(
-    "点击页面左边的开始按钮进入经营。右键拆楼，评价越高，顾客刷新越快。",
+    "街边 NPC 会评论天气、开店与组合加成。点击开始按钮进入经营，右键拆楼，评价越高，顾客刷新越快。",
     170,
-    326,
+    324,
     350,
     22,
   );
@@ -1034,8 +2298,11 @@ function render() {
   drawBackground();
   drawHeader();
   drawGrid();
+  drawNPCs();
   drawVisitors();
   drawSidebar();
+  drawEnvironmentNotice();
+  drawDialogueOverlay();
   drawFloaters();
   if (state.mode === "menu") {
     drawMenuOverlay();
@@ -1076,7 +2343,12 @@ function hitFacilityCard(x, y) {
     const def = facilityTypes[index];
     const cardX = layout.sidebarX + 22;
     const cardY = layout.sidebarY + 170 + index * 52;
-    if (x >= cardX && x <= cardX + layout.sidebarW - 44 && y >= cardY && y <= cardY + 44) {
+    if (
+      x >= cardX &&
+      x <= cardX + layout.sidebarW - 44 &&
+      y >= cardY &&
+      y <= cardY + 44
+    ) {
       return def;
     }
   }
@@ -1175,15 +2447,36 @@ window.render_game_to_text = () =>
       rating: state.rating,
       day: state.day,
       selectedType: state.selectedType,
-    lastCombo: state.lastCombo,
+      lastCombo: state.lastCombo,
       todayTrend: state.todayTrend,
       servedVisitors: state.servedVisitors,
       lifetimeIncome: state.lifetimeIncome,
     },
+    world: {
+      calendar: state.world.calendar,
+      timeOfDay: state.timeOfDay,
+      season: {
+        id: state.world.season.id,
+        name: state.world.season.name,
+        label: state.world.season.label,
+      },
+      weather: {
+        id: state.world.weather.id,
+        name: state.world.weather.name,
+        label: state.world.weather.label,
+      },
+      upcomingFestival: state.world.upcomingFestival,
+      activeFestival: state.world.activeFestival,
+      eventQueueSize: state.world.eventQueue.length,
+      incidentQueueSize: state.world.incidentQueue.length,
+    },
     facilities: listFacilities().map((facility) => ({
+      id: facility.id,
       type: facility.type,
       col: facility.col,
       row: facility.row,
+      width: facility.width,
+      height: facility.height,
       level: facility.level,
       visits: facility.visits,
     })),
@@ -1194,6 +2487,22 @@ window.render_game_to_text = () =>
       phase: visitor.phase,
       target: { col: visitor.targetCol, row: visitor.targetRow },
     })),
+    npcs: state.npcs.map((npc) => ({
+      id: npc.id,
+      name: npc.name,
+      x: Math.round(npc.x),
+      y: Math.round(npc.y),
+      speaking: state.activeDialogue?.speakerId === npc.id,
+    })),
+    dialogue: state.activeDialogue
+      ? {
+          speakerName: state.activeDialogue.speakerName,
+          speakerId: state.activeDialogue.speakerId,
+          topic: state.activeDialogue.topic,
+          text: state.activeDialogue.text,
+        }
+      : null,
+    environmentNotice: state.environmentNotice,
     goals: state.goals.map((goal) => ({
       id: goal.id,
       title: goal.title,

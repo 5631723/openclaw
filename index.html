@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pixel Pocket Town</title>
+    <title>小镇观察模拟器</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="shell">
       <section class="hero">
-        <p class="eyebrow">Kairo-ish Tiny Management Demo</p>
-        <h1>Pixel Pocket Town</h1>
+        <p class="eyebrow">Town Observation Simulator</p>
+        <h1>小镇观察模拟器</h1>
         <p class="summary">
-          摆店铺、等顾客、吃组合加成。一个轻量级的像素经营小样。
+          摆店铺、听街坊闲聊、吃组合加成，再跟着天气和季节一起经营街区。
         </p>
         <div class="actions">
           <button id="start-btn" type="button">开始经营</button>
@@ -20,11 +20,11 @@
         </div>
         <p class="hint">
           操作：鼠标点击右侧卡片选择设施，点击地块放置；右键拆除；`1-5` 快捷选择；`F`
-          全屏；`R` 重开。
+          全屏；`R` 重开。高级设施会占据更多格子，街边 NPC 会随机冒出简短对白。
         </p>
       </section>
       <section class="stage">
-        <canvas id="game" width="960" height="640" aria-label="Pixel Pocket Town canvas"></canvas>
+        <canvas id="game" width="1100" height="720" aria-label="小镇观察模拟器 canvas"></canvas>
       </section>
     </main>
     <script type="module" src="./game.js"></script>
