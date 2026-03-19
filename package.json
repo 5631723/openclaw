@@ -1,7 +1,7 @@
 {
   "name": "codex",
   "version": "1.0.0",
-  "description": "",
+  "description": "Kairo-ish pixel management demo built with plain HTML, CSS, and JavaScript.",
   "main": "game.js",
   "scripts": {
     "serve": "python -m http.server 4173",
@@ -18,7 +18,7 @@
   "bugs": {
     "url": "https://github.com/5631723/openclaw/issues"
   },
-  "homepage": "https://github.com/5631723/openclaw#readme",
+  "homepage": "https://5631723.github.io/openclaw/",
   "devDependencies": {
     "playwright": "^1.58.2"
   }
