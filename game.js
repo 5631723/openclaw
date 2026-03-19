@@ -246,6 +246,220 @@ const visitorPalette = [
   { shirt: "#ffd43b", hair: "#5a4638" },
 ];
 
+const visitorArchetypes = [
+  {
+    id: "student",
+    label: "学生客",
+    favoriteTypes: ["arcade", "snack"],
+    likedTimes: ["daytime", "evening"],
+    likedWeathers: ["cloudy", "festival-breeze"],
+    festivalBias: ["summer-fair"],
+  },
+  {
+    id: "family",
+    label: "家庭客",
+    favoriteTypes: ["park", "snack", "bath"],
+    likedTimes: ["daytime", "morning"],
+    likedWeathers: ["sunny"],
+    festivalBias: ["new-year", "flower"],
+  },
+  {
+    id: "worker",
+    label: "上班族",
+    favoriteTypes: ["snack", "bath"],
+    likedTimes: ["morning", "evening"],
+    likedWeathers: ["cloudy", "drizzle"],
+    festivalBias: ["harvest"],
+  },
+  {
+    id: "traveler",
+    label: "游客",
+    favoriteTypes: ["tower", "park", "arcade"],
+    likedTimes: ["daytime", "evening"],
+    likedWeathers: ["sunny", "festival-breeze"],
+    festivalBias: ["flower", "summer-fair"],
+  },
+];
+
+const landmarkTypes = [
+  {
+    id: "school",
+    name: "Town School",
+    kind: "landmark",
+    removable: false,
+    footprint: { w: 3, h: 4 },
+    color: "#f2b46f",
+    sprite: [
+      "...rrrrrrrr....",
+      "..rrrrrrrrrr...",
+      ".rrrwwwwwwrrr..",
+      ".rrwwyyyywwrr..",
+      ".rrwwyyyywwrr..",
+      ".rrwwwwwwwwrr..",
+      ".rrbbccccbbrr..",
+      ".rrbbccccbbrr..",
+      ".rrbbccccbbrr..",
+      ".rrwwwwwwwwrr..",
+      ".rrwwttttwwrr..",
+      ".rrwwttttwwrr..",
+      ".rrll....llrr..",
+      ".rrll....llrr..",
+      "..kk......kk...",
+      "................",
+    ],
+    palette: {
+      r: "#cf6e3d",
+      w: "#fff4df",
+      y: "#ffe375",
+      b: "#c78f4e",
+      c: "#f4d9a6",
+      t: "#8cc7ea",
+      l: "#6a5144",
+      k: "#40333a",
+    },
+  },
+  {
+    id: "factory",
+    name: "Mini Factory",
+    kind: "landmark",
+    removable: false,
+    footprint: { w: 4, h: 4 },
+    color: "#8c92a8",
+    sprite: [
+      "......ss........",
+      ".....ssss.......",
+      "....ssggss......",
+      "...ssggggss.....",
+      "..bbbbbbbbbb....",
+      "..bwwwwwwwwb....",
+      "..bwwyyyywwb....",
+      "..bwwyyyywwb....",
+      "..bwwwwwwwwb....",
+      "..bccbbbbccb....",
+      "..bccbbbbccb....",
+      "..bwwttttwwb....",
+      "..bwwttttwwb....",
+      "..bk......kb....",
+      "..bk......kb....",
+      "................",
+    ],
+    palette: {
+      s: "#7a7f91",
+      g: "#cfd4e4",
+      b: "#6f768b",
+      w: "#f1f3fb",
+      y: "#ffd96b",
+      c: "#9ca3bb",
+      t: "#9dd0ff",
+      k: "#4e5261",
+    },
+  },
+  {
+    id: "apartments",
+    name: "Pocket Apartments",
+    kind: "landmark",
+    removable: false,
+    footprint: { w: 2, h: 4 },
+    color: "#de8ca5",
+    sprite: [
+      "...pppppp.......",
+      "..ppwwwwpp......",
+      "..ppwyywpp......",
+      "..ppwwwwpp......",
+      "..ppwwwwpp......",
+      "..ppwyywpp......",
+      "..ppwwwwpp......",
+      "..ppwwwwpp......",
+      "..ppwyywpp......",
+      "..ppwwwwpp......",
+      "..ppllllpp......",
+      "..ppllllpp......",
+      "..pp....pp......",
+      "..pp....pp......",
+      "..kk....kk......",
+      "................",
+    ],
+    palette: {
+      p: "#dc7f9b",
+      w: "#fff2fb",
+      y: "#ffe06c",
+      l: "#8d5d6e",
+      k: "#4d3a43",
+    },
+  },
+  {
+    id: "office",
+    name: "Town Office",
+    kind: "landmark",
+    removable: false,
+    footprint: { w: 3, h: 4 },
+    color: "#73a7d8",
+    sprite: [
+      "....bbbbbb......",
+      "...bbwwwwbb.....",
+      "..bbwwyywwbb....",
+      "..bbwwyywwbb....",
+      "..bbwwwwwwbb....",
+      "..bbccbbccbb....",
+      "..bbccbbccbb....",
+      "..bbwwwwwwbb....",
+      "..bbwwttwwbb....",
+      "..bbwwttwwbb....",
+      "..bbllllllbb....",
+      "..bbllllllbb....",
+      "..bb..ww..bb....",
+      "..bb..ww..bb....",
+      "..kk......kk....",
+      "................",
+    ],
+    palette: {
+      b: "#5b88c1",
+      w: "#f4f8ff",
+      y: "#ffe071",
+      c: "#8bb5e3",
+      t: "#9dd0ff",
+      l: "#476785",
+      k: "#3a4658",
+    },
+  },
+];
+
+const sceneryTypes = [
+  {
+    id: "tree",
+    name: "Street Tree",
+    kind: "tree",
+    removable: true,
+    footprint: { w: 1, h: 1 },
+    color: "#69b95b",
+    sprite: [
+      ".....ggg........",
+      "....ggggg.......",
+      "...ggggggg......",
+      "...ggggggg......",
+      "....ggggg.......",
+      ".....ggg........",
+      "......tt........",
+      "......tt........",
+      ".....bbbb.......",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+    palette: {
+      g: "#67b95d",
+      t: "#8d5b39",
+      b: "#d3b078",
+    },
+  },
+];
+
+const structureTypes = [...facilityTypes, ...landmarkTypes, ...sceneryTypes];
+
 const npcProfiles = [
   { id: "mika", name: "美佳", shirt: "#ff8aa1", hair: "#5c3d31", accent: "#fff0c5" },
   { id: "taichi", name: "太一", shirt: "#6db8ff", hair: "#48352f", accent: "#f6f3ce" },
@@ -383,10 +597,56 @@ const weatherDefinitions = [
 ];
 
 const annualFestivalDefinitions = [
-  { id: "new-year", dayOfYear: 1, name: "新年大卖场" },
-  { id: "flower", dayOfYear: 90, name: "花见步行祭" },
-  { id: "summer-fair", dayOfYear: 180, name: "夏日烟火夜" },
-  { id: "harvest", dayOfYear: 270, name: "丰收感恩市" },
+  {
+    id: "new-year",
+    dayOfYear: 1,
+    name: "新年大卖场",
+    color: "#ffd56c",
+    description: "招牌挂满新年饰带，零食和公园会吸来更多客人。",
+    trafficModifier: 1.32,
+    facilityBonuses: {
+      snack: { income: 3, rating: 1, pop: 3 },
+      park: { income: 1, rating: 2, pop: 4 },
+    },
+  },
+  {
+    id: "flower",
+    dayOfYear: 90,
+    name: "花见步行祭",
+    color: "#ffc4de",
+    description: "春日花见开始，适合散步和拍照的设施会更受欢迎。",
+    trafficModifier: 1.22,
+    facilityBonuses: {
+      park: { income: 2, rating: 2, pop: 4 },
+      tower: { rating: 2, pop: 2 },
+    },
+  },
+  {
+    id: "summer-fair",
+    dayOfYear: 180,
+    name: "夏日烟火夜",
+    color: "#ffb45c",
+    description: "夜市与烟火点亮街区，零食、街机和高塔会吃满热度。",
+    trafficModifier: 1.38,
+    facilityBonuses: {
+      snack: { income: 3, pop: 3 },
+      arcade: { income: 2, rating: 1, pop: 2 },
+      tower: { income: 2, rating: 2, pop: 3 },
+    },
+  },
+  {
+    id: "harvest",
+    dayOfYear: 270,
+    name: "丰收感恩市",
+    color: "#ffd493",
+    description: "秋收市集带来稳定客流，适合做组合收益和慢节奏逛街。",
+    trafficModifier: 1.24,
+    facilityBonuses: {
+      snack: { income: 2, pop: 2 },
+      bath: { income: 2, rating: 2, pop: 1 },
+      park: { rating: 1, pop: 2 },
+    },
+  },
 ];
 
 const timeOfDayDefinitions = [
@@ -465,6 +725,10 @@ const dialogueTemplates = {
     ({ seasonLabel }) => `${seasonLabel} 一到，整条街的气质都跟着换了。`,
     ({ seasonLabel }) => `${seasonLabel} 的配色真舒服，适合把招牌做得更亮一点。`,
   ],
+  festival: [
+    ({ festivalName }) => `${festivalName} 开始了，街上这股热闹劲一下就上来了。`,
+    ({ festivalName }) => `${festivalName} 这几天得把门口收拾得更体面，客人会明显变多。`,
+  ],
   trend: [
     ({ trendName }) => `今天大家都在聊 ${trendName}，这股热度得接住。`,
     ({ trendName }) => `${trendName} 成了今日热潮，摆得好就能吃满这波流量。`,
@@ -492,6 +756,109 @@ function createGrid() {
   return Array.from({ length: layout.rows }, () =>
     Array.from({ length: layout.cols }, () => null),
   );
+}
+
+function shuffleArray(items) {
+  const copy = [...items];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
+}
+
+function getStructureDef(type) {
+  return structureTypes.find((item) => item.id === type);
+}
+
+function createStructureEntity(type, col, row, id, overrides = {}) {
+  const def = getStructureDef(type);
+  return {
+    id,
+    type,
+    col,
+    row,
+    width: def.footprint.w,
+    height: def.footprint.h,
+    kind: def.kind || "shop",
+    removable: def.removable ?? true,
+    level: def.kind === "shop" ? 1 : 0,
+    visits: 0,
+    queue: [],
+    activeServiceId: null,
+    ...overrides,
+  };
+}
+
+function canOccupyTiles(grid, col, row, width, height) {
+  if (col < 0 || row < 0 || col + width > layout.cols || row + height > layout.rows) {
+    return false;
+  }
+  for (let dr = 0; dr < height; dr += 1) {
+    for (let dc = 0; dc < width; dc += 1) {
+      if (grid[row + dr][col + dc]) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function occupyStructureOnGrid(grid, structure) {
+  for (let dr = 0; dr < structure.height; dr += 1) {
+    for (let dc = 0; dc < structure.width; dc += 1) {
+      grid[structure.row + dr][structure.col + dc] = { facilityId: structure.id };
+    }
+  }
+}
+
+function seedStartingStructures(grid) {
+  const structures = [];
+  let nextId = 1;
+  const landmarkPool = shuffleArray(landmarkTypes).slice(0, 3);
+  const slots = [
+    { startCol: 0, width: 4 },
+    { startCol: 4, width: 4 },
+    { startCol: 8, width: 4 },
+  ];
+  landmarkPool.forEach((landmarkDef, index) => {
+    const slot = slots[index];
+    const col =
+      slot.startCol + Math.floor((slot.width - landmarkDef.footprint.w) / 2);
+    const landmark = createStructureEntity(
+      landmarkDef.id,
+      col,
+      0,
+      nextId,
+    );
+    nextId += 1;
+    occupyStructureOnGrid(grid, landmark);
+    structures.push(landmark);
+  });
+
+  const treeCount = 4 + Math.floor(Math.random() * 3);
+  const candidates = [];
+  for (let row = 4; row < layout.rows - 1; row += 1) {
+    for (let col = 0; col < layout.cols; col += 1) {
+      candidates.push({ col, row });
+    }
+  }
+  for (const tile of shuffleArray(candidates)) {
+    if (structures.filter((item) => item.kind === "tree").length >= treeCount) {
+      break;
+    }
+    if (!canOccupyTiles(grid, tile.col, tile.row, 1, 1)) {
+      continue;
+    }
+    if (tile.row >= layout.rows - 2 && (tile.col === 0 || tile.col === 1)) {
+      continue;
+    }
+    const tree = createStructureEntity("tree", tile.col, tile.row, nextId);
+    nextId += 1;
+    occupyStructureOnGrid(grid, tree);
+    structures.push(tree);
+  }
+  return { structures, nextId };
 }
 
 function createNPCs() {
@@ -542,23 +909,48 @@ function buildCalendar(day) {
   };
 }
 
+function getFestivalOffset(fromDayOfYear, festivalDayOfYear) {
+  return (
+    (festivalDayOfYear - fromDayOfYear + calendarTuning.daysPerYear) %
+    calendarTuning.daysPerYear
+  );
+}
+
+function isFestivalInCurrentWindow(calendar, festival) {
+  return (
+    getFestivalOffset(calendar.dayOfYear, festival.dayOfYear) <
+    calendarTuning.calendarDayStep
+  );
+}
+
+function buildFestivalEvent(festival) {
+  return {
+    id: `festival-${festival.id}`,
+    type: "festival",
+    title: festival.name,
+    color: festival.color,
+    description: festival.description,
+    trafficModifier: festival.trafficModifier,
+    facilityBonuses: festival.facilityBonuses,
+  };
+}
+
 function getUpcomingFestival(dayOfYear) {
   const ordered = annualFestivalDefinitions
     .map((festival) => ({
       ...festival,
-      offset:
-        festival.dayOfYear >= dayOfYear
-          ? festival.dayOfYear - dayOfYear
-          : calendarTuning.daysPerYear - dayOfYear + festival.dayOfYear,
+      offset: getFestivalOffset(dayOfYear, festival.dayOfYear),
     }))
     .sort((a, b) => a.offset - b.offset);
   return ordered[0];
 }
 
-function getActiveFestival(dayOfYear) {
-  return annualFestivalDefinitions.find(
-    (festival) => festival.dayOfYear === dayOfYear,
-  ) || null;
+function getActiveFestival(calendar) {
+  return (
+    annualFestivalDefinitions.find((festival) =>
+      isFestivalInCurrentWindow(calendar, festival),
+    ) || null
+  );
 }
 
 function buildWeather(seasonId) {
@@ -575,13 +967,15 @@ function buildWorld(day, previousWorld = null) {
     (item) => item.id === calendar.seasonId,
   ) || seasonDefinitions[0];
   const weather = buildWeather(season.id);
+  const activeFestival = getActiveFestival(calendar);
+  const festivalEvent = activeFestival ? buildFestivalEvent(activeFestival) : null;
   return {
     calendar,
     season,
     weather,
-    activeFestival: getActiveFestival(calendar.dayOfYear),
+    activeFestival,
     upcomingFestival: getUpcomingFestival(calendar.dayOfYear),
-    eventQueue: previousWorld?.eventQueue || [],
+    eventQueue: festivalEvent ? [festivalEvent] : [],
     incidentQueue: previousWorld?.incidentQueue || [],
   };
 }
@@ -634,20 +1028,22 @@ function createInitialState() {
   const initialDay = 1;
   const initialWorld = buildWorld(initialDay);
   const initialHour = 8;
+  const initialGrid = createGrid();
+  const seededMap = seedStartingStructures(initialGrid);
   return {
     mode: "menu",
     money: 160,
     rating: initialRating,
     day: initialDay,
     clock: 0.18,
-    selectedType: "snack",
-    grid: createGrid(),
-    facilities: [],
+    selectedType: null,
+    grid: initialGrid,
+    facilities: seededMap.structures,
     visitors: [],
     floaters: [],
     messages: ["点击开始经营，做出一条热闹的商店街。"],
     nextVisitorId: 1,
-    nextFacilityId: 1,
+    nextFacilityId: seededMap.nextId,
     spawnTimer: simulationTuning.initialSpawnDelay,
     dayTimer: 0,
     lastCombo: "暂无",
@@ -693,6 +1089,14 @@ function startGame() {
   }
   state.mode = "play";
   pushMessage("小镇开张，第一批顾客正在路上。");
+  if (state.world.activeFestival) {
+    pushMessage(`${state.world.activeFestival.name} 正在举办，街区今天会更热闹。`);
+    setEnvironmentNotice(
+      `${state.world.activeFestival.name}：${state.world.activeFestival.description}`,
+      state.world.activeFestival.color,
+      4.8,
+    );
+  }
   syncButtons();
 }
 
@@ -702,7 +1106,7 @@ function pushMessage(text) {
 }
 
 function getFacilityDef(type) {
-  return facilityTypes.find((item) => item.id === type);
+  return getStructureDef(type);
 }
 
 function isUnlocked(def) {
@@ -724,6 +1128,34 @@ function buildTrend(rating, day) {
   };
 }
 
+function pickVisitorArchetype() {
+  const weights = visitorArchetypes.map((profile) => {
+    let weight = 1;
+    if (profile.likedTimes.includes(state.timeOfDay.id)) {
+      weight += 1.1;
+    }
+    if (profile.likedWeathers.includes(state.world.weather.id)) {
+      weight += 0.8;
+    }
+    if (
+      state.world.activeFestival &&
+      profile.festivalBias.includes(state.world.activeFestival.id)
+    ) {
+      weight += 1.4;
+    }
+    return { profile, weight };
+  });
+  const total = weights.reduce((sum, item) => sum + item.weight, 0);
+  let cursor = Math.random() * total;
+  for (const item of weights) {
+    cursor -= item.weight;
+    if (cursor <= 0) {
+      return item.profile;
+    }
+  }
+  return weights[weights.length - 1]?.profile || visitorArchetypes[0];
+}
+
 function maybeTriggerVisitorThought() {
   const candidates = state.visitors.filter(
     (visitor) =>
@@ -738,10 +1170,11 @@ function maybeTriggerVisitorThought() {
     candidates[Math.floor(Math.random() * candidates.length)];
   const facility = getFacilityById(visitor.targetFacilityId);
   const facilityName = facility ? getFacilityDef(facility.type).name : "店铺";
+  const profileLabel = visitor.profileLabel || "顾客";
   const lines = [
-    `${state.world.weather.label} 出门逛街，感觉这条街还挺舒服。`,
+    `${profileLabel} 今天碰上 ${state.world.weather.label}，出来逛街正合适。`,
     `${facilityName} 看起来不错，今天就去这家看看。`,
-    `${state.timeOfDay.label} 的人果然少一点，逛起来更轻松。`,
+    `${state.timeOfDay.label} 的街区节奏，和我这种 ${profileLabel} 挺合拍。`,
     `${state.world.season.label} 的街景真有味道，像小镇庆典前夕。`,
     `那边的 ${facilityName} 好像挺热闹，排一会儿也值。`,
   ];
@@ -757,6 +1190,8 @@ function maybeTriggerVisitorThought() {
   if (state.activeDialogue) {
     state.activeDialogue.text =
       lines[Math.floor(Math.random() * lines.length)];
+    state.activeDialogue.speakerName = profileLabel;
+    state.dialogueFeed[0].speakerName = profileLabel;
     state.dialogueFeed[0].text = state.activeDialogue.text;
   }
 }
@@ -792,13 +1227,13 @@ function triggerDialogue(topic, payload = {}, options = {}) {
   state.activeDialogue = {
     speakerId: speaker.id,
     speakerKind: "visitor",
-    speakerName: "顾客",
+    speakerName: speaker.profileLabel || "顾客",
     text,
     topic,
     ttl: 3.2,
   };
   state.dialogueFeed.unshift({
-    speakerName: "顾客",
+    speakerName: speaker.profileLabel || "顾客",
     text,
     topic,
   });
@@ -979,7 +1414,7 @@ function findGridPath(start, goals) {
   return null;
 }
 
-function chooseWeightedFacility(facilities) {
+function chooseWeightedFacility(facilities, profile) {
   const weights = facilities.map((facility) => {
     const queuedVisitors = state.visitors.filter(
       (visitor) => visitor.targetFacilityId === facility.id,
@@ -987,6 +1422,7 @@ function chooseWeightedFacility(facilities) {
     const weight =
       Math.max(3, getFacilityPopularity(facility)) *
         (0.72 + Math.random() * 0.9) +
+      getVisitorPreferenceScore(profile, facility) +
       Math.max(0, 8 - facility.visits * 2) -
       queuedVisitors * 3;
     return { facility, weight };
@@ -1075,7 +1511,25 @@ function clearFacilityOccupancy(facility) {
 }
 
 function listFacilities() {
-  return [...state.facilities];
+  return state.facilities.filter((facility) => facility.kind === "shop");
+}
+
+function getObserveCardRect() {
+  return {
+    x: layout.sidebarX + 22,
+    y: layout.sidebarY + 212,
+    w: layout.sidebarW - 44,
+    h: 30,
+  };
+}
+
+function getFacilityCardRect(index) {
+  return {
+    x: layout.sidebarX + 22,
+    y: layout.sidebarY + 252 + index * 52,
+    w: layout.sidebarW - 44,
+    h: 44,
+  };
 }
 
 function getAdjacentFacilities(facilityLike) {
@@ -1145,19 +1599,56 @@ function getWorldFacilityBonus(facility) {
     state.world.season.facilityBonuses[facility.type] || {};
   const weatherEffect =
     state.world.weather.facilityBonuses[facility.type] || {};
+  const eventEffects = state.world.eventQueue.map(
+    (event) => event.facilityBonuses?.[facility.type] || {},
+  );
   effect.income += seasonEffect.income || 0;
   effect.income += weatherEffect.income || 0;
   effect.rating += seasonEffect.rating || 0;
   effect.rating += weatherEffect.rating || 0;
   effect.pop += seasonEffect.pop || 0;
   effect.pop += weatherEffect.pop || 0;
+  for (const eventEffect of eventEffects) {
+    effect.income += eventEffect.income || 0;
+    effect.rating += eventEffect.rating || 0;
+    effect.pop += eventEffect.pop || 0;
+  }
   return effect;
+}
+
+function getVisitorPreferenceScore(profile, facility) {
+  let score = 0;
+  if (profile.favoriteTypes.includes(facility.type)) {
+    score += 8;
+  }
+  if (profile.likedTimes.includes(state.timeOfDay.id)) {
+    score += 3;
+  }
+  if (profile.likedWeathers.includes(state.world.weather.id)) {
+    score += 2;
+  }
+  if (
+    state.world.activeFestival &&
+    profile.festivalBias.includes(state.world.activeFestival.id)
+  ) {
+    score += 4;
+  }
+  const festivalBonus =
+    state.world.activeFestival?.facilityBonuses?.[facility.type];
+  if (festivalBonus) {
+    score +=
+      (festivalBonus.pop || 0) +
+      (festivalBonus.rating || 0) +
+      Math.max(0, festivalBonus.income || 0);
+  }
+  return score;
 }
 
 function getFacilityPopularity(facility) {
   const def = getFacilityDef(facility.type);
   const bonus = calculateBonuses(facility);
   const worldBonus = getWorldFacilityBonus(facility);
+  const queueLoad = facility.queue.length + (facility.activeServiceId ? 1 : 0);
   const trendBoost =
     state.todayTrend && facility.type === state.todayTrend.type
       ? state.todayTrend.incomeBonus + state.todayTrend.ratingBonus
@@ -1168,7 +1659,8 @@ function getFacilityPopularity(facility) {
     worldBonus.pop +
     facility.level * 2 +
     trendBoost +
-    facility.width * facility.height
+    facility.width * facility.height -
+    queueLoad * 2
   );
 }
 
@@ -1202,16 +1694,7 @@ function placeFacility(col, row, type) {
     return false;
   }
 
-  const facility = {
-    id: state.nextFacilityId,
-    type,
-    col,
-    row,
-    width: def.footprint.w,
-    height: def.footprint.h,
-    level: 1,
-    visits: 0,
-  };
+  const facility = createStructureEntity(type, col, row, state.nextFacilityId);
   state.nextFacilityId += 1;
   state.money -= def.cost;
   state.facilities.push(facility);
@@ -1260,6 +1743,16 @@ function removeFacility(col, row) {
     return;
   }
   const def = getFacilityDef(facility.type);
+  if (!facility.removable) {
+    pushMessage(`${def.name} 是镇上的固定建筑，不能拆除。`);
+    return;
+  }
+  if (facility.kind === "tree") {
+    clearFacilityOccupancy(facility);
+    state.facilities = state.facilities.filter((item) => item.id !== facility.id);
+    pushMessage("路边树已移走，这块地腾出来了。");
+    return;
+  }
   state.money += Math.floor(def.cost * 0.6);
   clearFacilityOccupancy(facility);
   state.facilities = state.facilities.filter((item) => item.id !== facility.id);
@@ -1298,7 +1791,87 @@ function setVisitorTargetToFacility(visitor, facility) {
   visitor.targetY = center.y + 8;
 }
 
+function getFacilityQueueCapacity(facility) {
+  const frontDepth = Math.max(2, layout.rows - (facility.row + facility.height) + 1);
+  return Math.max(
+    2,
+    Math.min(5 + Math.floor(facility.level / 3), frontDepth + Math.max(0, facility.width - 1)),
+  );
+}
+
+function removeVisitorFromFacilityQueue(facility, visitorId) {
+  if (!facility) {
+    return;
+  }
+  facility.queue = facility.queue.filter((id) => id !== visitorId);
+  if (facility.activeServiceId === visitorId) {
+    facility.activeServiceId = null;
+  }
+}
+
+function syncFacilityQueueTargets(facility) {
+  facility.queue = facility.queue.filter((visitorId) => Boolean(getVisitorById(visitorId)));
+  facility.queue.forEach((visitorId, index) => {
+    const queuedVisitor = getVisitorById(visitorId);
+    if (!queuedVisitor) {
+      return;
+    }
+    const slotIndex = Math.max(0, queuedVisitor.path.length - 1 - index);
+    const slotTile = queuedVisitor.path[slotIndex];
+    queuedVisitor.queueSlotIndex = index;
+    queuedVisitor.pathIndex = slotIndex;
+    setVisitorTargetToTile(queuedVisitor, slotTile);
+    queuedVisitor.phase = "queueing";
+  });
+}
+
+function beginVisitorService(visitor, facility) {
+  removeVisitorFromFacilityQueue(facility, visitor.id);
+  facility.activeServiceId = visitor.id;
+  visitor.phase = "entering";
+  visitor.queuePatience = 0;
+  visitor.queueSlotIndex = 0;
+  setVisitorTargetToFacility(visitor, facility);
+  syncFacilityQueueTargets(facility);
+}
+
+function tryQueueVisitor(visitor, facility) {
+  if (facility.activeServiceId === null && facility.queue.length === 0) {
+    beginVisitorService(visitor, facility);
+    return true;
+  }
+  const maxQueue = Math.min(getFacilityQueueCapacity(facility), visitor.path.length);
+  if (facility.queue.includes(visitor.id)) {
+    syncFacilityQueueTargets(facility);
+    return true;
+  }
+  if (facility.queue.length >= maxQueue) {
+    state.floaters.push({
+      x: visitor.x,
+      y: visitor.y - 14,
+      text: "太挤了",
+      color: "#ffb8a8",
+      ttl: 1.5,
+    });
+    if (Math.random() < 0.24) {
+      pushMessage(`${getFacilityDef(facility.type).name} 门口太挤，顾客被劝退了。`);
+    }
+    startVisitorLeaving(visitor);
+    return false;
+  }
+  facility.queue.push(visitor.id);
+  visitor.phase = "queueing";
+  visitor.queuePatience = 4 + Math.random() * 3;
+  syncFacilityQueueTargets(facility);
+  return true;
+}
+
 function startVisitorLeaving(visitor) {
+  const facility = getFacilityById(visitor.targetFacilityId);
+  if (facility) {
+    removeVisitorFromFacilityQueue(facility, visitor.id);
+    syncFacilityQueueTargets(facility);
+  }
   if (visitor.phase === "to-grid") {
     visitor.phase = "leaving-road";
     visitor.targetX = visitor.exitRoadX;
@@ -1313,7 +1886,9 @@ function startVisitorLeaving(visitor) {
   if (
     visitor.phase === "going" ||
     visitor.phase === "entering" ||
-    visitor.phase === "inside"
+    visitor.phase === "inside" ||
+    visitor.phase === "queueing" ||
+    visitor.phase === "queue-wait"
   ) {
     visitor.phase = "leaving";
     return;
@@ -1331,7 +1906,8 @@ function spawnVisitor() {
   if (!facilities.length) {
     return;
   }
-  const target = chooseWeightedFacility(facilities);
+  const profile = pickVisitorArchetype();
+  const target = chooseWeightedFacility(facilities, profile);
   const route = buildVisitorRoute(target);
   if (!route) {
     return;
@@ -1347,6 +1923,8 @@ function spawnVisitor() {
     speed:
       (52 + Math.random() * 16) * simulationTuning.visitorSpeedMultiplier,
     mood: 1,
+    profileId: profile.id,
+    profileLabel: profile.label,
     targetFacilityId: target.id,
     targetCol: target.col,
     targetRow: target.row,
@@ -1357,6 +1935,8 @@ function spawnVisitor() {
     colors: palette,
     path: route.path,
     pathIndex: 0,
+    queuePatience: 0,
+    queueSlotIndex: 0,
     targetX: firstCenter.x,
     targetY: layout.roadY + 18,
     exitRoadX: route.roadExit.x,
@@ -1396,6 +1976,7 @@ function visitFacility(visitor) {
     pushMessage(`${def.name} 升到 Lv.${facility.level}，更能吸金了。`);
     triggerDialogue("levelup", { facilityName: def.name, level: facility.level }, { chance: 0.28 });
   }
+  facility.activeServiceId = null;
   state.money += income;
   state.rating += ratingGain;
   state.servedVisitors += 1;
@@ -1416,6 +1997,7 @@ function visitFacility(visitor) {
   if (state.servedVisitors % 3 === 0) {
     triggerDialogue("service", { facilityName: def.name }, { chance: 0.18, speakerId: visitor.id });
   }
+  syncFacilityQueueTargets(facility);
   checkUnlockAnnouncements();
   evaluateGoals();
 }
@@ -1425,6 +2007,7 @@ function updateVisitors(delta) {
     if (
       visitor.phase === "to-grid" ||
       visitor.phase === "going" ||
+      visitor.phase === "queueing" ||
       visitor.phase === "entering" ||
       visitor.phase === "exiting" ||
       visitor.phase === "leaving" ||
@@ -1455,9 +2038,10 @@ function updateVisitors(delta) {
               startVisitorLeaving(visitor);
               continue;
             }
-            visitor.phase = "entering";
-            setVisitorTargetToFacility(visitor, facility);
+            tryQueueVisitor(visitor, facility);
           }
+        } else if (visitor.phase === "queueing") {
+          visitor.phase = "queue-wait";
         } else if (visitor.phase === "entering") {
           visitor.phase = "inside";
           visitor.wait = simulationTuning.visitorWait;
@@ -1497,6 +2081,29 @@ function updateVisitors(delta) {
         visitor.x += (dx / dist) * move;
         visitor.y += (dy / dist) * move;
       }
+    } else if (visitor.phase === "queue-wait") {
+      const facility = getFacilityById(visitor.targetFacilityId);
+      if (!facility) {
+        startVisitorLeaving(visitor);
+        continue;
+      }
+      visitor.queuePatience -= delta;
+      if (visitor.queuePatience <= 0) {
+        removeVisitorFromFacilityQueue(facility, visitor.id);
+        syncFacilityQueueTargets(facility);
+        state.floaters.push({
+          x: visitor.x,
+          y: visitor.y - 14,
+          text: "排太久",
+          color: "#ffd38d",
+          ttl: 1.5,
+        });
+        startVisitorLeaving(visitor);
+        continue;
+      }
+      if (facility.activeServiceId === null && facility.queue[0] === visitor.id) {
+        beginVisitorService(visitor, facility);
+      }
     } else if (visitor.phase === "inside") {
       visitor.wait -= delta;
       if (visitor.wait <= 0) {
@@ -1522,6 +2129,7 @@ function advanceDay() {
   const previousSeasonId = state.world.season.id;
   state.day += 1;
   state.rating += 2;
+  state.world = buildWorld(state.day, state.world);
   const upkeep = Math.max(0, listFacilities().length - 4) * 3;
   if (upkeep > 0) {
     state.money = Math.max(0, state.money - upkeep);
@@ -1531,27 +2139,39 @@ function advanceDay() {
   }
   const extraVisitors = Math.max(
     1,
-    Math.round(
-      (1 + Math.floor(state.day / 4)) *
-        (state.world.weather.visitorMultiplier || 1),
-    ),
+    Math.round((1 + Math.floor(state.day / 4)) * getTrafficModifier()),
   );
   for (let i = 0; i < extraVisitors; i += 1) {
     spawnVisitor();
   }
-  state.world = buildWorld(state.day);
   state.todayTrend = buildTrend(state.rating, state.day);
   pushMessage(
     `今日热潮：${state.todayTrend.name}，额外 +${state.todayTrend.incomeBonus}G / +${state.todayTrend.ratingBonus}★。`,
   );
-  pushMessage(
-    `${state.world.season.label} ${state.world.weather.label}，下一场节庆：${state.world.upcomingFestival.name}。`,
-  );
-  setEnvironmentNotice(
-    `${state.world.season.label} ${state.world.weather.label}，${state.world.upcomingFestival.name} 将近。`,
-    state.world.season.color,
-    4.4,
-  );
+  if (state.world.activeFestival) {
+    pushMessage(
+      `${state.world.activeFestival.name} 举办中：${state.world.activeFestival.description}`,
+    );
+    setEnvironmentNotice(
+      `${state.world.activeFestival.name} 举办中：客流提升，主题设施更吃香。`,
+      state.world.activeFestival.color,
+      4.8,
+    );
+    triggerDialogue(
+      "festival",
+      { festivalName: state.world.activeFestival.name },
+      { chance: 0.24 },
+    );
+  } else {
+    pushMessage(
+      `${state.world.season.label} ${state.world.weather.label}，下一场节庆：${state.world.upcomingFestival.name}。`,
+    );
+    setEnvironmentNotice(
+      `${state.world.season.label} ${state.world.weather.label}，${state.world.upcomingFestival.name} 将近。`,
+      state.world.season.color,
+      4.4,
+    );
+  }
   triggerDialogue("trend", { trendName: state.todayTrend.name }, { chance: 0.2 });
   triggerDialogue("weather", { weatherLabel: state.world.weather.label }, { chance: 0.18 });
   if (previousSeasonId !== state.world.season.id) {
@@ -1716,6 +2336,7 @@ function drawFittedSprite(sprite, palette, x, y, width, height) {
 }
 
 function drawBackground() {
+  const playfieldWidth = layout.sidebarX - 18;
   const skyPalette = {
     spring: ["#9be0ff", "#d2f2ff", "#ffe2b3"],
     summer: ["#80d2ff", "#bfe9ff", "#ffd88c"],
@@ -1771,21 +2392,38 @@ function drawBackground() {
   const [grassLight, grassDark] =
     lawnColors[state.world.season.id] || lawnColors.spring;
   ctx.fillStyle = grassLight;
-  ctx.fillRect(0, layout.gridY - 26, 640, layout.rows * layout.tile + 44);
+  ctx.fillRect(0, layout.gridY - 26, playfieldWidth, layout.rows * layout.tile + 44);
   ctx.fillStyle = grassDark;
-  ctx.fillRect(0, layout.roadY - 22, 640, 22);
+  ctx.fillRect(0, layout.roadY - 22, playfieldWidth, 22);
 
   ctx.fillStyle = "#72606a";
-  ctx.fillRect(0, layout.roadY, 650, layout.roadH);
+  ctx.fillRect(0, layout.roadY, playfieldWidth, layout.roadH);
   ctx.fillStyle = "#f7f0b3";
-  for (let x = 20; x < 640; x += 80) {
+  for (let x = 20; x < playfieldWidth; x += 80) {
     ctx.fillRect(x, layout.roadY + 20, 34, 6);
+  }
+
+  const treePalette =
+    state.world.season.id === "winter"
+      ? { top: "#d7ebf5", trunk: "#7b675f" }
+      : state.world.season.id === "autumn"
+        ? { top: "#ffbf66", trunk: "#7d5638" }
+        : state.world.season.id === "summer"
+          ? { top: "#79c861", trunk: "#7b5735" }
+          : { top: "#9ddc86", trunk: "#7d593e" };
+  for (let index = 0; index < 6; index += 1) {
+    const x = 44 + index * 112;
+    ctx.fillStyle = treePalette.top;
+    ctx.fillRect(x, layout.gridY - 54, 34, 20);
+    ctx.fillRect(x + 6, layout.gridY - 66, 22, 14);
+    ctx.fillStyle = treePalette.trunk;
+    ctx.fillRect(x + 14, layout.gridY - 34, 6, 18);
   }
 
   if (state.world.weather.id === "drizzle") {
     ctx.fillStyle = "rgba(88, 133, 188, 0.45)";
     for (let i = 0; i < 36; i += 1) {
-      const x = (i * 27 + state.cameraPulse * 80) % 640;
+      const x = (i * 27 + state.cameraPulse * 80) % playfieldWidth;
       const y = 90 + (i * 18) % 410;
       ctx.fillRect(x, y, 2, 12);
     }
@@ -1794,7 +2432,7 @@ function drawBackground() {
   if (state.world.weather.id === "snow") {
     ctx.fillStyle = "rgba(255,255,255,0.92)";
     for (let i = 0; i < 42; i += 1) {
-      const x = (i * 31 + state.cameraPulse * 24) % 640;
+      const x = (i * 31 + state.cameraPulse * 24) % playfieldWidth;
       const y = 78 + (i * 22 + state.cameraPulse * 14) % 420;
       ctx.fillRect(x, y, 3, 3);
     }
@@ -1805,6 +2443,25 @@ function drawBackground() {
     for (let i = 0; i < 10; i += 1) {
       ctx.fillStyle = leafColors[i % leafColors.length];
       ctx.fillRect(70 + i * 44, 162 + ((i + 1) % 3) * 18, 5, 3);
+    }
+  }
+
+  ctx.fillStyle = "rgba(255, 248, 215, 0.74)";
+  ctx.fillRect(playfieldWidth - 166, 100, 144, 42);
+  ctx.strokeStyle = state.world.season.color;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(playfieldWidth - 164, 102, 140, 38);
+  ctx.fillStyle = "#2f2231";
+  ctx.font = "bold 14px Trebuchet MS";
+  ctx.fillText(`${state.world.season.label} / ${state.world.weather.label}`, playfieldWidth - 152, 118);
+  ctx.font = "12px Trebuchet MS";
+  ctx.fillText(`${state.timeOfDay.label} 气氛`, playfieldWidth - 152, 134);
+
+  if (state.world.activeFestival) {
+    ctx.fillStyle = state.world.activeFestival.color;
+    for (let x = 34; x < playfieldWidth - 40; x += 44) {
+      ctx.fillRect(x, 104, 18, 5);
+      ctx.fillRect(x + 6, 108, 6, 18);
     }
   }
 
@@ -1824,7 +2481,7 @@ function drawBackground() {
 }
 
 function drawPlacementPreview() {
-  if (!state.hoveredTile || state.mode !== "play") {
+  if (!state.hoveredTile || state.mode !== "play" || !state.selectedType) {
     return;
   }
   const def = getFacilityDef(state.selectedType);
@@ -1851,7 +2508,7 @@ function drawPlacementPreview() {
 }
 
 function drawApproachMarkers() {
-  for (const facility of state.facilities) {
+  for (const facility of listFacilities()) {
     const approachTiles = getApproachTiles(facility);
     for (const tile of approachTiles) {
       const pos = tileToScreen(tile.col, tile.row);
@@ -1927,17 +2584,34 @@ function drawFacility(facility) {
   const def = getFacilityDef(facility.type);
   const width = facility.width * layout.tile - 6;
   const height = facility.height * layout.tile - 8;
+  if (facility.kind === "tree") {
+    drawFittedSprite(def.sprite, def.palette, pos.x + 2, pos.y + 2, width, height);
+    return;
+  }
   ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
   ctx.fillRect(pos.x + 8, pos.y + height - 10, width - 10, 9);
 
   ctx.fillStyle =
-    facility.width * facility.height > 1 ? "rgba(255, 247, 214, 0.82)" : "rgba(255, 247, 214, 0.64)";
+    facility.kind === "landmark"
+      ? "rgba(230, 236, 242, 0.9)"
+      : facility.width * facility.height > 1
+        ? "rgba(255, 247, 214, 0.82)"
+        : "rgba(255, 247, 214, 0.64)";
   ctx.fillRect(pos.x + 2, pos.y + 3, width, height);
   ctx.strokeStyle = def.color;
   ctx.lineWidth = 4;
   ctx.strokeRect(pos.x + 4, pos.y + 5, width - 4, height - 4);
 
   drawFittedSprite(def.sprite, def.palette, pos.x + 1, pos.y + 1, width, height);
+
+  if (facility.kind === "landmark") {
+    ctx.fillStyle = "rgba(47, 34, 49, 0.84)";
+    ctx.fillRect(pos.x + 8, pos.y + height - 22, Math.min(96, width - 14), 14);
+    ctx.fillStyle = "#fff4d6";
+    ctx.font = "bold 10px Trebuchet MS";
+    ctx.fillText(fitTextToWidth(def.name, Math.min(84, width - 18)), pos.x + 12, pos.y + height - 12);
+    return;
+  }
 
   ctx.fillStyle = "#2e2131";
   ctx.fillRect(pos.x + 6, pos.y + 6, 28, 12);
@@ -1951,6 +2625,27 @@ function drawFacility(facility) {
     ctx.fillStyle = "#ffe9a8";
     ctx.font = "bold 10px monospace";
     ctx.fillText(`${facility.width}x${facility.height}`, pos.x + width - 40, pos.y + 15);
+  }
+
+  const queueCount = facility.queue.length;
+  const queueCapacity = getFacilityQueueCapacity(facility);
+  const serviceBusy = Boolean(facility.activeServiceId);
+  if (queueCount || serviceBusy) {
+    const badgeW = queueCount >= queueCapacity ? 68 : 54;
+    ctx.fillStyle =
+      queueCount >= queueCapacity
+        ? "#c44d2f"
+        : serviceBusy
+          ? "#4066b1"
+          : "#4f6b3f";
+    ctx.fillRect(pos.x + width - badgeW - 10, pos.y + height - 24, badgeW, 14);
+    ctx.fillStyle = "#fff8dd";
+    ctx.font = "bold 9px Trebuchet MS";
+    const badgeText =
+      queueCount >= queueCapacity
+        ? `FULL ${queueCount}`
+        : `Q${queueCount}${serviceBusy ? " / Busy" : ""}`;
+    ctx.fillText(badgeText, pos.x + width - badgeW - 6, pos.y + height - 13);
   }
 }
 
@@ -1972,6 +2667,8 @@ function drawVisitors() {
     ctx.fillStyle = "#4c3d37";
     ctx.fillRect(x - 4, y + 13, 3, 8);
     ctx.fillRect(x + 1, y + 13, 3, 8);
+    ctx.fillStyle = "rgba(255, 248, 214, 0.92)";
+    ctx.fillRect(x - 8, y - 18, 16, 4);
   }
 }
 
@@ -2022,7 +2719,7 @@ function drawSidebar() {
   ctx.clip();
 
   ctx.fillStyle = "#362734";
-  ctx.fillRect(layout.sidebarX + 18, layout.sidebarY + 18, layout.sidebarW - 36, 118);
+  ctx.fillRect(layout.sidebarX + 18, layout.sidebarY + 18, layout.sidebarW - 36, 160);
   ctx.fillStyle = "#ffefbd";
   ctx.font = "bold 19px Trebuchet MS";
   ctx.fillText(`Day ${state.day}`, layout.sidebarX + 34, layout.sidebarY + 46);
@@ -2036,20 +2733,31 @@ function drawSidebar() {
   ctx.fillText(state.world.weather.label, layout.sidebarX + 162, layout.sidebarY + 58);
   ctx.fillStyle = "#8a6f79";
   ctx.font = "11px Trebuchet MS";
-  ctx.fillText("Trend today", layout.sidebarX + 162, layout.sidebarY + 78);
+  ctx.fillText("Festival now", layout.sidebarX + 162, layout.sidebarY + 78);
   wrapText(
-    `${state.todayTrend.name} +${state.todayTrend.incomeBonus}G/+${state.todayTrend.ratingBonus}★`,
+    state.world.activeFestival
+      ? state.world.activeFestival.name
+      : "今天没有节庆活动",
     layout.sidebarX + 162,
     layout.sidebarY + 92,
     160,
     13,
     2,
   );
-  ctx.fillText("Next fest", layout.sidebarX + 162, layout.sidebarY + 112);
+  ctx.fillText("Trend today", layout.sidebarX + 162, layout.sidebarY + 112);
+  wrapText(
+    `${state.todayTrend.name} +${state.todayTrend.incomeBonus}G/+${state.todayTrend.ratingBonus}★`,
+    layout.sidebarX + 162,
+    layout.sidebarY + 126,
+    160,
+    13,
+    2,
+  );
+  ctx.fillText("Next fest", layout.sidebarX + 162, layout.sidebarY + 146);
   wrapText(
     state.world.upcomingFestival.name,
     layout.sidebarX + 162,
-    layout.sidebarY + 126,
+    layout.sidebarY + 160,
     160,
     13,
     2,
@@ -2057,25 +2765,41 @@ function drawSidebar() {
 
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 14px Trebuchet MS";
-  ctx.fillText("Facilities", layout.sidebarX + 24, layout.sidebarY + 158);
+  ctx.fillText("Facilities", layout.sidebarX + 24, layout.sidebarY + 200);
+
+  const observeRect = getObserveCardRect();
+  const observing = !state.selectedType;
+  ctx.fillStyle = observing ? "#d9f0bb" : "#f4ead4";
+  ctx.fillRect(observeRect.x, observeRect.y, observeRect.w, observeRect.h);
+  ctx.strokeStyle = observing ? "#628442" : "#7f6470";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(observeRect.x + 1.5, observeRect.y + 1.5, observeRect.w - 3, observeRect.h - 3);
+  ctx.fillStyle = "#2f2231";
+  ctx.font = "bold 12px Trebuchet MS";
+  ctx.fillText("Observe Mode", observeRect.x + 12, observeRect.y + 13);
+  ctx.font = "10px Trebuchet MS";
+  ctx.fillText(
+    observing ? "当前不会放置商店，左键只观察地图。" : "点击这里取消当前商店选中。",
+    observeRect.x + 12,
+    observeRect.y + 24,
+  );
 
   facilityTypes.forEach((def, index) => {
-    const cardX = layout.sidebarX + 22;
-    const cardY = layout.sidebarY + 170 + index * 52;
+    const { x: cardX, y: cardY, w: cardW, h: cardH } = getFacilityCardRect(index);
     const selected = state.selectedType === def.id;
     const unlocked = isUnlocked(def);
     ctx.fillStyle = selected ? "#ffe48c" : unlocked ? "#fff9e5" : "#ddcfbc";
-    ctx.fillRect(cardX, cardY, layout.sidebarW - 44, 44);
+    ctx.fillRect(cardX, cardY, cardW, cardH);
     ctx.strokeStyle = selected ? "#c44d2f" : "#7f6470";
     ctx.lineWidth = 3;
-    ctx.strokeRect(cardX + 1.5, cardY + 1.5, layout.sidebarW - 47, 41);
+    ctx.strokeRect(cardX + 1.5, cardY + 1.5, cardW - 3, cardH - 3);
 
     ctx.fillStyle = def.color;
     ctx.fillRect(cardX + 10, cardY + 6, 28, 28);
     drawSprite(def.sprite, def.palette, cardX + 10, cardY + 7, 2);
 
-  ctx.fillStyle = "#2f2231";
-  ctx.font = "bold 11px Trebuchet MS";
+    ctx.fillStyle = "#2f2231";
+    ctx.font = "bold 11px Trebuchet MS";
     ctx.fillText(fitTextToWidth(def.name, 160), cardX + 46, cardY + 17);
     ctx.font = "10px Trebuchet MS";
     const price = unlocked ? `${def.cost}G | ${def.footprint.w}x${def.footprint.h}` : `Unlock ${def.unlockAt}★`;
@@ -2087,14 +2811,14 @@ function drawSidebar() {
   const activeGoal = getActiveGoal();
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 14px Trebuchet MS";
-  ctx.fillText("Goal & Town Talk", layout.sidebarX + 24, layout.sidebarY + 472);
+  ctx.fillText("Goal & Town Talk", layout.sidebarX + 24, layout.sidebarY + 526);
   ctx.fillStyle = "#6f5a62";
   if (activeGoal) {
     const progress = getGoalProgress(activeGoal);
     wrapText(
       `${activeGoal.title} (${Math.min(progress.value, progress.target)}/${progress.target})`,
       layout.sidebarX + 24,
-      layout.sidebarY + 492,
+      layout.sidebarY + 546,
       layout.sidebarW - 48,
       15,
       2,
@@ -2103,7 +2827,7 @@ function drawSidebar() {
     wrapText(
       "全部目标达成，商店街已进入展示完成态。",
       layout.sidebarX + 24,
-      layout.sidebarY + 492,
+      layout.sidebarY + 546,
       layout.sidebarW - 48,
       15,
       2,
@@ -2115,7 +2839,7 @@ function drawSidebar() {
     state.messages[0] ||
     "暂无消息";
   ctx.fillStyle = "#6f5a62";
-  wrapText(talk, layout.sidebarX + 24, layout.sidebarY + 526, layout.sidebarW - 48, 14, 3);
+  wrapText(talk, layout.sidebarX + 24, layout.sidebarY + 580, layout.sidebarW - 48, 14, 3);
   ctx.restore();
 }
 
@@ -2313,6 +3037,11 @@ function render() {
 
 function handleCanvasClick(event) {
   const { x, y } = getCanvasPointer(event);
+  if (hitObserveCard(x, y)) {
+    state.selectedType = null;
+    render();
+    return;
+  }
   const card = hitFacilityCard(x, y);
   if (card) {
     state.selectedType = card.id;
@@ -2321,7 +3050,7 @@ function handleCanvasClick(event) {
   }
 
   const tile = screenToTile(x, y);
-  if (tile) {
+  if (tile && state.selectedType) {
     placeFacility(tile.col, tile.row, state.selectedType);
     render();
   }
@@ -2341,18 +3070,22 @@ function handleContextMenu(event) {
 function hitFacilityCard(x, y) {
   for (let index = 0; index < facilityTypes.length; index += 1) {
     const def = facilityTypes[index];
-    const cardX = layout.sidebarX + 22;
-    const cardY = layout.sidebarY + 170 + index * 52;
+    const { x: cardX, y: cardY, w: cardW, h: cardH } = getFacilityCardRect(index);
     if (
       x >= cardX &&
-      x <= cardX + layout.sidebarW - 44 &&
+      x <= cardX + cardW &&
       y >= cardY &&
-      y <= cardY + 44
+      y <= cardY + cardH
     ) {
       return def;
     }
   }
   return null;
+}
+
+function hitObserveCard(x, y) {
+  const rect = getObserveCardRect();
+  return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
 }
 
 function getCanvasPointer(event) {
@@ -2392,6 +3125,9 @@ window.addEventListener("keydown", (event) => {
     if (facilityTypes[index]) {
       state.selectedType = facilityTypes[index].id;
     }
+  }
+  if (event.key === "0") {
+    state.selectedType = null;
   }
   if (event.key.toLowerCase() === "r") {
     resetGame();
@@ -2467,9 +3203,24 @@ window.render_game_to_text = () =>
       },
       upcomingFestival: state.world.upcomingFestival,
       activeFestival: state.world.activeFestival,
+      activeEvents: state.world.eventQueue.map((event) => ({
+        id: event.id,
+        title: event.title,
+        trafficModifier: event.trafficModifier,
+      })),
       eventQueueSize: state.world.eventQueue.length,
       incidentQueueSize: state.world.incidentQueue.length,
     },
+    structures: state.facilities.map((facility) => ({
+      id: facility.id,
+      type: facility.type,
+      kind: facility.kind,
+      removable: facility.removable,
+      col: facility.col,
+      row: facility.row,
+      width: facility.width,
+      height: facility.height,
+    })),
     facilities: listFacilities().map((facility) => ({
       id: facility.id,
       type: facility.type,
@@ -2479,12 +3230,18 @@ window.render_game_to_text = () =>
       height: facility.height,
       level: facility.level,
       visits: facility.visits,
+      queueLength: facility.queue.length,
+      queueCapacity: getFacilityQueueCapacity(facility),
+      activeServiceId: facility.activeServiceId,
     })),
     visitors: state.visitors.map((visitor) => ({
       id: visitor.id,
+      profileId: visitor.profileId,
+      profileLabel: visitor.profileLabel,
       x: Math.round(visitor.x),
       y: Math.round(visitor.y),
       phase: visitor.phase,
+      queuePatience: Number(visitor.queuePatience?.toFixed?.(2) || 0),
       target: { col: visitor.targetCol, row: visitor.targetRow },
     })),
     npcs: state.npcs.map((npc) => ({
