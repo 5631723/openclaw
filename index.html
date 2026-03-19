@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixel Pocket Town</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Kairo-ish Tiny Management Demo</p>
+        <h1>Pixel Pocket Town</h1>
+        <p class="summary">
+          摆店铺、等顾客、吃组合加成。一个轻量级的像素经营小样。
+        </p>
+        <div class="actions">
+          <button id="start-btn" type="button">开始经营</button>
+          <button id="restart-btn" type="button">重新开档</button>
+        </div>
+        <p class="hint">
+          操作：鼠标点击右侧卡片选择设施，点击地块放置；右键拆除；`1-5` 快捷选择；`F`
+          全屏；`R` 重开。
+        </p>
+      </section>
+      <section class="stage">
+        <canvas id="game" width="960" height="640" aria-label="Pixel Pocket Town canvas"></canvas>
+      </section>
+    </main>
+    <script type="module" src="./game.js"></script>
+  </body>
+</html>

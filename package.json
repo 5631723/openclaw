@@ -1,0 +1,25 @@
+{
+  "name": "codex",
+  "version": "1.0.0",
+  "description": "",
+  "main": "game.js",
+  "scripts": {
+    "serve": "python -m http.server 4173",
+    "test": "node ./scripts/smoke.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/5631723/openclaw.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/5631723/openclaw/issues"
+  },
+  "homepage": "https://github.com/5631723/openclaw#readme",
+  "devDependencies": {
+    "playwright": "^1.58.2"
+  }
+}
