@@ -67,6 +67,10 @@ function runSmoke() {
     );
   const actionsPath = path.join(rootDir, "smoke-actions.json");
   const screenshotDir = path.join(rootDir, "output", "web-game");
+  const smokeQuery = String(process.env.SMOKE_QUERY || "").trim();
+  const targetUrl = `http://${host}:${port}/index.html${
+    smokeQuery ? (smokeQuery.startsWith("?") ? smokeQuery : `?${smokeQuery}`) : ""
+  }`;
   fs.rmSync(screenshotDir, { recursive: true, force: true });
   fs.mkdirSync(screenshotDir, { recursive: true });
 
@@ -77,7 +81,7 @@ function runSmoke() {
       [
         clientPath,
         "--url",
-        `http://${host}:${port}/index.html`,
+        targetUrl,
         "--actions-file",
         actionsPath,
         "--click-selector",

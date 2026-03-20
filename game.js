@@ -5,6 +5,18 @@ ctx.imageSmoothingEnabled = false;
 const startButton = document.getElementById("start-btn");
 const restartButton = document.getElementById("restart-btn");
 const automationDriven = Boolean(window.navigator.webdriver);
+const initialDebugIncidentId = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const raw = params.get("incident") || params.get("debugIncident") || "";
+    return String(raw || "")
+      .trim()
+      .toLowerCase()
+      .replace(/^incident-/, "") || null;
+  } catch {
+    return null;
+  }
+})();
 
 const simulationTuning = automationDriven
   ? {
@@ -1160,9 +1172,49 @@ function getIncidentAnchorRange(incident, facilities) {
   return { min: 0, max: layout.cols - 1 };
 }
 
+function getIncidentAnchorRow(incident, facilities) {
+  const relevant = facilities.filter((facility) => {
+    if (facility.kind !== "shop") {
+      return false;
+    }
+    if (incident.featuredType) {
+      return facility.type === incident.featuredType;
+    }
+    if (incident.zoneRange) {
+      const centerCol = facility.col + facility.width / 2;
+      return centerCol >= incident.zoneRange.min && centerCol <= incident.zoneRange.max;
+    }
+    return true;
+  });
+  if (!relevant.length) {
+    return Math.max(3, layout.rows - 4);
+  }
+  const averageRow =
+    relevant.reduce((sum, facility) => sum + facility.row + facility.height, 0) /
+    relevant.length;
+  return Math.max(2, Math.min(layout.rows - 2, Math.round(averageRow)));
+}
+
 function buildEventActorRoute(incident, facilities, offset = 0) {
   const range = getIncidentAnchorRange(incident, facilities);
-  const candidates = collectWalkableTiles(range, 2, layout.rows - 3, facilities);
+  const anchorRow = getIncidentAnchorRow(incident, facilities);
+  let candidates = collectWalkableTiles(
+    range,
+    Math.max(2, anchorRow - 1),
+    Math.min(layout.rows - 2, anchorRow + 2),
+    facilities,
+  );
+  if (!candidates.length) {
+    candidates = collectWalkableTiles(
+      range,
+      Math.max(2, anchorRow - 3),
+      Math.min(layout.rows - 2, anchorRow + 3),
+      facilities,
+    );
+  }
+  if (!candidates.length) {
+    candidates = collectWalkableTiles(range, 2, layout.rows - 3, facilities);
+  }
   if (!candidates.length) {
     return [];
   }
@@ -1206,6 +1258,10 @@ function createIncidentActors(incidents, facilities) {
         speed: 22 + index * 4,
         bobPhase: index * 0.9 + Math.random() * 0.6,
         talkTimer: 2.4 + Math.random() * 1.8,
+        interactionTimer: 1.8 + Math.random() * 1.4,
+        interactionRadius: incident.id === "incident-street-performance" ? 96 : 72,
+        focusVisitorId: null,
+        focusTtl: 0,
       });
     });
   }
@@ -1329,19 +1385,36 @@ function pickIncidentZone(facilities) {
   return { zoneId, label: getFacilityZoneLabel(zoneId), range: { min: 4, max: 9 } };
 }
 
-function buildLightweightIncident(day, season, weather, facilities) {
+function normalizeIncidentDebugId(raw) {
+  const normalized = String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^incident-/, "");
+  return lightweightIncidentDefinitions.some((incident) => incident.id === normalized)
+    ? normalized
+    : null;
+}
+
+function buildLightweightIncident(day, season, weather, facilities, forcedIncidentId = null) {
   const available = lightweightIncidentDefinitions.filter((incident) => day >= incident.minDay);
   if (!available.length) {
     return [];
   }
-  const triggerChance = day <= 2 ? 0.46 : 0.6;
-  if (Math.random() > triggerChance) {
-    return [];
+  const normalizedForcedIncidentId = normalizeIncidentDebugId(forcedIncidentId);
+  let picked =
+    (normalizedForcedIncidentId &&
+      lightweightIncidentDefinitions.find((incident) => incident.id === normalizedForcedIncidentId)) ||
+    null;
+  if (!picked) {
+    const triggerChance = day <= 2 ? 0.46 : 0.6;
+    if (Math.random() > triggerChance) {
+      return [];
+    }
+    picked = pickWeighted(
+      available.map((incident) => ({ ...incident, chance: incident.weight })),
+      "chance",
+    );
   }
-  const picked = pickWeighted(
-    available.map((incident) => ({ ...incident, chance: incident.weight })),
-    "chance",
-  );
   if (!picked) {
     return [];
   }
@@ -1513,7 +1586,7 @@ function buildWeather(seasonId) {
   return pickWeighted(weightedWeather, "chance");
 }
 
-function buildWorld(day, previousWorld = null, facilities = []) {
+function buildWorld(day, previousWorld = null, facilities = [], forcedIncidentId = null) {
   const calendar = buildCalendar(day);
   const season = seasonDefinitions.find(
     (item) => item.id === calendar.seasonId,
@@ -1521,7 +1594,13 @@ function buildWorld(day, previousWorld = null, facilities = []) {
   const weather = buildWeather(season.id);
   const activeFestival = getActiveFestival(calendar);
   const festivalEvent = activeFestival ? buildFestivalEvent(activeFestival) : null;
-  const incidentQueue = buildLightweightIncident(day, season, weather, facilities);
+  const incidentQueue = buildLightweightIncident(
+    day,
+    season,
+    weather,
+    facilities,
+    forcedIncidentId,
+  );
   return {
     calendar,
     season,
@@ -1634,7 +1713,12 @@ function createInitialState() {
   const initialHour = 8;
   const initialGrid = createGrid();
   const seededMap = seedStartingStructures(initialGrid);
-  const initialWorld = buildWorld(initialDay, null, seededMap.structures);
+  const initialWorld = buildWorld(
+    initialDay,
+    null,
+    seededMap.structures,
+    initialDebugIncidentId,
+  );
   return {
     mode: "menu",
     money: 160,
@@ -1678,6 +1762,9 @@ function createInitialState() {
       color: "#ffe7a3",
       ttl: 3.2,
     },
+    debug: {
+      forcedIncidentId: initialDebugIncidentId,
+    },
     announcedUnlocks: facilityTypes
       .filter((def) => def.unlockAt <= 0)
       .map((def) => def.id),
@@ -1685,9 +1772,51 @@ function createInitialState() {
 }
 
 function resetGame() {
+  const preservedForcedIncidentId = state.debug?.forcedIncidentId || null;
   const fresh = createInitialState();
+  fresh.debug.forcedIncidentId = preservedForcedIncidentId || initialDebugIncidentId;
+  fresh.world = buildWorld(
+    fresh.day,
+    null,
+    fresh.facilities,
+    fresh.debug.forcedIncidentId,
+  );
+  fresh.eventActors = createIncidentActors(fresh.world.incidentQueue, fresh.facilities);
   Object.assign(state, fresh);
   render();
+}
+
+function rebuildWorldForCurrentDay() {
+  state.world = buildWorld(
+    state.day,
+    state.world,
+    state.facilities,
+    state.debug?.forcedIncidentId || null,
+  );
+  state.eventActors = createIncidentActors(state.world.incidentQueue, state.facilities);
+}
+
+function applyDebugIncident(incidentId = null) {
+  const normalized = incidentId ? normalizeIncidentDebugId(incidentId) : null;
+  if (incidentId && !normalized) {
+    return null;
+  }
+  state.debug.forcedIncidentId = normalized;
+  rebuildWorldForCurrentDay();
+  if (normalized && state.world.incidentQueue[0]) {
+    const incident = state.world.incidentQueue[0];
+    pushMessage(`调试事件已锁定：${incident.title}。`);
+    setEnvironmentNotice(`调试事件：${incident.title} 已强制生效。`, incident.color, 4.2);
+    if (state.mode === "play" && state.eventActors[0]) {
+      triggerEventActorDialogue(state.eventActors[0], true);
+    }
+  } else {
+    pushMessage("已恢复随机事件刷新。");
+    setEnvironmentNotice("随机事件已恢复默认刷新。", "#ffe7a3", 3.4);
+  }
+  syncShellTheme();
+  render();
+  return state.world.incidentQueue[0]?.id || null;
 }
 
 function startGame() {
@@ -1896,6 +2025,10 @@ function getEventActorById(id) {
   return state.eventActors.find((actor) => actor.id === id) || null;
 }
 
+function getEventActorDisplayName(actor) {
+  return `${actor.role}·${actor.name}`;
+}
+
 function resolveDialogueSpeaker(dialogue) {
   if (!dialogue) {
     return null;
@@ -1938,36 +2071,42 @@ function getEventActorDialogueLines(actor) {
         `${actor.name}：镜头先给 ${featuredName}，这家今天肯定要爆。`,
         `${actor.name}：再往 ${featuredName} 门口站近一点，排队感才够热闹。`,
         `${actor.name}：今天这波探店流量，${featuredName} 吃得很满。`,
+        `${actor.name}：人一多起来，${featuredName} 的门脸立刻就出片了。`,
       ];
     case "incident-roadwork-detour":
       return [
         `${actor.name}：${zoneLabel} 这边先绕行，大家别往施工带里挤。`,
         `${actor.name}：脚下这段刚封起来，去店里的客人得往旁边让。`,
         `${actor.name}：等这截路修平了，人流才会重新回来。`,
+        `${actor.name}：别急着穿过去，从旁边那条路绕会更顺。`,
       ];
     case "incident-power-dip":
       return [
         `${actor.name}：电压还在跳，招牌和机器都得慢一点开。`,
         `${actor.name}：别急，先把这路电稳住，店里节奏就能回来。`,
         `${actor.name}：这会儿灯一闪一闪的，客人难免会迟疑。`,
+        `${actor.name}：抢修先顶住，别让这条街一口气全暗下去。`,
       ];
     case "incident-flash-sale":
       return [
         `${actor.name}：限时折扣开始了，想排的现在就排。`,
         `${actor.name}：今天这波价牌一挂，${featuredName} 门口肯定不空。`,
         `${actor.name}：再等一会儿就轮到了，别错过这波折扣。`,
+        `${actor.name}：折扣牌就挂这一阵，晚了可就没这价了。`,
       ];
     case "incident-street-performance":
       return [
         `${actor.name}：${zoneLabel} 这边开演，先把人气聚起来。`,
         `${actor.name}：鼓点一起来，旁边那几家店都会跟着吃流量。`,
         `${actor.name}：站位往中间靠一点，这波观众会越围越多。`,
+        `${actor.name}：先别急着走，下一段副歌一出来气氛就上来了。`,
       ];
     case "incident-health-inspection":
       return [
         `${actor.name}：今天抽查得细一点，流程慢了也得按规矩来。`,
         `${actor.name}：先别催单，检查没过完，这家出客就是会慢。`,
         `${actor.name}：队伍别再往前顶了，等这轮检查结束再说。`,
+        `${actor.name}：台面和流程都得看过一遍，今天想快也快不起来。`,
       ];
     default:
       return [
@@ -1982,11 +2121,201 @@ function triggerEventActorDialogue(actor, force = false) {
   }
   const lines = getEventActorDialogueLines(actor);
   const text = lines[Math.floor(Math.random() * lines.length)] || lines[0];
-  openDialogueForSpeaker("event-actor", actor.id, `${actor.role}·${actor.name}`, text, "incident-live", 3.6);
+  openDialogueForSpeaker("event-actor", actor.id, getEventActorDisplayName(actor), text, "incident-live", 3.6);
+}
+
+function getNearbyVisitorsForActor(actor, radius = 44) {
+  return state.visitors
+    .filter(
+      (visitor) =>
+        !visitor.done &&
+        visitor.phase !== "inside" &&
+        visitor.phase !== "landmark-inside" &&
+        visitor.phase !== "leaving-road" &&
+        Math.hypot(visitor.x - actor.x, visitor.y - actor.y) <= radius,
+    )
+    .sort(
+      (left, right) =>
+        Math.hypot(left.x - actor.x, left.y - actor.y) -
+        Math.hypot(right.x - actor.x, right.y - actor.y),
+    );
+}
+
+function getEventInteractionPayload(actor, visitor) {
+  const incident = state.world.incidentQueue.find((item) => item.id === actor.incidentId);
+  const featuredName =
+    incident?.featuredType ? getFacilityDef(incident.featuredType)?.name || "这家店" : "这条街";
+  const zoneLabel = incident?.zoneLabel || "这片街区";
+  switch (actor.incidentId) {
+    case "incident-influencer-rush":
+      return {
+        actorLines: [
+          `${actor.name}：对，镜头就跟着你往 ${featuredName} 那边走。`,
+          `${actor.name}：今天这条街的主角就是 ${featuredName}，别错过门口那波热闹。`,
+        ],
+        visitorLines: [
+          `欸，镜头扫到我了？那我可得把 ${featuredName} 这趟逛完整。`,
+          `${featuredName} 门口都被拍上了，今天不去看看就亏了。`,
+        ],
+        emote: Math.random() < 0.5 ? "star" : "note",
+        pause: 0.45,
+      };
+    case "incident-roadwork-detour":
+      return {
+        actorLines: [
+          `${actor.name}：这边先让一让，去 ${zoneLabel} 的客人从旁边绕。`,
+          `${actor.name}：别贴着施工带走，前面那条缝只够一人过。`,
+        ],
+        visitorLines: [
+          `这段路果然得绕一下，今天逛街节奏全被施工带歪了。`,
+          `${zoneLabel} 这边被拦了一截，只能换个方向慢慢过去。`,
+        ],
+        emote: Math.random() < 0.5 ? "sweat" : "dots",
+        pause: 0.4,
+      };
+    case "incident-power-dip":
+      return {
+        actorLines: [
+          `${actor.name}：先别催，电一稳下来，这条街就不会一闪一闪了。`,
+          `${actor.name}：招牌刚跳过一次，大家先别往机器边挤。`,
+        ],
+        visitorLines: [
+          `灯刚刚闪了一下，今天这趟还是慢慢逛比较稳。`,
+          `电压不太稳的时候，连排队都让人有点犹豫。`,
+        ],
+        emote: Math.random() < 0.5 ? "dots" : "sweat",
+        pause: 0.5,
+      };
+    case "incident-flash-sale":
+      return {
+        actorLines: [
+          `${actor.name}：折扣牌刚翻出来，这会儿排最值。`,
+          `${actor.name}：今天这波价差很实在，想省钱的别犹豫。`,
+        ],
+        visitorLines: [
+          `都喊到这份上了，那我再等一会儿也行。`,
+          `限时折扣挂出来以后，门口这队伍突然就更能等了。`,
+        ],
+        emote: Math.random() < 0.5 ? "heart" : "star",
+        pause: 0.35,
+        queueBonus: 1.4,
+      };
+    case "incident-street-performance":
+      return {
+        actorLines: [
+          `${actor.name}：先别走，下一段一响，这块人就会全围过来。`,
+          `${actor.name}：站这儿听两拍就知道，${zoneLabel} 今天不缺人气。`,
+        ],
+        visitorLines: [
+          `这段节奏还真挺上头，我先在这边看一会儿。`,
+          `边听边逛的感觉不错，这一带一下就热起来了。`,
+        ],
+        emote: Math.random() < 0.5 ? "note" : "star",
+        pause: 1.05,
+      };
+    case "incident-health-inspection":
+      return {
+        actorLines: [
+          `${actor.name}：队伍先收一收，今天得按检查流程慢慢过。`,
+          `${actor.name}：别催前台，这轮抽查看完才能继续提速。`,
+        ],
+        visitorLines: [
+          `今天这队是真的慢，不过检查的时候也只能多等一会儿。`,
+          `流程一细起来，门口节奏就立刻拖下来了。`,
+        ],
+        emote: Math.random() < 0.5 ? "sweat" : "anger",
+        pause: 0.5,
+        queuePenalty: 0.55,
+      };
+    default:
+      return {
+        actorLines: [`${actor.name}：今天这条街的节奏和往常不一样。`],
+        visitorLines: [`今天街上突然多了新动静，只能边走边看。`],
+        emote: "dots",
+        pause: 0.35,
+      };
+  }
+}
+
+function triggerEventActorInteraction(actor) {
+  if (!actor) {
+    return false;
+  }
+  const visitor = getNearbyVisitorsForActor(actor, actor.interactionRadius || 42)[0];
+  if (!visitor) {
+    return false;
+  }
+  const payload = getEventInteractionPayload(actor, visitor);
+  if (!payload) {
+    return false;
+  }
+  actor.focusVisitorId = visitor.id;
+  actor.focusTtl = 1.4;
+  if ((visitor.emoteCooldown || 0) <= 0 || Math.random() < 0.52) {
+    setVisitorEmote(visitor, payload.emote, 1.4 + Math.random() * 0.6);
+  }
+  if (payload.pause && visitor.phase !== "queue-wait") {
+    visitor.incidentPause = Math.max(visitor.incidentPause || 0, payload.pause);
+  }
+  if (
+    payload.queueBonus &&
+    (visitor.phase === "queueing" || visitor.phase === "queue-wait")
+  ) {
+    visitor.queuePatience += payload.queueBonus;
+  }
+  if (
+    payload.queuePenalty &&
+    (visitor.phase === "queueing" || visitor.phase === "queue-wait")
+  ) {
+    visitor.queuePatience = Math.max(0.9, visitor.queuePatience - payload.queuePenalty);
+  }
+  if (state.dialogueCooldown <= 0 || !state.activeDialogue) {
+    const actorText =
+      payload.actorLines[Math.floor(Math.random() * payload.actorLines.length)] ||
+      payload.actorLines[0];
+    const visitorText =
+      payload.visitorLines[Math.floor(Math.random() * payload.visitorLines.length)] ||
+      payload.visitorLines[0];
+    if (Math.random() < 0.56) {
+      openDialogueForSpeaker(
+        "event-actor",
+        actor.id,
+        getEventActorDisplayName(actor),
+        actorText,
+        "incident-live",
+        3.4,
+      );
+    } else {
+      openDialogueForSpeaker(
+        "visitor",
+        visitor.id,
+        visitor.profileLabel || "顾客",
+        visitorText,
+        "incident-react",
+        3.2,
+      );
+    }
+  }
+  if (Math.random() < 0.22) {
+    pushMessage(`${visitor.profileLabel || "顾客"} 被 ${getEventActorDisplayName(actor)} 吸引，脚步慢了下来。`);
+  }
+  return true;
 }
 
 function updateEventActors(delta) {
   for (const actor of state.eventActors) {
+    actor.focusTtl = Math.max(0, (actor.focusTtl || 0) - delta);
+    if ((actor.focusTtl || 0) <= 0) {
+      actor.focusVisitorId = null;
+    }
+    const nearbyVisitor = getNearbyVisitorsForActor(
+      actor,
+      Math.max(96, (actor.interactionRadius || 72) * 1.8),
+    )[0];
+    if (nearbyVisitor && Math.random() < delta * 1.8) {
+      actor.targetX = nearbyVisitor.x;
+      actor.targetY = nearbyVisitor.y;
+    }
     const dx = actor.targetX - actor.x;
     const dy = actor.targetY - actor.y;
     const dist = Math.hypot(dx, dy);
@@ -2000,11 +2329,16 @@ function updateEventActors(delta) {
       actor.y += (dy / dist) * move;
     }
     actor.talkTimer -= delta;
+    actor.interactionTimer -= delta;
     if (actor.talkTimer <= 0) {
       if (Math.random() < 0.62) {
         triggerEventActorDialogue(actor);
       }
       actor.talkTimer = 4.6 + Math.random() * 3.2;
+    }
+    if (actor.interactionTimer <= 0) {
+      const interacted = triggerEventActorInteraction(actor);
+      actor.interactionTimer = interacted ? 3.4 + Math.random() * 2.2 : 1.8 + Math.random() * 1.2;
     }
   }
 }
@@ -3142,6 +3476,7 @@ function spawnVisitor() {
     pendingErrandPath: null,
     emote: null,
     emoteCooldown: 0.6 + Math.random() * 1.8,
+    incidentPause: 0,
   });
   state.nextVisitorId += 1;
 }
@@ -3222,6 +3557,7 @@ function planVisitorErrandAfterService(visitor) {
 function updateVisitors(delta) {
   for (const visitor of state.visitors) {
     visitor.emoteCooldown = Math.max(0, (visitor.emoteCooldown || 0) - delta);
+    visitor.incidentPause = Math.max(0, (visitor.incidentPause || 0) - delta);
     if (visitor.emote) {
       visitor.emote.ttl -= delta;
       if (visitor.emote.ttl <= 0) {
@@ -3247,6 +3583,13 @@ function updateVisitors(delta) {
         !getFacilityById(visitor.targetFacilityId)
       ) {
         startVisitorLeaving(visitor);
+      }
+      if (
+        visitor.incidentPause > 0 &&
+        visitor.phase !== "queueing" &&
+        visitor.phase !== "queue-wait"
+      ) {
+        continue;
       }
       const dx = visitor.targetX - visitor.x;
       const dy = visitor.targetY - visitor.y;
@@ -3438,8 +3781,7 @@ function advanceDay() {
   const previousSeasonId = state.world.season.id;
   state.day += 1;
   state.rating += 2;
-  state.world = buildWorld(state.day, state.world, state.facilities);
-  state.eventActors = createIncidentActors(state.world.incidentQueue, state.facilities);
+  rebuildWorldForCurrentDay();
   const upkeep = Math.max(0, listFacilities().length - 4) * 3;
   if (upkeep > 0) {
     state.money = Math.max(0, state.money - upkeep);
@@ -4102,6 +4444,53 @@ function drawVisitors() {
   }
 }
 
+function drawEventActorProp(actor, x, y) {
+  switch (actor.incidentId) {
+    case "incident-influencer-rush":
+      ctx.fillStyle = "#3f4659";
+      ctx.fillRect(x + 8, y - 6, 8, 6);
+      ctx.fillStyle = "#9fd5ff";
+      ctx.fillRect(x + 10, y - 4, 4, 2);
+      ctx.fillStyle = "#ffd68c";
+      ctx.fillRect(x + 15, y - 5, 2, 4);
+      break;
+    case "incident-roadwork-detour":
+      ctx.fillStyle = "#ffcc65";
+      ctx.fillRect(x + 9, y - 3, 6, 5);
+      ctx.fillStyle = "#9a5f3c";
+      ctx.fillRect(x + 10, y + 2, 4, 2);
+      break;
+    case "incident-power-dip":
+      ctx.fillStyle = "#fff2a8";
+      ctx.fillRect(x + 10, y - 8, 2, 4);
+      ctx.fillRect(x + 8, y - 4, 5, 2);
+      ctx.fillRect(x + 9, y - 2, 2, 4);
+      break;
+    case "incident-flash-sale":
+      ctx.fillStyle = "#ff9dc1";
+      ctx.fillRect(x + 9, y - 7, 6, 6);
+      ctx.fillStyle = "#fff8e2";
+      ctx.fillRect(x + 11, y - 5, 2, 2);
+      break;
+    case "incident-street-performance":
+      ctx.fillStyle = "#7fd7ff";
+      ctx.fillRect(x + 9, y - 6, 3, 8);
+      ctx.fillStyle = "#fff5cb";
+      ctx.fillRect(x + 13, y - 8, 2, 2);
+      ctx.fillRect(x + 15, y - 6, 2, 2);
+      break;
+    case "incident-health-inspection":
+      ctx.fillStyle = "#efe0ff";
+      ctx.fillRect(x + 9, y - 7, 6, 8);
+      ctx.fillStyle = "#8a78b7";
+      ctx.fillRect(x + 10, y - 5, 4, 1);
+      ctx.fillRect(x + 10, y - 3, 4, 1);
+      break;
+    default:
+      break;
+  }
+}
+
 function drawNPCs() {
   for (const npc of state.npcs) {
     const active =
@@ -4148,6 +4537,11 @@ function drawNPCs() {
     ctx.fillStyle = actor.accent;
     ctx.fillRect(x - 8, y - 18, 16, 4);
     ctx.fillRect(x - 2, y - 22, 4, 4);
+    drawEventActorProp(actor, x, y);
+    if ((actor.focusTtl || 0) > 0) {
+      ctx.fillStyle = `${actor.accent}aa`;
+      ctx.fillRect(x - 10, y - 28, 20, 3);
+    }
     if (active) {
       ctx.strokeStyle = actor.accent;
       ctx.lineWidth = 3;
@@ -4669,6 +5063,14 @@ window.advanceTime = (ms) => {
   render();
 };
 
+window.setDebugIncident = (incidentId = null) => applyDebugIncident(incidentId);
+window.listDebugIncidents = () =>
+  lightweightIncidentDefinitions.map((incident) => ({
+    id: incident.id,
+    title: incident.title,
+    minDay: incident.minDay,
+  }));
+
 window.render_game_to_text = () =>
   JSON.stringify({
     mode: state.mode,
@@ -4684,6 +5086,7 @@ window.render_game_to_text = () =>
       day: state.day,
       selectedType: state.selectedType,
       lastCombo: state.lastCombo,
+      debugIncidentId: state.debug?.forcedIncidentId || null,
       todayTrend: state.todayTrend,
       servedVisitors: state.servedVisitors,
       lifetimeIncome: state.lifetimeIncome,
@@ -4773,6 +5176,7 @@ window.render_game_to_text = () =>
       name: actor.name,
       x: Math.round(actor.x),
       y: Math.round(actor.y),
+      focusVisitorId: actor.focusVisitorId || null,
       speaking:
         state.activeDialogue?.speakerKind === "event-actor" &&
         state.activeDialogue?.speakerId === actor.id,
