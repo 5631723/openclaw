@@ -2553,10 +2553,42 @@ function drawBackground() {
     ctx.fillRect(sunX, 48, 44, 44);
   }
 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-  ctx.fillRect(180, 58, 62, 18);
-  ctx.fillRect(208, 50, 48, 24);
-  ctx.fillRect(260, 82, 58, 16);
+  const cloudBands = [
+    {
+      speed: 9,
+      y: 112,
+      alpha: state.world.weather.id === "drizzle" ? 0.68 : 0.56,
+      clouds: [
+        { x: 86, w: 88, h: 24 },
+        { x: 246, w: 72, h: 28 },
+        { x: 438, w: 84, h: 22 },
+        { x: 658, w: 96, h: 26 },
+      ],
+    },
+    {
+      speed: 5,
+      y: 154,
+      alpha: state.world.weather.id === "drizzle" ? 0.54 : 0.42,
+      clouds: [
+        { x: 152, w: 70, h: 18 },
+        { x: 382, w: 86, h: 20 },
+        { x: 618, w: 74, h: 18 },
+      ],
+    },
+  ];
+  for (const band of cloudBands) {
+    const drift = (state.cameraPulse * band.speed) % (playfieldWidth + 120);
+    ctx.fillStyle = `rgba(255, 255, 255, ${band.alpha})`;
+    for (const cloud of band.clouds) {
+      const baseX = cloud.x + drift - 120;
+      for (const wrapOffset of [0, -(playfieldWidth + 160)]) {
+        const drawX = baseX + wrapOffset;
+        ctx.fillRect(drawX, band.y, cloud.w, cloud.h);
+        ctx.fillRect(drawX + 18, band.y - 10, Math.max(34, cloud.w - 24), cloud.h);
+        ctx.fillRect(drawX + 10, band.y + 8, Math.max(26, cloud.w - 32), Math.max(10, cloud.h - 8));
+      }
+    }
+  }
 
   const mountainColors =
     state.world.season.id === "winter"
@@ -2615,11 +2647,13 @@ function drawBackground() {
   }
 
   if (state.world.weather.id === "drizzle") {
-    ctx.fillStyle = "rgba(88, 133, 188, 0.45)";
-    for (let i = 0; i < 36; i += 1) {
-      const x = (i * 27 + state.cameraPulse * 80) % playfieldWidth;
-      const y = 90 + (i * 18) % 410;
-      ctx.fillRect(x, y, 2, 12);
+    for (let i = 0; i < 54; i += 1) {
+      const x = (i * 31 + (i % 4) * 11) % playfieldWidth;
+      const fall = (state.cameraPulse * 240 + i * 28) % (layout.roadY - 72);
+      const y = 86 + fall;
+      ctx.fillStyle = i % 3 === 0 ? "rgba(88, 133, 188, 0.54)" : "rgba(124, 164, 214, 0.46)";
+      ctx.fillRect(x, y, 2, 14);
+      ctx.fillRect(x + 2, y + 8, 1, 6);
     }
   }
 
