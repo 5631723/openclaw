@@ -27,23 +27,54 @@ const simulationTuning = automationDriven
     };
 
 const layout = {
-  gridX: 36,
-  gridY: 132,
-  cols: 12,
-  rows: 9,
-  tile: 54,
-  sidebarX: 700,
-  sidebarY: 108,
-  sidebarW: 368,
-  sidebarH: 586,
-  roadY: 620,
-  roadH: 54,
+  gridX: 38,
+  gridY: 148,
+  cols: 14,
+  rows: 10,
+  tile: 60,
+  sidebarX: 914,
+  sidebarY: 112,
+  sidebarW: 468,
+  sidebarH: 760,
+  roadY: 808,
+  roadH: 62,
 };
 
 const calendarTuning = {
   daysPerYear: 360,
   seasonLength: 90,
   calendarDayStep: 15,
+};
+
+const shellThemePalettes = {
+  spring: {
+    sunny: { top: "#f3d778", bottom: "#efab76", glow: "rgba(255,255,255,0.46)" },
+    cloudy: { top: "#e8cf88", bottom: "#d7b27f", glow: "rgba(255,255,255,0.32)" },
+    drizzle: { top: "#c8d2a1", bottom: "#91b5a8", glow: "rgba(232,244,255,0.24)" },
+    "festival-breeze": { top: "#ffd784", bottom: "#f19f72", glow: "rgba(255,246,214,0.42)" },
+    snow: { top: "#dce7f1", bottom: "#bfd1dd", glow: "rgba(255,255,255,0.52)" },
+  },
+  summer: {
+    sunny: { top: "#f7cf63", bottom: "#f08c5d", glow: "rgba(255,252,210,0.38)" },
+    cloudy: { top: "#dfc287", bottom: "#d39d73", glow: "rgba(255,246,225,0.28)" },
+    drizzle: { top: "#b8c69a", bottom: "#82a7a0", glow: "rgba(220,238,255,0.2)" },
+    "festival-breeze": { top: "#ffd36a", bottom: "#f06f67", glow: "rgba(255,237,197,0.4)" },
+    snow: { top: "#dde6ef", bottom: "#c4d2dc", glow: "rgba(255,255,255,0.46)" },
+  },
+  autumn: {
+    sunny: { top: "#efc878", bottom: "#d98d63", glow: "rgba(255,242,214,0.34)" },
+    cloudy: { top: "#d8bd8f", bottom: "#b99879", glow: "rgba(255,245,226,0.24)" },
+    drizzle: { top: "#b9b79e", bottom: "#8e98a5", glow: "rgba(226,233,247,0.18)" },
+    "festival-breeze": { top: "#f1c86d", bottom: "#da7c63", glow: "rgba(255,232,189,0.36)" },
+    snow: { top: "#dde4ea", bottom: "#c3ccd6", glow: "rgba(255,255,255,0.48)" },
+  },
+  winter: {
+    sunny: { top: "#dfe9f7", bottom: "#c9d7eb", glow: "rgba(255,255,255,0.48)" },
+    cloudy: { top: "#d1dbe8", bottom: "#bcc9da", glow: "rgba(255,255,255,0.32)" },
+    drizzle: { top: "#c1d0dd", bottom: "#a8b8c9", glow: "rgba(235,245,255,0.22)" },
+    "festival-breeze": { top: "#e7dff3", bottom: "#cfc3e5", glow: "rgba(255,246,255,0.4)" },
+    snow: { top: "#e9f1fb", bottom: "#d2deee", glow: "rgba(255,255,255,0.58)" },
+  },
 };
 
 const facilityTypes = [
@@ -283,143 +314,184 @@ const visitorArchetypes = [
 
 const landmarkTypes = [
   {
-    id: "school",
-    name: "Town School",
+    id: "clinic",
+    name: "Town Clinic",
     kind: "landmark",
     removable: false,
-    footprint: { w: 3, h: 4 },
-    color: "#f2b46f",
+    footprint: { w: 2, h: 2 },
+    color: "#e46b72",
     sprite: [
-      "...rrrrrrrr....",
-      "..rrrrrrrrrr...",
-      ".rrrwwwwwwrrr..",
-      ".rrwwyyyywwrr..",
-      ".rrwwyyyywwrr..",
-      ".rrwwwwwwwwrr..",
-      ".rrbbccccbbrr..",
-      ".rrbbccccbbrr..",
-      ".rrbbccccbbrr..",
-      ".rrwwwwwwwwrr..",
-      ".rrwwttttwwrr..",
-      ".rrwwttttwwrr..",
-      ".rrll....llrr..",
-      ".rrll....llrr..",
-      "..kk......kk...",
       "................",
-    ],
-    palette: {
-      r: "#cf6e3d",
-      w: "#fff4df",
-      y: "#ffe375",
-      b: "#c78f4e",
-      c: "#f4d9a6",
-      t: "#8cc7ea",
-      l: "#6a5144",
-      k: "#40333a",
-    },
-  },
-  {
-    id: "factory",
-    name: "Mini Factory",
-    kind: "landmark",
-    removable: false,
-    footprint: { w: 4, h: 4 },
-    color: "#8c92a8",
-    sprite: [
-      "......ss........",
-      ".....ssss.......",
-      "....ssggss......",
-      "...ssggggss.....",
-      "..bbbbbbbbbb....",
-      "..bwwwwwwwwb....",
-      "..bwwyyyywwb....",
-      "..bwwyyyywwb....",
-      "..bwwwwwwwwb....",
-      "..bccbbbbccb....",
-      "..bccbbbbccb....",
-      "..bwwttttwwb....",
-      "..bwwttttwwb....",
-      "..bk......kb....",
-      "..bk......kb....",
-      "................",
-    ],
-    palette: {
-      s: "#7a7f91",
-      g: "#cfd4e4",
-      b: "#6f768b",
-      w: "#f1f3fb",
-      y: "#ffd96b",
-      c: "#9ca3bb",
-      t: "#9dd0ff",
-      k: "#4e5261",
-    },
-  },
-  {
-    id: "apartments",
-    name: "Pocket Apartments",
-    kind: "landmark",
-    removable: false,
-    footprint: { w: 2, h: 4 },
-    color: "#de8ca5",
-    sprite: [
-      "...pppppp.......",
-      "..ppwwwwpp......",
-      "..ppwyywpp......",
-      "..ppwwwwpp......",
-      "..ppwwwwpp......",
-      "..ppwyywpp......",
-      "..ppwwwwpp......",
-      "..ppwwwwpp......",
-      "..ppwyywpp......",
-      "..ppwwwwpp......",
-      "..ppllllpp......",
-      "..ppllllpp......",
-      "..pp....pp......",
-      "..pp....pp......",
-      "..kk....kk......",
-      "................",
-    ],
-    palette: {
-      p: "#dc7f9b",
-      w: "#fff2fb",
-      y: "#ffe06c",
-      l: "#8d5d6e",
-      k: "#4d3a43",
-    },
-  },
-  {
-    id: "office",
-    name: "Town Office",
-    kind: "landmark",
-    removable: false,
-    footprint: { w: 3, h: 4 },
-    color: "#73a7d8",
-    sprite: [
-      "....bbbbbb......",
-      "...bbwwwwbb.....",
-      "..bbwwyywwbb....",
-      "..bbwwyywwbb....",
-      "..bbwwwwwwbb....",
-      "..bbccbbccbb....",
-      "..bbccbbccbb....",
-      "..bbwwwwwwbb....",
-      "..bbwwttwwbb....",
-      "..bbwwttwwbb....",
-      "..bbllllllbb....",
-      "..bbllllllbb....",
-      "..bb..ww..bb....",
-      "..bb..ww..bb....",
+      "..rrrrrrrrrr....",
+      ".rrwwwwwwwwrr...",
+      ".rrwwccccwwrr...",
+      ".rrwwccccwwrr...",
+      ".rrwwwwwwwwrr...",
+      ".rrbbyyyybbrr...",
+      ".rrbbyyyybbrr...",
+      ".rrwwwwwwwwrr...",
+      ".rrwwttttwwrr...",
+      ".rrwwttttwwrr...",
+      ".rrll....llrr...",
+      ".rrll....llrr...",
+      "..kk......kk....",
       "..kk......kk....",
       "................",
     ],
     palette: {
-      b: "#5b88c1",
+      r: "#d95a63",
+      w: "#fff5f1",
+      c: "#f06b73",
+      y: "#ffd97c",
+      b: "#f0c18d",
+      t: "#9ed3f8",
+      l: "#705850",
+      k: "#43363d",
+    },
+  },
+  {
+    id: "library",
+    name: "Town Library",
+    kind: "landmark",
+    removable: false,
+    footprint: { w: 2, h: 2 },
+    color: "#6b8fd8",
+    sprite: [
+      "................",
+      "..bbbbbbbbbb....",
+      ".bbwwwwwwwwbb...",
+      ".bbwwppppwwbb...",
+      ".bbwwppppwwbb...",
+      ".bbwwwwwwwwbb...",
+      ".bbccyyyyccbb...",
+      ".bbccyyyyccbb...",
+      ".bbwwwwwwwwbb...",
+      ".bbwwttttwwbb...",
+      ".bbwwttttwwbb...",
+      ".bbll....llbb...",
+      ".bbll....llbb...",
+      "..kk......kk....",
+      "..kk......kk....",
+      "................",
+    ],
+    palette: {
+      b: "#5d7fc5",
       w: "#f4f8ff",
-      y: "#ffe071",
-      c: "#8bb5e3",
-      t: "#9dd0ff",
-      l: "#476785",
-      k: "#3a4658",
+      p: "#8ca6dd",
+      c: "#b6c7ea",
+      y: "#ffd86e",
+      t: "#a6d7f5",
+      l: "#50627d",
+      k: "#3d495a",
+    },
+  },
+  {
+    id: "post",
+    name: "Post House",
+    kind: "landmark",
+    removable: false,
+    footprint: { w: 2, h: 2 },
+    color: "#e19e58",
+    sprite: [
+      "................",
+      "..oooooooooo....",
+      ".oowwwwwwwwoo...",
+      ".oowwmmmmwwoo...",
+      ".oowmwwwwmwoo...",
+      ".oowwwwwwwwoo...",
+      ".ooccyyyyccoo...",
+      ".ooccyyyyccoo...",
+      ".oowwwwwwwwoo...",
+      ".oowwttttwwoo...",
+      ".oowwttttwwoo...",
+      ".ooll....lloo...",
+      ".ooll....lloo...",
+      "..kk......kk....",
+      "..kk......kk....",
+      "................",
+    ],
+    palette: {
+      o: "#d98a46",
+      w: "#fff5e9",
+      m: "#f1cda1",
+      c: "#f4d8a2",
+      y: "#ffd86c",
+      t: "#9fd7f4",
+      l: "#795847",
+      k: "#44363a",
+    },
+  },
+  {
+    id: "police",
+    name: "Police Box",
+    kind: "landmark",
+    removable: false,
+    footprint: { w: 2, h: 2 },
+    color: "#5c83c8",
+    sprite: [
+      "................",
+      "..bbbbbbbbbb....",
+      ".bbwwwwwwwwbb...",
+      ".bbwwppppwwbb...",
+      ".bbwwpggpwwbb...",
+      ".bbwwppppwwbb...",
+      ".bbccyyyyccbb...",
+      ".bbccyyyyccbb...",
+      ".bbwwwwwwwwbb...",
+      ".bbwwttttwwbb...",
+      ".bbwwttttwwbb...",
+      ".bbll....llbb...",
+      ".bbll....llbb...",
+      "..kk......kk....",
+      "..kk......kk....",
+      "................",
+    ],
+    palette: {
+      b: "#567abf",
+      w: "#f4f8ff",
+      p: "#87a6dd",
+      g: "#ffe47a",
+      c: "#b6c8eb",
+      y: "#ffd96f",
+      t: "#a5d7f4",
+      l: "#4d617c",
+      k: "#3c495b",
+    },
+  },
+  {
+    id: "workshop",
+    name: "Craft Works",
+    kind: "landmark",
+    removable: false,
+    footprint: { w: 3, h: 2 },
+    color: "#7c8a92",
+    sprite: [
+      "...ssssssssss...",
+      "..sswwwwwwwwss..",
+      ".sswwhhhhhhwwss.",
+      ".sswwhwwwwhwwss.",
+      ".sswwhhhhhhwwss.",
+      ".sswwwwwwwwwwss.",
+      ".ssccbbccbbccss.",
+      ".ssccbbccbbccss.",
+      ".sswwwwttwwwwss.",
+      ".sswwwwttwwwwss.",
+      ".ssll..ll..llss.",
+      ".ssll..ll..llss.",
+      ".sskk..kk..kkss.",
+      ".sskk..kk..kkss.",
+      "..kk..........kk",
+      "................",
+    ],
+    palette: {
+      s: "#707d86",
+      w: "#f5f4ef",
+      h: "#b5c3cc",
+      c: "#9caab4",
+      b: "#ffd971",
+      t: "#9fd5f1",
+      l: "#5c6267",
+      k: "#403b42",
     },
   },
 ];
@@ -737,6 +809,14 @@ const dialogueTemplates = {
     ({ facilityName }) => `${facilityName} 又接了一单，门口的人气越来越稳。`,
     ({ facilityName }) => `${facilityName} 的客人出得很快，这个点位挑对了。`,
   ],
+  queue: [
+    ({ facilityName }) => `${facilityName} 门口开始排队了，节奏已经起来。`,
+    ({ facilityName }) => `${facilityName} 前面有人等着，看来这家是真有人气。`,
+  ],
+  crowded: [
+    ({ facilityName }) => `${facilityName} 门口挤成一团，晚一点再来也许更顺。`,
+    ({ facilityName }) => `${facilityName} 这会儿太火了，排队的人已经拐弯。`,
+  ],
   levelup: [
     ({ facilityName, level }) => `${facilityName} 升到 Lv.${level} 了，老顾客开始认这家招牌了。`,
     ({ facilityName, level }) => `${facilityName} 做到 Lv.${level}，这就是口碑慢慢堆起来的感觉。`,
@@ -815,30 +895,68 @@ function occupyStructureOnGrid(grid, structure) {
 function seedStartingStructures(grid) {
   const structures = [];
   let nextId = 1;
-  const landmarkPool = shuffleArray(landmarkTypes).slice(0, 3);
-  const slots = [
-    { startCol: 0, width: 4 },
-    { startCol: 4, width: 4 },
-    { startCol: 8, width: 4 },
-  ];
-  landmarkPool.forEach((landmarkDef, index) => {
-    const slot = slots[index];
-    const col =
-      slot.startCol + Math.floor((slot.width - landmarkDef.footprint.w) / 2);
-    const landmark = createStructureEntity(
-      landmarkDef.id,
-      col,
-      0,
-      nextId,
-    );
-    nextId += 1;
-    occupyStructureOnGrid(grid, landmark);
-    structures.push(landmark);
-  });
+  const landmarkPool = shuffleArray(landmarkTypes);
+  const landmarkCandidates = [];
+  for (let row = 0; row <= 4; row += 1) {
+    for (let col = 0; col < layout.cols; col += 1) {
+      landmarkCandidates.push({ col, row });
+    }
+  }
+  for (const landmarkDef of landmarkPool) {
+    const shuffledSpots = shuffleArray(landmarkCandidates);
+    let placed = false;
+    for (const spot of shuffledSpots) {
+      if (
+        !canOccupyTiles(
+          grid,
+          spot.col,
+          spot.row,
+          landmarkDef.footprint.w,
+          landmarkDef.footprint.h,
+        )
+      ) {
+        continue;
+      }
+      const landmark = createStructureEntity(
+        landmarkDef.id,
+        spot.col,
+        spot.row,
+        nextId,
+      );
+      nextId += 1;
+      occupyStructureOnGrid(grid, landmark);
+      structures.push(landmark);
+      placed = true;
+      break;
+    }
+    if (!placed) {
+      const fallbackSpot = landmarkCandidates.find((spot) =>
+        canOccupyTiles(
+          grid,
+          spot.col,
+          spot.row,
+          landmarkDef.footprint.w,
+          landmarkDef.footprint.h,
+        ),
+      );
+      if (!fallbackSpot) {
+        continue;
+      }
+      const landmark = createStructureEntity(
+        landmarkDef.id,
+        fallbackSpot.col,
+        fallbackSpot.row,
+        nextId,
+      );
+      nextId += 1;
+      occupyStructureOnGrid(grid, landmark);
+      structures.push(landmark);
+    }
+  }
 
   const treeCount = 4 + Math.floor(Math.random() * 3);
   const candidates = [];
-  for (let row = 4; row < layout.rows - 1; row += 1) {
+  for (let row = 3; row < layout.rows - 1; row += 1) {
     for (let col = 0; col < layout.cols; col += 1) {
       candidates.push({ col, row });
     }
@@ -1023,6 +1141,32 @@ function setEnvironmentNotice(text, color = "#ffe7a3", ttl = 3.8) {
   };
 }
 
+function syncShellTheme() {
+  const seasonPalettes =
+    shellThemePalettes[state.world.season.id] || shellThemePalettes.spring;
+  const basePalette =
+    seasonPalettes[state.world.weather.id] || seasonPalettes.sunny;
+  let top = basePalette.top;
+  let bottom = basePalette.bottom;
+  let glow = basePalette.glow;
+
+  if (state.timeOfDay.id === "evening") {
+    top = "#e6c17c";
+    bottom = "#b97a67";
+    glow = "rgba(255, 226, 190, 0.28)";
+  } else if (state.timeOfDay.id === "midnight") {
+    top = "#889cc4";
+    bottom = "#4e6289";
+    glow = "rgba(230, 240, 255, 0.18)";
+  } else if (state.timeOfDay.id === "morning") {
+    glow = "rgba(255, 250, 226, 0.46)";
+  }
+
+  document.documentElement.style.setProperty("--bg-top", top);
+  document.documentElement.style.setProperty("--bg-bottom", bottom);
+  document.documentElement.style.setProperty("--bg-glow", glow);
+}
+
 function createInitialState() {
   const initialRating = 12;
   const initialDay = 1;
@@ -1058,6 +1202,7 @@ function createInitialState() {
       completed: false,
     })),
     winCelebrated: false,
+    finalePlaceholderUnlocked: false,
     world: initialWorld,
     npcs: createNPCs(),
     activeDialogue: null,
@@ -1161,6 +1306,8 @@ function maybeTriggerVisitorThought() {
     (visitor) =>
       visitor.phase === "going" ||
       visitor.phase === "entering" ||
+      visitor.phase === "queueing" ||
+      visitor.phase === "queue-wait" ||
       visitor.phase === "leaving",
   );
   if (!candidates.length) {
@@ -1171,13 +1318,25 @@ function maybeTriggerVisitorThought() {
   const facility = getFacilityById(visitor.targetFacilityId);
   const facilityName = facility ? getFacilityDef(facility.type).name : "店铺";
   const profileLabel = visitor.profileLabel || "顾客";
-  const lines = [
-    `${profileLabel} 今天碰上 ${state.world.weather.label}，出来逛街正合适。`,
-    `${facilityName} 看起来不错，今天就去这家看看。`,
-    `${state.timeOfDay.label} 的街区节奏，和我这种 ${profileLabel} 挺合拍。`,
-    `${state.world.season.label} 的街景真有味道，像小镇庆典前夕。`,
-    `那边的 ${facilityName} 好像挺热闹，排一会儿也值。`,
-  ];
+  const lines =
+    visitor.phase === "queueing" || visitor.phase === "queue-wait"
+      ? [
+          `${facilityName} 前面已经有人了，不过这家看起来值得等等。`,
+          `${profileLabel} 排着队也在看招牌，感觉这家店口碑不差。`,
+          `这条队伍排得还算整齐，就看 ${facilityName} 出客快不快了。`,
+        ]
+      : visitor.phase === "leaving"
+        ? [
+            `${profileLabel} 逛完这一圈差不多了，下次再看看街区会不会更热闹。`,
+            `${state.world.season.label} 的街景看够了，今天这趟算没白来。`,
+          ]
+        : [
+            `${profileLabel} 今天碰上 ${state.world.weather.label}，出来逛街正合适。`,
+            `${facilityName} 看起来不错，今天就去这家看看。`,
+            `${state.timeOfDay.label} 的街区节奏，和我这种 ${profileLabel} 挺合拍。`,
+            `${state.world.season.label} 的街景真有味道，像小镇庆典前夕。`,
+            `那边的 ${facilityName} 好像挺热闹，排一会儿也值。`,
+          ];
   triggerDialogue(
     "thought",
     {},
@@ -1856,12 +2015,24 @@ function tryQueueVisitor(visitor, facility) {
     if (Math.random() < 0.24) {
       pushMessage(`${getFacilityDef(facility.type).name} 门口太挤，顾客被劝退了。`);
     }
+    triggerDialogue(
+      "crowded",
+      { facilityName: getFacilityDef(facility.type).name },
+      { chance: 0.22, speakerId: visitor.id },
+    );
     startVisitorLeaving(visitor);
     return false;
   }
   facility.queue.push(visitor.id);
   visitor.phase = "queueing";
   visitor.queuePatience = 4 + Math.random() * 3;
+  if (facility.queue.length >= 2) {
+    triggerDialogue(
+      "queue",
+      { facilityName: getFacilityDef(facility.type).name },
+      { chance: 0.18, speakerId: visitor.id },
+    );
+  }
   syncFacilityQueueTargets(facility);
   return true;
 }
@@ -2098,6 +2269,11 @@ function updateVisitors(delta) {
           color: "#ffd38d",
           ttl: 1.5,
         });
+        triggerDialogue(
+          "crowded",
+          { facilityName: getFacilityDef(facility.type).name },
+          { chance: 0.18, speakerId: visitor.id },
+        );
         startVisitorLeaving(visitor);
         continue;
       }
@@ -2286,14 +2462,32 @@ function evaluateGoals() {
     !state.winCelebrated
   ) {
     state.winCelebrated = true;
-    state.mode = "complete";
-    pushMessage("商店街目标全达成，这一轮已经能拿去当完整 demo 了。");
-    syncButtons();
+    state.finalePlaceholderUnlocked = true;
+    pushMessage("阶段目标已全部达成。小镇会继续营业，终章观察区暂未开放。");
+    setEnvironmentNotice(
+      "阶段目标完成，小镇继续运转中。终章内容后续开放。",
+      "#ffe6a8",
+      4.6,
+    );
   }
 }
 
 function getActiveGoal() {
   return state.goals.find((goal) => !goal.completed) || null;
+}
+
+function getBusiestFacility() {
+  const shops = listFacilities();
+  if (!shops.length) {
+    return null;
+  }
+  return (
+    [...shops].sort((a, b) => {
+      const aLoad = a.queue.length + (a.activeServiceId ? 1 : 0);
+      const bLoad = b.queue.length + (b.activeServiceId ? 1 : 0);
+      return bLoad - aLoad;
+    })[0] || null
+  );
 }
 
 function syncButtons() {
@@ -2699,6 +2893,8 @@ function drawNPCs() {
 }
 
 function drawSidebar() {
+  const infoX = layout.sidebarX + 196;
+  const infoWidth = layout.sidebarW - 226;
   ctx.fillStyle = "#2f2231";
   ctx.fillRect(layout.sidebarX, layout.sidebarY, layout.sidebarW, layout.sidebarH);
   ctx.fillStyle = "#fff0ce";
@@ -2728,37 +2924,37 @@ function drawSidebar() {
 
   ctx.fillStyle = state.world.season.color;
   ctx.font = "bold 12px Trebuchet MS";
-  ctx.fillText(state.world.season.label, layout.sidebarX + 162, layout.sidebarY + 40);
+  ctx.fillText(state.world.season.label, infoX, layout.sidebarY + 40);
   ctx.fillStyle = "#ffefbd";
-  ctx.fillText(state.world.weather.label, layout.sidebarX + 162, layout.sidebarY + 58);
+  ctx.fillText(state.world.weather.label, infoX, layout.sidebarY + 58);
   ctx.fillStyle = "#8a6f79";
   ctx.font = "11px Trebuchet MS";
-  ctx.fillText("Festival now", layout.sidebarX + 162, layout.sidebarY + 78);
+  ctx.fillText("Festival now", infoX, layout.sidebarY + 78);
   wrapText(
     state.world.activeFestival
       ? state.world.activeFestival.name
       : "今天没有节庆活动",
-    layout.sidebarX + 162,
+    infoX,
     layout.sidebarY + 92,
-    160,
+    infoWidth,
     13,
     2,
   );
-  ctx.fillText("Trend today", layout.sidebarX + 162, layout.sidebarY + 112);
+  ctx.fillText("Trend today", infoX, layout.sidebarY + 112);
   wrapText(
     `${state.todayTrend.name} +${state.todayTrend.incomeBonus}G/+${state.todayTrend.ratingBonus}★`,
-    layout.sidebarX + 162,
+    infoX,
     layout.sidebarY + 126,
-    160,
+    infoWidth,
     13,
     2,
   );
-  ctx.fillText("Next fest", layout.sidebarX + 162, layout.sidebarY + 146);
+  ctx.fillText("Next fest", infoX, layout.sidebarY + 146);
   wrapText(
     state.world.upcomingFestival.name,
-    layout.sidebarX + 162,
+    infoX,
     layout.sidebarY + 160,
-    160,
+    infoWidth,
     13,
     2,
   );
@@ -2800,15 +2996,16 @@ function drawSidebar() {
 
     ctx.fillStyle = "#2f2231";
     ctx.font = "bold 11px Trebuchet MS";
-    ctx.fillText(fitTextToWidth(def.name, 160), cardX + 46, cardY + 17);
+    ctx.fillText(fitTextToWidth(def.name, cardW - 92), cardX + 46, cardY + 17);
     ctx.font = "10px Trebuchet MS";
     const price = unlocked ? `${def.cost}G | ${def.footprint.w}x${def.footprint.h}` : `Unlock ${def.unlockAt}★`;
     ctx.fillText(price, cardX + 46, cardY + 29);
     ctx.fillStyle = "#7f6470";
-    ctx.fillText(fitTextToWidth(def.bonusText, 170), cardX + 46, cardY + 39);
+    ctx.fillText(fitTextToWidth(def.bonusText, cardW - 104), cardX + 46, cardY + 39);
   });
 
   const activeGoal = getActiveGoal();
+  const busiestFacility = getBusiestFacility();
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 14px Trebuchet MS";
   ctx.fillText("Goal & Town Talk", layout.sidebarX + 24, layout.sidebarY + 526);
@@ -2825,7 +3022,9 @@ function drawSidebar() {
     );
   } else {
     wrapText(
-      "全部目标达成，商店街已进入展示完成态。",
+      state.finalePlaceholderUnlocked
+        ? "阶段目标已清空。小镇会继续营业，终章观察区暂未开放。"
+        : "全部目标达成，商店街已进入展示完成态。",
       layout.sidebarX + 24,
       layout.sidebarY + 546,
       layout.sidebarW - 48,
@@ -2833,13 +3032,36 @@ function drawSidebar() {
       2,
     );
   }
+  const pulseText = busiestFacility
+    ? (() => {
+        const def = getFacilityDef(busiestFacility.type);
+        const queueCount = busiestFacility.queue.length;
+        if (queueCount >= getFacilityQueueCapacity(busiestFacility)) {
+          return `Street Pulse：${def.name} 已爆满，门口顾客正在外溢。`;
+        }
+        if (queueCount > 0) {
+          return `Street Pulse：${def.name} 正在排队，当前 ${queueCount} 人等候。`;
+        }
+        if (busiestFacility.activeServiceId) {
+          return `Street Pulse：${def.name} 正在接客，门口节奏很稳。`;
+        }
+        return "Street Pulse：目前街区还比较从容，适合继续观察人流。";
+      })()
+    : "Street Pulse：先摆出第一家店，再观察哪一类顾客最先被吸引。";
+  ctx.fillStyle = "#8b6d61";
+  wrapText(pulseText, layout.sidebarX + 24, layout.sidebarY + 578, layout.sidebarW - 48, 14, 2);
   const talk =
     state.activeDialogue?.text ||
     state.dialogueFeed[0]?.text ||
     state.messages[0] ||
     "暂无消息";
+  ctx.fillStyle = "#f8ecd1";
+  ctx.fillRect(layout.sidebarX + 22, layout.sidebarY + 612, layout.sidebarW - 44, 106);
+  ctx.strokeStyle = "#b5976d";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(layout.sidebarX + 23.5, layout.sidebarY + 613.5, layout.sidebarW - 47, 103);
   ctx.fillStyle = "#6f5a62";
-  wrapText(talk, layout.sidebarX + 24, layout.sidebarY + 580, layout.sidebarW - 48, 14, 3);
+  wrapText(talk, layout.sidebarX + 32, layout.sidebarY + 634, layout.sidebarW - 64, 15, 4);
   ctx.restore();
 }
 
@@ -3018,6 +3240,7 @@ function drawCompleteOverlay() {
 
 function render() {
   syncButtons();
+  syncShellTheme();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
   drawHeader();

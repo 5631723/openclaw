@@ -9,22 +9,38 @@
   <body>
     <main class="shell">
       <section class="hero">
-        <p class="eyebrow">Town Observation Simulator</p>
-        <h1>小镇观察模拟器</h1>
-        <p class="summary">
-          摆店铺、观察顾客行径、听街坊闲聊、吃组合加成，再跟着天气、四季与节庆一起经营街区。
-        </p>
-        <div class="actions">
-          <button id="start-btn" type="button">开始经营</button>
-          <button id="restart-btn" type="button">重新开档</button>
+        <div class="hero-copy">
+          <p class="eyebrow">Town Observation Simulator</p>
+          <h1>小镇观察模拟器</h1>
+          <p class="summary">
+            这不是一局只盯数值跳动的经营游戏，而是一座需要你盯着人流、门口、天气、时段和街坊反应慢慢读懂的小镇。
+          </p>
+          <p class="story-hook">
+            试着多看一会儿：谁会在雨天改走近路，谁会在热门店门口停下脚步，哪家店会把学生客和游客都吸过去，哪次节庆会让整条街忽然变得不一样。你不是单纯在摆建筑，而是在观察一座街区逐渐形成自己的生活节奏。
+          </p>
         </div>
-        <p class="hint">
-          操作：鼠标点击右侧卡片选择设施，点击地块放置；右键拆除；`0` 取消选中回到观察模式；`1-5`
-          快捷选择；`F` 全屏；`R` 重开。高级设施会占据更多格子，顾客会沿门口路线进店消费，热门店会出现排队与拥挤。
-        </p>
+        <div class="hero-controls">
+          <div class="actions">
+            <button id="start-btn" type="button">开始经营</button>
+            <button id="restart-btn" type="button">重新开档</button>
+          </div>
+          <div class="guide">
+            <p class="guide-title">操作与玩法说明</p>
+            <p class="hint">
+              鼠标点击右侧卡片选择设施，点击地块放置；右键拆除；`0` 取消选中回到观察模式；`1-5`
+              快捷选择；`F` 全屏；`R` 重开。高级设施会占据更多格子，顾客会沿门口路线进店消费，热门店会出现排队与拥挤。
+            </p>
+          </div>
+          <div class="future-slot">
+            <p class="guide-title">终章观察区</p>
+            <p class="future-copy">
+              当前版本不会强制结束营业。阶段目标完成后，小镇会继续运行，这里先保留给后续的结局与长期观察设计。
+            </p>
+          </div>
+        </div>
       </section>
       <section class="stage">
-        <canvas id="game" width="1100" height="720" aria-label="小镇观察模拟器 canvas"></canvas>
+        <canvas id="game" width="1420" height="920" aria-label="小镇观察模拟器 canvas"></canvas>
       </section>
     </main>
     <script type="module" src="./game.js"></script>
