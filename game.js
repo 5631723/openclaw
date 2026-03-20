@@ -9,12 +9,12 @@ const automationDriven = Boolean(window.navigator.webdriver);
 const simulationTuning = automationDriven
   ? {
       dayLength: 10,
-      initialSpawnDelay: 0.45,
-      minSpawnDelay: 0.45,
-      spawnBaseDelay: 0.95,
+      initialSpawnDelay: 0.38,
+      minSpawnDelay: 0.38,
+      spawnBaseDelay: 0.8,
       spawnDaySlope: 0.03,
       visitorSpeedMultiplier: 3.2,
-      visitorWait: 0.16,
+      visitorWait: 0.22,
     }
   : {
       dayLength: 18,
@@ -87,6 +87,7 @@ const facilityTypes = [
     unlockAt: 0,
     color: "#f06b4d",
     footprint: { w: 1, h: 1 },
+    serviceScale: 2.6,
     bonusText: "靠近 Park 时人气更高",
     synergy: { park: { income: 2, rating: 2, pop: 4 } },
     sprite: [
@@ -126,6 +127,7 @@ const facilityTypes = [
     unlockAt: 0,
     color: "#67b353",
     footprint: { w: 1, h: 1 },
+    serviceScale: 1.8,
     bonusText: "和 Snack / Bath 形成休闲区",
     synergy: {
       snack: { income: 2, rating: 2, pop: 3 },
@@ -164,6 +166,7 @@ const facilityTypes = [
     unlockAt: 22,
     color: "#5f74df",
     footprint: { w: 2, h: 1 },
+    serviceScale: 3.2,
     bonusText: "挨着 Snack 时更会赚钱",
     synergy: { snack: { income: 4, rating: 2, pop: 3 } },
     sprite: [
@@ -203,6 +206,7 @@ const facilityTypes = [
     unlockAt: 48,
     color: "#72c7d5",
     footprint: { w: 2, h: 2 },
+    serviceScale: 3.8,
     bonusText: "靠近 Park 时评价涨得快",
     synergy: { park: { income: 3, rating: 5, pop: 2 } },
     sprite: [
@@ -241,6 +245,7 @@ const facilityTypes = [
     unlockAt: 88,
     color: "#ef5aa1",
     footprint: { w: 3, h: 2 },
+    serviceScale: 4.4,
     bonusText: "和 Arcade 配套会爆红",
     synergy: { arcade: { income: 5, rating: 6, pop: 5 } },
     sprite: [
@@ -282,6 +287,7 @@ const visitorArchetypes = [
     id: "student",
     label: "学生客",
     favoriteTypes: ["arcade", "snack"],
+    favoredLandmarks: ["library"],
     likedTimes: ["daytime", "evening"],
     likedWeathers: ["cloudy", "festival-breeze"],
     festivalBias: ["summer-fair"],
@@ -290,6 +296,7 @@ const visitorArchetypes = [
     id: "family",
     label: "家庭客",
     favoriteTypes: ["park", "snack", "bath"],
+    favoredLandmarks: ["clinic", "library"],
     likedTimes: ["daytime", "morning"],
     likedWeathers: ["sunny"],
     festivalBias: ["new-year", "flower"],
@@ -298,6 +305,7 @@ const visitorArchetypes = [
     id: "worker",
     label: "上班族",
     favoriteTypes: ["snack", "bath"],
+    favoredLandmarks: ["workshop", "post", "police"],
     likedTimes: ["morning", "evening"],
     likedWeathers: ["cloudy", "drizzle"],
     festivalBias: ["harvest"],
@@ -306,11 +314,39 @@ const visitorArchetypes = [
     id: "traveler",
     label: "游客",
     favoriteTypes: ["tower", "park", "arcade"],
+    favoredLandmarks: ["post", "library"],
     likedTimes: ["daytime", "evening"],
     likedWeathers: ["sunny", "festival-breeze"],
     festivalBias: ["flower", "summer-fair"],
   },
 ];
+
+const visitorEmoteSprites = {
+  dots: {
+    sprite: [".....", ".....", "d.d.d", ".....", "....."],
+    palette: { d: "#7f675f" },
+  },
+  sweat: {
+    sprite: ["..b..", ".bbb.", ".bbb.", "..b..", "....."],
+    palette: { b: "#78c8ff" },
+  },
+  anger: {
+    sprite: ["r...r", ".r.r.", "..r..", ".r.r.", "r...r"],
+    palette: { r: "#ff8369" },
+  },
+  heart: {
+    sprite: ["p.p.p", "ppppp", "ppppp", ".ppp.", "..p.."],
+    palette: { p: "#ff7ba5" },
+  },
+  note: {
+    sprite: ["..g..", "..g..", "..gg.", "..gg.", ".gg.."],
+    palette: { g: "#97dd8a" },
+  },
+  star: {
+    sprite: ["..y..", ".yyy.", "yyyyy", ".yyy.", "..y.."],
+    palette: { y: "#ffe37a" },
+  },
+};
 
 const landmarkTypes = [
   {
@@ -538,6 +574,31 @@ const npcProfiles = [
   { id: "yuzu", name: "柚子", shirt: "#8edc74", hair: "#6b4c3d", accent: "#fff7d9" },
 ];
 
+const incidentActorProfiles = {
+  "incident-influencer-rush": [
+    { name: "阿镜", role: "探店博主", shirt: "#ff8a73", hair: "#43313d", accent: "#ffd8ae" },
+    { name: "小拍", role: "摄影搭档", shirt: "#7ec5ff", hair: "#5b4239", accent: "#fff0c8" },
+  ],
+  "incident-roadwork-detour": [
+    { name: "老周", role: "施工员", shirt: "#ffc94d", hair: "#5b4836", accent: "#ffe5a8" },
+    { name: "阿楠", role: "引导员", shirt: "#f28c6b", hair: "#4a3a30", accent: "#fff3bf" },
+  ],
+  "incident-power-dip": [
+    { name: "电务员", role: "抢修员", shirt: "#8fb2ff", hair: "#42374c", accent: "#dbe4ff" },
+  ],
+  "incident-flash-sale": [
+    { name: "店长", role: "促销员", shirt: "#ff7fa4", hair: "#533b33", accent: "#ffe0ef" },
+    { name: "招呼娘", role: "揽客员", shirt: "#f6c05b", hair: "#5f4436", accent: "#fff2b8" },
+  ],
+  "incident-street-performance": [
+    { name: "鼓手", role: "街头艺人", shirt: "#7fd9ff", hair: "#413447", accent: "#d7f6ff" },
+    { name: "贝斯手", role: "乐手", shirt: "#a68cff", hair: "#4d3a35", accent: "#efe0ff" },
+  ],
+  "incident-health-inspection": [
+    { name: "稽查员", role: "检查官", shirt: "#b7a4ff", hair: "#42343f", accent: "#efe7ff" },
+  ],
+};
+
 const goalDefinitions = [
   {
     id: "build-3",
@@ -721,6 +782,51 @@ const annualFestivalDefinitions = [
   },
 ];
 
+const lightweightIncidentDefinitions = [
+  {
+    id: "influencer-rush",
+    title: "探店热潮",
+    color: "#ffb36c",
+    minDay: 1,
+    weight: 1.15,
+  },
+  {
+    id: "roadwork-detour",
+    title: "道路施工",
+    color: "#f3d36b",
+    minDay: 1,
+    weight: 0.95,
+  },
+  {
+    id: "power-dip",
+    title: "短时停电",
+    color: "#9cb4ff",
+    minDay: 2,
+    weight: 0.82,
+  },
+  {
+    id: "flash-sale",
+    title: "限时折扣",
+    color: "#ff9dc1",
+    minDay: 2,
+    weight: 0.92,
+  },
+  {
+    id: "street-performance",
+    title: "街头演出",
+    color: "#8fd8ff",
+    minDay: 2,
+    weight: 0.88,
+  },
+  {
+    id: "health-inspection",
+    title: "卫生检查",
+    color: "#c7b7ff",
+    minDay: 3,
+    weight: 0.72,
+  },
+];
+
 const timeOfDayDefinitions = [
   {
     id: "midnight",
@@ -809,13 +915,26 @@ const dialogueTemplates = {
     ({ facilityName }) => `${facilityName} 又接了一单，门口的人气越来越稳。`,
     ({ facilityName }) => `${facilityName} 的客人出得很快，这个点位挑对了。`,
   ],
+  errand: [
+    ({ landmarkName, errandLabel }) => `逛完这一趟，先去 ${landmarkName}${errandLabel}。`,
+    ({ landmarkName, profileLabel }) => `${profileLabel} 看样子还要去 ${landmarkName} 办点事。`,
+  ],
   queue: [
     ({ facilityName }) => `${facilityName} 门口开始排队了，节奏已经起来。`,
     ({ facilityName }) => `${facilityName} 前面有人等着，看来这家是真有人气。`,
   ],
+  "queue-thought": [
+    ({ facilityName }) => `${facilityName} 队伍有点长，不过这家看着值得等等。`,
+    ({ facilityName, profileLabel }) => `${profileLabel} 一边排队一边盯着 ${facilityName}，像是已经下定决心了。`,
+    ({ facilityName }) => `${facilityName} 要是再出客快一点，这条队伍就更顺了。`,
+  ],
   crowded: [
     ({ facilityName }) => `${facilityName} 门口挤成一团，晚一点再来也许更顺。`,
     ({ facilityName }) => `${facilityName} 这会儿太火了，排队的人已经拐弯。`,
+  ],
+  incident: [
+    ({ incidentTitle }) => `${incidentTitle} 一来，今天街上的节奏一下就变了。`,
+    ({ incidentTitle }) => `${incidentTitle} 正在影响街区，得盯着人流重新判断。`,
   ],
   levelup: [
     ({ facilityName, level }) => `${facilityName} 升到 Lv.${level} 了，老顾客开始认这家招牌了。`,
@@ -853,6 +972,7 @@ function getStructureDef(type) {
 
 function createStructureEntity(type, col, row, id, overrides = {}) {
   const def = getStructureDef(type);
+  const structureKind = def.kind || "shop";
   return {
     id,
     type,
@@ -860,12 +980,16 @@ function createStructureEntity(type, col, row, id, overrides = {}) {
     row,
     width: def.footprint.w,
     height: def.footprint.h,
-    kind: def.kind || "shop",
+    kind: structureKind,
     removable: def.removable ?? true,
-    level: def.kind === "shop" ? 1 : 0,
+    level: structureKind === "shop" ? 1 : 0,
     visits: 0,
     queue: [],
     activeServiceId: null,
+    peakQueue: 0,
+    turnaways: 0,
+    patienceLeaves: 0,
+    crowdHeat: 0,
     ...overrides,
   };
 }
@@ -988,6 +1112,106 @@ function createNPCs() {
   }));
 }
 
+function isActorWalkableTile(col, row, facilities) {
+  if (col < 0 || row < 0 || col >= layout.cols || row >= layout.rows) {
+    return false;
+  }
+  return !facilities.some(
+    (facility) =>
+      col >= facility.col &&
+      col < facility.col + facility.width &&
+      row >= facility.row &&
+      row < facility.row + facility.height,
+  );
+}
+
+function collectWalkableTiles(
+  range = { min: 0, max: layout.cols - 1 },
+  rowMin = 2,
+  rowMax = layout.rows - 2,
+  facilities = [],
+) {
+  const tiles = [];
+  for (let row = rowMin; row <= rowMax; row += 1) {
+    for (let col = range.min; col <= range.max; col += 1) {
+      if (isActorWalkableTile(col, row, facilities)) {
+        tiles.push({ col, row });
+      }
+    }
+  }
+  return tiles;
+}
+
+function getIncidentAnchorRange(incident, facilities) {
+  if (incident.zoneRange) {
+    return incident.zoneRange;
+  }
+  if (incident.featuredType) {
+    const target = facilities
+      .filter((facility) => facility.type === incident.featuredType)
+      .sort((a, b) => getFacilityPopularity(b) - getFacilityPopularity(a))[0];
+    if (target) {
+      return {
+        min: Math.max(0, target.col - 2),
+        max: Math.min(layout.cols - 1, target.col + target.width + 2),
+      };
+    }
+  }
+  return { min: 0, max: layout.cols - 1 };
+}
+
+function buildEventActorRoute(incident, facilities, offset = 0) {
+  const range = getIncidentAnchorRange(incident, facilities);
+  const candidates = collectWalkableTiles(range, 2, layout.rows - 3, facilities);
+  if (!candidates.length) {
+    return [];
+  }
+  const startIndex = (offset * 3) % candidates.length;
+  const route = [];
+  for (let index = 0; index < 3; index += 1) {
+    const tile = candidates[(startIndex + index * Math.max(1, Math.floor(candidates.length / 3))) % candidates.length];
+    if (!tile) {
+      continue;
+    }
+    const center = getTileCenter(tile.col, tile.row);
+    route.push({ ...center, col: tile.col, row: tile.row });
+  }
+  return route;
+}
+
+function createIncidentActors(incidents, facilities) {
+  const actors = [];
+  for (const incident of incidents) {
+    const profiles = incidentActorProfiles[incident.id] || [];
+    profiles.forEach((profile, index) => {
+      const route = buildEventActorRoute(incident, facilities, index);
+      if (!route.length) {
+        return;
+      }
+      actors.push({
+        id: `${incident.id}-actor-${index}`,
+        incidentId: incident.id,
+        incidentTitle: incident.title,
+        role: profile.role,
+        name: profile.name,
+        shirt: profile.shirt,
+        hair: profile.hair,
+        accent: profile.accent,
+        x: route[0].x,
+        y: route[0].y,
+        route,
+        routeIndex: route.length > 1 ? 1 : 0,
+        targetX: route.length > 1 ? route[1].x : route[0].x,
+        targetY: route.length > 1 ? route[1].y : route[0].y,
+        speed: 22 + index * 4,
+        bobPhase: index * 0.9 + Math.random() * 0.6,
+        talkTimer: 2.4 + Math.random() * 1.8,
+      });
+    });
+  }
+  return actors;
+}
+
 function getSeasonDefinition(dayOfYear) {
   const index = Math.floor((dayOfYear - 1) / calendarTuning.seasonLength);
   return seasonDefinitions[index] || seasonDefinitions[0];
@@ -1053,6 +1277,216 @@ function buildFestivalEvent(festival) {
   };
 }
 
+function makeFacilityBonusMap(typeIds, effect) {
+  return typeIds.reduce((result, typeId) => {
+    result[typeId] = { ...effect };
+    return result;
+  }, {});
+}
+
+function getFacilityZoneLabel(zoneId) {
+  switch (zoneId) {
+    case "left":
+      return "西侧街区";
+    case "right":
+      return "东侧街区";
+    default:
+      return "中央街区";
+  }
+}
+
+function pickIncidentZone(facilities) {
+  if (!facilities.length) {
+    return {
+      zoneId: "center",
+      label: getFacilityZoneLabel("center"),
+      range: { min: 4, max: 9 },
+    };
+  }
+  const counts = {
+    left: 0,
+    center: 0,
+    right: 0,
+  };
+  for (const facility of facilities) {
+    const centerCol = facility.col + facility.width / 2;
+    if (centerCol < layout.cols / 3) {
+      counts.left += 1;
+    } else if (centerCol > (layout.cols * 2) / 3) {
+      counts.right += 1;
+    } else {
+      counts.center += 1;
+    }
+  }
+  const zoneId =
+    Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "center";
+  if (zoneId === "left") {
+    return { zoneId, label: getFacilityZoneLabel(zoneId), range: { min: 0, max: 4 } };
+  }
+  if (zoneId === "right") {
+    return { zoneId, label: getFacilityZoneLabel(zoneId), range: { min: 9, max: layout.cols - 1 } };
+  }
+  return { zoneId, label: getFacilityZoneLabel(zoneId), range: { min: 4, max: 9 } };
+}
+
+function buildLightweightIncident(day, season, weather, facilities) {
+  const available = lightweightIncidentDefinitions.filter((incident) => day >= incident.minDay);
+  if (!available.length) {
+    return [];
+  }
+  const triggerChance = day <= 2 ? 0.46 : 0.6;
+  if (Math.random() > triggerChance) {
+    return [];
+  }
+  const picked = pickWeighted(
+    available.map((incident) => ({ ...incident, chance: incident.weight })),
+    "chance",
+  );
+  if (!picked) {
+    return [];
+  }
+
+  if (picked.id === "influencer-rush") {
+    const featuredType =
+      facilities
+        .filter((facility) => facility.kind === "shop")
+        .sort((a, b) => getFacilityPopularity(b) - getFacilityPopularity(a))[0]?.type ||
+      (season.id === "summer" ? "snack" : season.id === "winter" ? "bath" : "park") ||
+      "snack";
+    const featuredName = getFacilityDef(featuredType)?.name || "热门店";
+    return [
+      {
+        id: "incident-influencer-rush",
+        type: "incident",
+        title: "探店热潮",
+        color: picked.color,
+        description: `本地博主把镜头对准了 ${featuredName}，相关客流正在快速聚集。`,
+        trafficModifier: 1.14,
+        facilityBonuses: {
+          [featuredType]: { income: 2, rating: 1, pop: 5 },
+        },
+        featuredType,
+      },
+    ];
+  }
+
+  if (picked.id === "flash-sale") {
+    const promoPool = ["snack", "arcade", "bath"].filter((typeId) =>
+      facilities.some((facility) => facility.type === typeId),
+    );
+    const featuredType =
+      promoPool[Math.floor(Math.random() * promoPool.length)] ||
+      (season.id === "summer" ? "snack" : season.id === "winter" ? "bath" : "arcade");
+    const featuredName = getFacilityDef(featuredType)?.name || "热门店";
+    return [
+      {
+        id: "incident-flash-sale",
+        type: "incident",
+        title: "限时折扣",
+        color: picked.color,
+        description: `${featuredName} 挂出了限时折扣牌，顾客更愿意在门口多等一会儿。`,
+        trafficModifier: 1.08,
+        facilityBonuses: {
+          [featuredType]: { income: 2, rating: 1, pop: 6 },
+        },
+        queuePatienceMultipliers: {
+          [featuredType]: 1.26,
+        },
+        featuredType,
+      },
+    ];
+  }
+
+  if (picked.id === "roadwork-detour") {
+    const zone = pickIncidentZone(facilities.filter((facility) => facility.kind === "shop"));
+    return [
+      {
+        id: "incident-roadwork-detour",
+        type: "incident",
+        title: "道路施工",
+        color: picked.color,
+        description: `${zone.label} 正在施工，顾客会下意识绕开这一带。`,
+        trafficModifier: 0.93,
+        zoneId: zone.zoneId,
+        zoneLabel: zone.label,
+        zoneRange: zone.range,
+      },
+    ];
+  }
+
+  if (picked.id === "street-performance") {
+    const zone = pickIncidentZone(facilities.filter((facility) => facility.kind === "shop"));
+    return [
+      {
+        id: "incident-street-performance",
+        type: "incident",
+        title: "街头演出",
+        color: picked.color,
+        description: `${zone.label} 有乐队开始演出，人流会自然往这一带聚。`,
+        trafficModifier: 1.09,
+        zoneId: zone.zoneId,
+        zoneLabel: zone.label,
+        zoneRange: zone.range,
+        zonePreferenceDelta: 6,
+        queuePatienceZoneMultiplier: 1.12,
+      },
+    ];
+  }
+
+  if (picked.id === "health-inspection") {
+    const checkedTypes = ["snack", "bath", "arcade"].filter((typeId) =>
+      facilities.some((facility) => facility.type === typeId),
+    );
+    const checkedType =
+      checkedTypes[Math.floor(Math.random() * checkedTypes.length)] || "snack";
+    const checkedName = getFacilityDef(checkedType)?.name || "店铺";
+    return [
+      {
+        id: "incident-health-inspection",
+        type: "incident",
+        title: "卫生检查",
+        color: picked.color,
+        description: `${checkedName} 正在做卫生检查，接客节奏会慢下来，排队顾客也更容易不耐烦。`,
+        trafficModifier: 0.97,
+        facilityBonuses: {
+          [checkedType]: { income: -1, pop: -3 },
+        },
+        serviceMultipliers: {
+          [checkedType]: 1.34,
+        },
+        queuePatienceMultipliers: {
+          [checkedType]: 0.82,
+        },
+        queueDrainMultipliers: {
+          [checkedType]: 1.2,
+        },
+        featuredType: checkedType,
+      },
+    ];
+  }
+
+  return [
+    {
+      id: "incident-power-dip",
+      type: "incident",
+      title: "短时停电",
+      color: picked.color,
+      description: `${weather.label} 天里电力不稳，娱乐与大设施的接客节奏放慢了。`,
+      trafficModifier: 0.96,
+      facilityBonuses: {
+        arcade: { income: -1, pop: -2 },
+        tower: { income: -2, pop: -3 },
+        bath: { income: -1, pop: -1 },
+      },
+      serviceMultipliers: {
+        arcade: 1.36,
+        tower: 1.42,
+        bath: 1.18,
+      },
+    },
+  ];
+}
+
 function getUpcomingFestival(dayOfYear) {
   const ordered = annualFestivalDefinitions
     .map((festival) => ({
@@ -1079,7 +1513,7 @@ function buildWeather(seasonId) {
   return pickWeighted(weightedWeather, "chance");
 }
 
-function buildWorld(day, previousWorld = null) {
+function buildWorld(day, previousWorld = null, facilities = []) {
   const calendar = buildCalendar(day);
   const season = seasonDefinitions.find(
     (item) => item.id === calendar.seasonId,
@@ -1087,6 +1521,7 @@ function buildWorld(day, previousWorld = null) {
   const weather = buildWeather(season.id);
   const activeFestival = getActiveFestival(calendar);
   const festivalEvent = activeFestival ? buildFestivalEvent(activeFestival) : null;
+  const incidentQueue = buildLightweightIncident(day, season, weather, facilities);
   return {
     calendar,
     season,
@@ -1094,7 +1529,7 @@ function buildWorld(day, previousWorld = null) {
     activeFestival,
     upcomingFestival: getUpcomingFestival(calendar.dayOfYear),
     eventQueue: festivalEvent ? [festivalEvent] : [],
-    incidentQueue: previousWorld?.incidentQueue || [],
+    incidentQueue,
   };
 }
 
@@ -1165,15 +1600,41 @@ function syncShellTheme() {
   document.documentElement.style.setProperty("--bg-top", top);
   document.documentElement.style.setProperty("--bg-bottom", bottom);
   document.documentElement.style.setProperty("--bg-glow", glow);
+  const frontCloudOpacity =
+    state.world.weather.id === "drizzle"
+      ? 0.42
+      : state.world.weather.id === "cloudy"
+        ? 0.48
+        : state.world.weather.id === "snow"
+          ? 0.28
+          : 0.34;
+  const backCloudOpacity =
+    state.world.weather.id === "drizzle"
+      ? 0.3
+      : state.world.weather.id === "cloudy"
+        ? 0.36
+        : state.world.weather.id === "snow"
+          ? 0.22
+          : 0.24;
+  const rainOpacity = state.world.weather.id === "drizzle" ? 0.32 : 0;
+  document.documentElement.style.setProperty(
+    "--page-cloud-opacity-front",
+    String(frontCloudOpacity),
+  );
+  document.documentElement.style.setProperty(
+    "--page-cloud-opacity-back",
+    String(backCloudOpacity),
+  );
+  document.documentElement.style.setProperty("--page-rain-opacity", String(rainOpacity));
 }
 
 function createInitialState() {
   const initialRating = 12;
   const initialDay = 1;
-  const initialWorld = buildWorld(initialDay);
   const initialHour = 8;
   const initialGrid = createGrid();
   const seededMap = seedStartingStructures(initialGrid);
+  const initialWorld = buildWorld(initialDay, null, seededMap.structures);
   return {
     mode: "menu",
     money: 160,
@@ -1205,6 +1666,7 @@ function createInitialState() {
     finalePlaceholderUnlocked: false,
     world: initialWorld,
     npcs: createNPCs(),
+    eventActors: createIncidentActors(initialWorld.incidentQueue, seededMap.structures),
     activeDialogue: null,
     dialogueFeed: [],
     dialoguePointer: 0,
@@ -1233,6 +1695,7 @@ function startGame() {
     return;
   }
   state.mode = "play";
+  state.eventActors = createIncidentActors(state.world.incidentQueue, state.facilities);
   pushMessage("小镇开张，第一批顾客正在路上。");
   if (state.world.activeFestival) {
     pushMessage(`${state.world.activeFestival.name} 正在举办，街区今天会更热闹。`);
@@ -1241,6 +1704,15 @@ function startGame() {
       state.world.activeFestival.color,
       4.8,
     );
+  }
+  if (state.world.incidentQueue.length) {
+    const incident = state.world.incidentQueue[0];
+    pushMessage(`${incident.title}：${incident.description}`);
+    setEnvironmentNotice(`${incident.title}：${incident.description}`, incident.color, 4.6);
+    triggerDialogue("incident", { incidentTitle: incident.title }, { chance: 0.24 });
+    if (state.eventActors[0]) {
+      triggerEventActorDialogue(state.eventActors[0], true);
+    }
   }
   syncButtons();
 }
@@ -1305,7 +1777,9 @@ function maybeTriggerVisitorThought() {
   const candidates = state.visitors.filter(
     (visitor) =>
       visitor.phase === "going" ||
+      visitor.phase === "errand-going" ||
       visitor.phase === "entering" ||
+      visitor.phase === "landmark-entering" ||
       visitor.phase === "queueing" ||
       visitor.phase === "queue-wait" ||
       visitor.phase === "leaving",
@@ -1313,8 +1787,25 @@ function maybeTriggerVisitorThought() {
   if (!candidates.length) {
     return;
   }
-  const visitor =
-    candidates[Math.floor(Math.random() * candidates.length)];
+  const weighted = candidates.map((visitor) => ({
+    visitor,
+    weight:
+      visitor.phase === "queueing" || visitor.phase === "queue-wait"
+        ? 3.1
+        : visitor.phase === "leaving"
+          ? 1.1
+          : 1.6,
+  }));
+  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+  let cursor = Math.random() * totalWeight;
+  let visitor = weighted[0].visitor;
+  for (const item of weighted) {
+    cursor -= item.weight;
+    if (cursor <= 0) {
+      visitor = item.visitor;
+      break;
+    }
+  }
   const facility = getFacilityById(visitor.targetFacilityId);
   const facilityName = facility ? getFacilityDef(facility.type).name : "店铺";
   const profileLabel = visitor.profileLabel || "顾客";
@@ -1325,6 +1816,11 @@ function maybeTriggerVisitorThought() {
           `${profileLabel} 排着队也在看招牌，感觉这家店口碑不差。`,
           `这条队伍排得还算整齐，就看 ${facilityName} 出客快不快了。`,
         ]
+      : visitor.phase === "errand-going" || visitor.phase === "landmark-entering"
+        ? [
+            `${profileLabel} 正往 ${getStructureDef(visitor.errandLandmarkType || visitor.originLandmarkType)?.name || "默认建筑"} 那边走，像是还有事要办。`,
+            `先逛店，再去 ${getStructureDef(visitor.errandLandmarkType || visitor.originLandmarkType)?.name || "默认建筑"}，这趟路线挺像小镇日常。`,
+          ]
       : visitor.phase === "leaving"
         ? [
             `${profileLabel} 逛完这一圈差不多了，下次再看看街区会不会更热闹。`,
@@ -1352,6 +1848,164 @@ function maybeTriggerVisitorThought() {
     state.activeDialogue.speakerName = profileLabel;
     state.dialogueFeed[0].speakerName = profileLabel;
     state.dialogueFeed[0].text = state.activeDialogue.text;
+  }
+}
+
+function setVisitorEmote(visitor, type, ttl = 1.1 + Math.random() * 0.6) {
+  if (!visitor) {
+    return;
+  }
+  visitor.emote = { type, ttl };
+  visitor.emoteCooldown = 1.2 + Math.random() * 1.6;
+}
+
+function pickQueueEmote(visitor, facility) {
+  const patienceRatio = Math.max(0, Math.min(1, visitor.queuePatience / 10));
+  if (patienceRatio < 0.24) {
+    return Math.random() < 0.68 ? "anger" : "sweat";
+  }
+  if (patienceRatio < 0.48) {
+    return Math.random() < 0.55 ? "sweat" : "dots";
+  }
+  if (profileIsVisitorFavorite(visitor, facility.type)) {
+    return Math.random() < 0.5 ? "heart" : "note";
+  }
+  return Math.random() < 0.5 ? "dots" : "star";
+}
+
+function maybeTriggerQueueReaction(visitor, facility, dialogueChance = 0.22) {
+  if (!visitor || !facility) {
+    return;
+  }
+  if ((visitor.emoteCooldown || 0) <= 0) {
+    setVisitorEmote(visitor, pickQueueEmote(visitor, facility));
+  }
+  if (state.dialogueCooldown <= 0 && Math.random() < dialogueChance) {
+    triggerDialogue(
+      "queue-thought",
+      {
+        facilityName: getFacilityDef(facility.type).name,
+        profileLabel: visitor.profileLabel || "顾客",
+      },
+      { chance: 1, speakerId: visitor.id },
+    );
+  }
+}
+
+function getEventActorById(id) {
+  return state.eventActors.find((actor) => actor.id === id) || null;
+}
+
+function resolveDialogueSpeaker(dialogue) {
+  if (!dialogue) {
+    return null;
+  }
+  if (dialogue.speakerKind === "event-actor") {
+    return getEventActorById(dialogue.speakerId);
+  }
+  if (dialogue.speakerKind === "npc") {
+    return state.npcs.find((npc) => npc.id === dialogue.speakerId) || null;
+  }
+  return getVisitorById(dialogue.speakerId);
+}
+
+function openDialogueForSpeaker(speakerKind, speakerId, speakerName, text, topic, ttl = 3.2) {
+  state.activeDialogue = {
+    speakerId,
+    speakerKind,
+    speakerName,
+    text,
+    topic,
+    ttl,
+  };
+  state.dialogueFeed.unshift({
+    speakerName,
+    text,
+    topic,
+  });
+  state.dialogueFeed = state.dialogueFeed.slice(0, 4);
+  state.dialogueCooldown = 5.2;
+}
+
+function getEventActorDialogueLines(actor) {
+  const incident = state.world.incidentQueue.find((item) => item.id === actor.incidentId);
+  const featuredName =
+    incident?.featuredType ? getFacilityDef(incident.featuredType)?.name || "这家店" : "这条街";
+  const zoneLabel = incident?.zoneLabel || "这片街区";
+  switch (actor.incidentId) {
+    case "incident-influencer-rush":
+      return [
+        `${actor.name}：镜头先给 ${featuredName}，这家今天肯定要爆。`,
+        `${actor.name}：再往 ${featuredName} 门口站近一点，排队感才够热闹。`,
+        `${actor.name}：今天这波探店流量，${featuredName} 吃得很满。`,
+      ];
+    case "incident-roadwork-detour":
+      return [
+        `${actor.name}：${zoneLabel} 这边先绕行，大家别往施工带里挤。`,
+        `${actor.name}：脚下这段刚封起来，去店里的客人得往旁边让。`,
+        `${actor.name}：等这截路修平了，人流才会重新回来。`,
+      ];
+    case "incident-power-dip":
+      return [
+        `${actor.name}：电压还在跳，招牌和机器都得慢一点开。`,
+        `${actor.name}：别急，先把这路电稳住，店里节奏就能回来。`,
+        `${actor.name}：这会儿灯一闪一闪的，客人难免会迟疑。`,
+      ];
+    case "incident-flash-sale":
+      return [
+        `${actor.name}：限时折扣开始了，想排的现在就排。`,
+        `${actor.name}：今天这波价牌一挂，${featuredName} 门口肯定不空。`,
+        `${actor.name}：再等一会儿就轮到了，别错过这波折扣。`,
+      ];
+    case "incident-street-performance":
+      return [
+        `${actor.name}：${zoneLabel} 这边开演，先把人气聚起来。`,
+        `${actor.name}：鼓点一起来，旁边那几家店都会跟着吃流量。`,
+        `${actor.name}：站位往中间靠一点，这波观众会越围越多。`,
+      ];
+    case "incident-health-inspection":
+      return [
+        `${actor.name}：今天抽查得细一点，流程慢了也得按规矩来。`,
+        `${actor.name}：先别催单，检查没过完，这家出客就是会慢。`,
+        `${actor.name}：队伍别再往前顶了，等这轮检查结束再说。`,
+      ];
+    default:
+      return [
+        `${actor.name}：今天街上气氛不一样，得盯着点人流。`,
+      ];
+  }
+}
+
+function triggerEventActorDialogue(actor, force = false) {
+  if (!actor || (!force && state.dialogueCooldown > 0)) {
+    return;
+  }
+  const lines = getEventActorDialogueLines(actor);
+  const text = lines[Math.floor(Math.random() * lines.length)] || lines[0];
+  openDialogueForSpeaker("event-actor", actor.id, `${actor.role}·${actor.name}`, text, "incident-live", 3.6);
+}
+
+function updateEventActors(delta) {
+  for (const actor of state.eventActors) {
+    const dx = actor.targetX - actor.x;
+    const dy = actor.targetY - actor.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 2) {
+      actor.routeIndex = (actor.routeIndex + 1) % actor.route.length;
+      actor.targetX = actor.route[actor.routeIndex].x;
+      actor.targetY = actor.route[actor.routeIndex].y;
+    } else {
+      const move = Math.min(dist, actor.speed * delta);
+      actor.x += (dx / dist) * move;
+      actor.y += (dy / dist) * move;
+    }
+    actor.talkTimer -= delta;
+    if (actor.talkTimer <= 0) {
+      if (Math.random() < 0.62) {
+        triggerEventActorDialogue(actor);
+      }
+      actor.talkTimer = 4.6 + Math.random() * 3.2;
+    }
   }
 }
 
@@ -1383,21 +2037,13 @@ function triggerDialogue(topic, payload = {}, options = {}) {
     return;
   }
   const text = template(payload);
-  state.activeDialogue = {
-    speakerId: speaker.id,
-    speakerKind: "visitor",
-    speakerName: speaker.profileLabel || "顾客",
+  openDialogueForSpeaker(
+    "visitor",
+    speaker.id,
+    speaker.profileLabel || "顾客",
     text,
     topic,
-    ttl: 3.2,
-  };
-  state.dialogueFeed.unshift({
-    speakerName: speaker.profileLabel || "顾客",
-    text,
-    topic,
-  });
-  state.dialogueFeed = state.dialogueFeed.slice(0, 4);
-  state.dialogueCooldown = 5.2;
+  );
 }
 
 function updateDialogue(delta) {
@@ -1411,7 +2057,7 @@ function updateDialogue(delta) {
   if (!state.activeDialogue) {
     return;
   }
-  if (!getVisitorById(state.activeDialogue.speakerId)) {
+  if (!resolveDialogueSpeaker(state.activeDialogue)) {
     state.activeDialogue = null;
     return;
   }
@@ -1470,6 +2116,80 @@ function getFacilityById(id) {
 
 function getVisitorById(id) {
   return state.visitors.find((visitor) => visitor.id === id) || null;
+}
+
+function listLandmarks() {
+  return state.facilities.filter((facility) => facility.kind === "landmark");
+}
+
+function getLandmarkErrandLabel(landmarkType, profileId) {
+  switch (landmarkType) {
+    case "library":
+      return profileId === "student" ? "借书" : "翻翻公告板";
+    case "clinic":
+      return "问诊";
+    case "post":
+      return "寄信";
+    case "police":
+      return profileId === "worker" ? "报备" : "问路";
+    case "workshop":
+      return profileId === "worker" ? "交班" : "办事";
+    default:
+      return "办事";
+  }
+}
+
+function incidentAffectsFacilityZone(incident, facility) {
+  if (!incident.zoneRange) {
+    return false;
+  }
+  const centerCol = facility.col + (facility.width - 1) / 2;
+  return centerCol >= incident.zoneRange.min && centerCol <= incident.zoneRange.max;
+}
+
+function getIncidentFacilityPreferenceDelta(facility) {
+  return state.world.incidentQueue.reduce((sum, incident) => {
+    if (incident.id === "incident-roadwork-detour" && incidentAffectsFacilityZone(incident, facility)) {
+      return sum - 5;
+    }
+    if (incident.id === "incident-street-performance" && incidentAffectsFacilityZone(incident, facility)) {
+      return sum + (incident.zonePreferenceDelta || 4);
+    }
+    if (incident.featuredType && incident.featuredType === facility.type) {
+      return sum + 6;
+    }
+    return sum;
+  }, 0);
+}
+
+function getIncidentServiceMultiplier(facility) {
+  return state.world.incidentQueue.reduce((multiplier, incident) => {
+    const next = incident.serviceMultipliers?.[facility.type] || 1;
+    return multiplier * next;
+  }, 1);
+}
+
+function getIncidentQueuePatienceMultiplier(facility) {
+  return state.world.incidentQueue.reduce((multiplier, incident) => {
+    const typeFactor = incident.queuePatienceMultipliers?.[facility.type] || 1;
+    const zoneFactor =
+      incident.queuePatienceZoneMultiplier && incidentAffectsFacilityZone(incident, facility)
+        ? incident.queuePatienceZoneMultiplier
+        : 1;
+    return multiplier * typeFactor * zoneFactor;
+  }, 1);
+}
+
+function getIncidentQueueDrainMultiplier(facility) {
+  return state.world.incidentQueue.reduce((multiplier, incident) => {
+    const typeFactor = incident.queueDrainMultipliers?.[facility.type] || 1;
+    return multiplier * typeFactor;
+  }, 1);
+}
+
+function profileIsVisitorFavorite(visitor, facilityType) {
+  const profile = visitorArchetypes.find((item) => item.id === visitor.profileId);
+  return Boolean(profile && profile.favoriteTypes.includes(facilityType));
 }
 
 function getFacilityAt(col, row) {
@@ -1536,6 +2256,53 @@ function getApproachTiles(facility, options = {}) {
   return getFacilityEntranceTiles(facility, options);
 }
 
+function getPrimaryEntranceTile(facility) {
+  const entrances = getFacilityEntranceTiles(facility, { includeFallback: true });
+  if (!entrances.length) {
+    return null;
+  }
+  const facilityCenterCol = facility.col + (facility.width - 1) / 2;
+  const facilityCenterRow = facility.row + (facility.height - 1) / 2;
+  const sidePriority = { front: 0, left: 1, right: 1 };
+  return (
+    [...entrances].sort((a, b) => {
+      const sideDelta =
+        (sidePriority[a.side] ?? 2) - (sidePriority[b.side] ?? 2);
+      if (sideDelta !== 0) {
+        return sideDelta;
+      }
+      const aDistance =
+        Math.abs(a.col - facilityCenterCol) + Math.abs(a.row - facilityCenterRow);
+      const bDistance =
+        Math.abs(b.col - facilityCenterCol) + Math.abs(b.row - facilityCenterRow);
+      return aDistance - bDistance;
+    })[0] || entrances[0]
+  );
+}
+
+function getFacilityQueueLaneTiles(facility, maxSlots = getFacilityQueueCapacity(facility)) {
+  const entrance = getPrimaryEntranceTile(facility);
+  if (!entrance) {
+    return [];
+  }
+  const direction =
+    entrance.side === "left"
+      ? { dc: -1, dr: 0 }
+      : entrance.side === "right"
+        ? { dc: 1, dr: 0 }
+        : { dc: 0, dr: 1 };
+  const lane = [];
+  for (let offset = 0; offset < maxSlots; offset += 1) {
+    const col = entrance.col + direction.dc * offset;
+    const row = entrance.row + direction.dr * offset;
+    if (!isWalkableTile(col, row)) {
+      break;
+    }
+    lane.push({ col, row, side: entrance.side });
+  }
+  return lane;
+}
+
 function findGridPath(start, goals) {
   const goalSet = new Set(goals.map((goal) => `${goal.col},${goal.row}`));
   const queue = [start];
@@ -1573,17 +2340,29 @@ function findGridPath(start, goals) {
   return null;
 }
 
+function buildFacilityPath(startTile, facility) {
+  const approachTiles = getApproachTiles(facility, { includeFallback: true });
+  if (!approachTiles.length) {
+    return null;
+  }
+  return findGridPath(startTile, approachTiles);
+}
+
 function chooseWeightedFacility(facilities, profile) {
   const weights = facilities.map((facility) => {
     const queuedVisitors = state.visitors.filter(
       (visitor) => visitor.targetFacilityId === facility.id,
     ).length;
+    const popularity = getFacilityPopularity(facility);
+    const preference = getVisitorPreferenceScore(profile, facility);
+    const novelty = Math.max(0, 6 - facility.visits);
+    const queuePressure = getFacilityQueueLoad(facility) + queuedVisitors * 0.8;
+    const favoriteBias = profile.favoriteTypes.includes(facility.type) ? 2.8 : 0;
+    const crowdTolerance = profile.favoriteTypes.includes(facility.type) ? 0.72 : 1.08;
     const weight =
-      Math.max(3, getFacilityPopularity(facility)) *
-        (0.72 + Math.random() * 0.9) +
-      getVisitorPreferenceScore(profile, facility) +
-      Math.max(0, 8 - facility.visits * 2) -
-      queuedVisitors * 3;
+      Math.pow(Math.max(3, popularity + preference + novelty + favoriteBias), 1.18) *
+        (0.92 + Math.random() * 0.24) -
+      queuePressure * 1.2 * crowdTolerance;
     return { facility, weight };
   });
   const totalWeight = weights.reduce((sum, item) => sum + item.weight, 0);
@@ -1612,16 +2391,15 @@ function getRoadPoint(kind, referenceCol = Math.floor(layout.cols / 2)) {
 }
 
 function buildVisitorRoute(facility) {
-  const approachTiles = getApproachTiles(facility);
-  if (!approachTiles.length) {
+  const bestEntrance = getPrimaryEntranceTile(facility);
+  if (!bestEntrance) {
     return null;
   }
-  const bestEntrance = approachTiles[0];
   const roadStartTile = {
     col: Math.max(0, Math.min(layout.cols - 1, bestEntrance.col)),
     row: layout.rows - 1,
   };
-  const path = findGridPath(roadStartTile, approachTiles);
+  const path = buildFacilityPath(roadStartTile, facility);
   if (!path) {
     return null;
   }
@@ -1636,6 +2414,87 @@ function buildVisitorRoute(facility) {
     roadEntry: getRoadPoint(entryKind, roadStartTile.col),
     roadExit: getRoadPoint(exitKind, roadStartTile.col + (Math.random() > 0.5 ? 1 : -1)),
   };
+}
+
+function buildLandmarkOriginRoute(facility, profile) {
+  const favoredLandmarks = shuffleArray(
+    listLandmarks().filter((landmark) =>
+      profile.favoredLandmarks.includes(landmark.type),
+    ),
+  );
+  for (const landmark of favoredLandmarks) {
+    const originTile = getPrimaryEntranceTile(landmark);
+    if (!originTile) {
+      continue;
+    }
+    const path = buildFacilityPath(originTile, facility);
+    if (!path) {
+      continue;
+    }
+    const exitKinds = ["left", "right", "center"];
+    const exitKind =
+      exitKinds[Math.floor(Math.random() * exitKinds.length)] || "center";
+    return {
+      path,
+      originKind: "landmark",
+      originLandmarkId: landmark.id,
+      originLandmarkType: landmark.type,
+      spawnTile: path[0],
+      approachTile: path[path.length - 1],
+      roadExit: getRoadPoint(exitKind, originTile.col),
+    };
+  }
+  return null;
+}
+
+function chooseErrandLandmark(profile, preferredLandmarkId = null) {
+  const landmarks = listLandmarks().filter((landmark) =>
+    profile.favoredLandmarks.includes(landmark.type),
+  );
+  if (!landmarks.length) {
+    return null;
+  }
+  if (preferredLandmarkId) {
+    const preferred = landmarks.find((landmark) => landmark.id === preferredLandmarkId);
+    if (preferred && Math.random() < 0.68) {
+      return preferred;
+    }
+  }
+  return landmarks[Math.floor(Math.random() * landmarks.length)] || landmarks[0];
+}
+
+function buildLandmarkErrandRoute(startTile, landmarkId) {
+  const landmark = getFacilityById(landmarkId);
+  if (!landmark) {
+    return null;
+  }
+  const path = buildFacilityPath(startTile, landmark);
+  if (!path) {
+    return null;
+  }
+  return {
+    landmark,
+    path,
+    approachTile: path[path.length - 1],
+  };
+}
+
+function getLandmarkStayDuration(landmarkType) {
+  const base = simulationTuning.visitorWait;
+  switch (landmarkType) {
+    case "clinic":
+      return base * 2.8;
+    case "library":
+      return base * 3.2;
+    case "workshop":
+      return base * 2.4;
+    case "post":
+      return base * 1.9;
+    case "police":
+      return base * 1.7;
+    default:
+      return base * 2;
+  }
 }
 
 function canPlaceFacility(col, row, def) {
@@ -1653,6 +2512,13 @@ function canPlaceFacility(col, row, def) {
         reason: "地块被占了，得先挪开现有设施。",
       };
     }
+  }
+  const probe = { col, row, width: w, height: h };
+  if (!getApproachTiles(probe, { includeFallback: true }).length) {
+    return {
+      ok: false,
+      reason: "这家店没有可用门口，顾客没法靠近。",
+    };
   }
   return { ok: true, reason: "" };
 }
@@ -1761,6 +2627,9 @@ function getWorldFacilityBonus(facility) {
   const eventEffects = state.world.eventQueue.map(
     (event) => event.facilityBonuses?.[facility.type] || {},
   );
+  const incidentEffects = state.world.incidentQueue.map(
+    (incident) => incident.facilityBonuses?.[facility.type] || {},
+  );
   effect.income += seasonEffect.income || 0;
   effect.income += weatherEffect.income || 0;
   effect.rating += seasonEffect.rating || 0;
@@ -1771,6 +2640,16 @@ function getWorldFacilityBonus(facility) {
     effect.income += eventEffect.income || 0;
     effect.rating += eventEffect.rating || 0;
     effect.pop += eventEffect.pop || 0;
+  }
+  for (const incidentEffect of incidentEffects) {
+    effect.income += incidentEffect.income || 0;
+    effect.rating += incidentEffect.rating || 0;
+    effect.pop += incidentEffect.pop || 0;
+  }
+  for (const incident of state.world.incidentQueue) {
+    if (incident.id === "incident-roadwork-detour" && incidentAffectsFacilityZone(incident, facility)) {
+      effect.pop -= 4;
+    }
   }
   return effect;
 }
@@ -1800,6 +2679,7 @@ function getVisitorPreferenceScore(profile, facility) {
       (festivalBonus.rating || 0) +
       Math.max(0, festivalBonus.income || 0);
   }
+  score += getIncidentFacilityPreferenceDelta(facility);
   return score;
 }
 
@@ -1807,7 +2687,7 @@ function getFacilityPopularity(facility) {
   const def = getFacilityDef(facility.type);
   const bonus = calculateBonuses(facility);
   const worldBonus = getWorldFacilityBonus(facility);
-  const queueLoad = facility.queue.length + (facility.activeServiceId ? 1 : 0);
+  const queueLoad = getFacilityQueueLoad(facility);
   const trendBoost =
     state.todayTrend && facility.type === state.todayTrend.type
       ? state.todayTrend.incomeBonus + state.todayTrend.ratingBonus
@@ -1821,6 +2701,93 @@ function getFacilityPopularity(facility) {
     facility.width * facility.height -
     queueLoad * 2
   );
+}
+
+function getFacilityCrowdScore(facility) {
+  return (
+    getFacilityQueueLoad(facility) +
+    Math.min(2.4, facility.crowdHeat || 0) +
+    Math.min(2, (facility.turnaways || 0) * 0.22) +
+    Math.min(1.4, (facility.patienceLeaves || 0) * 0.18)
+  );
+}
+
+function getFacilityCrowdState(facility) {
+  const queueCount = facility.queue.length;
+  const queueCapacity = getFacilityQueueCapacity(facility);
+  const crowdScore = getFacilityCrowdScore(facility);
+  if (queueCount >= queueCapacity && queueCapacity > 0) {
+    return {
+      id: "overflow",
+      shortLabel: `FULL ${queueCount}`,
+      pulseText: `${getFacilityDef(facility.type).name} 已爆满，已劝退 ${facility.turnaways || 0} 人。`,
+      badgeColor: "#c44d2f",
+      accent: "#ff9d7a",
+    };
+  }
+  if (crowdScore >= 4.6) {
+    return {
+      id: "packed",
+      shortLabel: `Q${queueCount} / Packed`,
+      pulseText: `${getFacilityDef(facility.type).name} 门口已经堆起人潮，排队 ${queueCount} 人。`,
+      badgeColor: "#d57a37",
+      accent: "#ffd27a",
+    };
+  }
+  if (crowdScore >= 2.5) {
+    return {
+      id: "busy",
+      shortLabel: `Q${queueCount} / Busy`,
+      pulseText: `${getFacilityDef(facility.type).name} 正在接客，队伍推进得有点紧。`,
+      badgeColor: "#4066b1",
+      accent: "#9dc3ff",
+    };
+  }
+  if (crowdScore >= 1.1) {
+    return {
+      id: "warming",
+      shortLabel: serviceBusyLabel(facility, queueCount),
+      pulseText: `${getFacilityDef(facility.type).name} 门口开始聚人，热度正在抬头。`,
+      badgeColor: "#4f6b3f",
+      accent: "#c5e39a",
+    };
+  }
+  return {
+    id: "calm",
+    shortLabel: serviceBusyLabel(facility, queueCount),
+    pulseText: `${getFacilityDef(facility.type).name} 目前出客平稳。`,
+    badgeColor: "#4f6b3f",
+    accent: "#c5e39a",
+  };
+}
+
+function serviceBusyLabel(facility, queueCount) {
+  return queueCount > 0
+    ? `Q${queueCount}${facility.activeServiceId ? " / Busy" : ""}`
+    : facility.activeServiceId
+      ? "Busy"
+      : "Open";
+}
+
+function noteFacilityCrowd(facility, heatBoost = 0.6) {
+  if (!facility) {
+    return;
+  }
+  facility.peakQueue = Math.max(facility.peakQueue || 0, facility.queue.length);
+  facility.crowdHeat = Math.min(6, (facility.crowdHeat || 0) + heatBoost);
+}
+
+function updateFacilityCrowding(delta) {
+  for (const facility of listFacilities()) {
+    const load = getFacilityQueueLoad(facility);
+    const targetHeat =
+      load * 0.58 +
+      Math.min(1.4, (facility.turnaways || 0) * 0.08) +
+      Math.min(1.1, (facility.patienceLeaves || 0) * 0.06);
+    facility.crowdHeat += (targetHeat - facility.crowdHeat) * Math.min(1, delta * 1.8);
+    facility.crowdHeat = Math.max(0, Math.min(6, facility.crowdHeat));
+    facility.peakQueue = Math.max(facility.peakQueue || 0, facility.queue.length);
+  }
 }
 
 function checkUnlockAnnouncements() {
@@ -1925,11 +2892,22 @@ function removeFacility(col, row) {
 }
 
 function getVisitorSpawnDelay() {
+  const hottestFacility = listFacilities().reduce((best, facility) => {
+    if (!best) {
+      return facility;
+    }
+    return getFacilityPopularity(facility) > getFacilityPopularity(best)
+      ? facility
+      : best;
+  }, null);
+  const hotspotBoost = hottestFacility
+    ? Math.min(1.7, 1 + Math.max(0, getFacilityPopularity(hottestFacility) - 12) * 0.03)
+    : 1;
   const rawDelay =
     simulationTuning.spawnBaseDelay - state.day * simulationTuning.spawnDaySlope;
   return Math.max(
     simulationTuning.minSpawnDelay,
-    rawDelay / Math.max(0.24, getTrafficModifier()),
+    rawDelay / Math.max(0.24, getTrafficModifier() * hotspotBoost),
   );
 }
 
@@ -1954,7 +2932,21 @@ function getFacilityQueueCapacity(facility) {
   const frontDepth = Math.max(2, layout.rows - (facility.row + facility.height) + 1);
   return Math.max(
     2,
-    Math.min(5 + Math.floor(facility.level / 3), frontDepth + Math.max(0, facility.width - 1)),
+    Math.min(4 + Math.floor(facility.level / 4), frontDepth + Math.max(0, facility.width - 1)),
+  );
+}
+
+function getFacilityQueueLoad(facility) {
+  return facility.queue.length + (facility.activeServiceId ? 1 : 0);
+}
+
+function getFacilityServiceDuration(facility) {
+  const def = getFacilityDef(facility.type);
+  const scale = def.serviceScale || 1.8;
+  const levelBoost = 1 + Math.max(0, facility.level - 1) * 0.1;
+  return (
+    ((simulationTuning.visitorWait * scale) / levelBoost) *
+    getIncidentServiceMultiplier(facility)
   );
 }
 
@@ -1990,6 +2982,7 @@ function beginVisitorService(visitor, facility) {
   visitor.phase = "entering";
   visitor.queuePatience = 0;
   visitor.queueSlotIndex = 0;
+  visitor.emote = null;
   setVisitorTargetToFacility(visitor, facility);
   syncFacilityQueueTargets(facility);
 }
@@ -1999,12 +2992,18 @@ function tryQueueVisitor(visitor, facility) {
     beginVisitorService(visitor, facility);
     return true;
   }
-  const maxQueue = Math.min(getFacilityQueueCapacity(facility), visitor.path.length);
+  const laneDepth = getFacilityQueueLaneTiles(facility).length;
+  const maxQueue = Math.min(
+    getFacilityQueueCapacity(facility),
+    Math.max(laneDepth, visitor.path.length),
+  );
   if (facility.queue.includes(visitor.id)) {
     syncFacilityQueueTargets(facility);
     return true;
   }
   if (facility.queue.length >= maxQueue) {
+    facility.turnaways += 1;
+    noteFacilityCrowd(facility, 1.35);
     state.floaters.push({
       x: visitor.x,
       y: visitor.y - 14,
@@ -2024,13 +3023,20 @@ function tryQueueVisitor(visitor, facility) {
     return false;
   }
   facility.queue.push(visitor.id);
+  noteFacilityCrowd(facility, 0.72);
   visitor.phase = "queueing";
-  visitor.queuePatience = 4 + Math.random() * 3;
-  if (facility.queue.length >= 2) {
+  visitor.queuePatience =
+    (6 +
+      Math.random() * 4 +
+      (profileIsVisitorFavorite(visitor, facility.type) ? 1.4 : 0)) *
+    getIncidentQueuePatienceMultiplier(facility);
+  visitor.emoteCooldown = 0;
+  maybeTriggerQueueReaction(visitor, facility, 0.34);
+  if (facility.queue.length >= 1) {
     triggerDialogue(
       "queue",
       { facilityName: getFacilityDef(facility.type).name },
-      { chance: 0.18, speakerId: visitor.id },
+      { chance: 0.3, speakerId: visitor.id },
     );
   }
   syncFacilityQueueTargets(facility);
@@ -2049,6 +3055,12 @@ function startVisitorLeaving(visitor) {
     visitor.targetY = visitor.exitRoadY;
     return;
   }
+  if (visitor.phase === "errand-going" || visitor.phase === "landmark-entering") {
+    visitor.phase = "leaving-road";
+    visitor.targetX = visitor.exitRoadX;
+    visitor.targetY = visitor.exitRoadY;
+    return;
+  }
   if (visitor.phase === "entering" || visitor.phase === "inside") {
     visitor.phase = "exiting";
     setVisitorTargetToTile(visitor, visitor.path[visitor.path.length - 1]);
@@ -2059,7 +3071,8 @@ function startVisitorLeaving(visitor) {
     visitor.phase === "entering" ||
     visitor.phase === "inside" ||
     visitor.phase === "queueing" ||
-    visitor.phase === "queue-wait"
+    visitor.phase === "queue-wait" ||
+    visitor.phase === "errand-going"
   ) {
     visitor.phase = "leaving";
     return;
@@ -2079,7 +3092,9 @@ function spawnVisitor() {
   }
   const profile = pickVisitorArchetype();
   const target = chooseWeightedFacility(facilities, profile);
-  const route = buildVisitorRoute(target);
+  const route =
+    (Math.random() < 0.58 && buildLandmarkOriginRoute(target, profile)) ||
+    buildVisitorRoute(target);
   if (!route) {
     return;
   }
@@ -2087,10 +3102,16 @@ function spawnVisitor() {
     visitorPalette[(state.nextVisitorId - 1) % visitorPalette.length];
   const firstTile = route.path[0];
   const firstCenter = getTileCenter(firstTile.col, firstTile.row);
+  const nextPathIndex = route.originKind === "landmark" ? Math.min(1, route.path.length - 1) : 0;
+  const firstTargetTile = route.path[nextPathIndex];
+  const firstTargetCenter = getTileCenter(firstTargetTile.col, firstTargetTile.row);
+  const errandLandmark = Math.random() < 0.66
+    ? chooseErrandLandmark(profile, route.originLandmarkId || null)
+    : null;
   state.visitors.push({
     id: state.nextVisitorId,
-    x: route.roadEntry.x,
-    y: route.roadEntry.y,
+    x: route.originKind === "landmark" ? firstCenter.x : route.roadEntry.x,
+    y: route.originKind === "landmark" ? firstCenter.y : route.roadEntry.y,
     speed:
       (52 + Math.random() * 16) * simulationTuning.visitorSpeedMultiplier,
     mood: 1,
@@ -2101,17 +3122,26 @@ function spawnVisitor() {
     targetRow: target.row,
     targetApproachCol: route.approachTile.col,
     targetApproachRow: route.approachTile.row,
-    phase: "to-grid",
+    phase: route.originKind === "landmark" ? "going" : "to-grid",
     wait: 0,
     colors: palette,
     path: route.path,
-    pathIndex: 0,
+    pathIndex: nextPathIndex,
     queuePatience: 0,
     queueSlotIndex: 0,
-    targetX: firstCenter.x,
-    targetY: layout.roadY + 18,
+    targetX:
+      route.originKind === "landmark" ? firstTargetCenter.x : firstCenter.x,
+    targetY:
+      route.originKind === "landmark" ? firstTargetCenter.y : layout.roadY + 18,
     exitRoadX: route.roadExit.x,
     exitRoadY: route.roadExit.y,
+    originLandmarkId: route.originLandmarkId || null,
+    originLandmarkType: route.originLandmarkType || null,
+    errandLandmarkId: errandLandmark?.id || null,
+    errandLandmarkType: errandLandmark?.type || null,
+    pendingErrandPath: null,
+    emote: null,
+    emoteCooldown: 0.6 + Math.random() * 1.8,
   });
   state.nextVisitorId += 1;
 }
@@ -2173,20 +3203,47 @@ function visitFacility(visitor) {
   evaluateGoals();
 }
 
+function planVisitorErrandAfterService(visitor) {
+  if (!visitor.errandLandmarkId) {
+    return null;
+  }
+  const landmark = getFacilityById(visitor.errandLandmarkId);
+  if (!landmark) {
+    return null;
+  }
+  const shopExitTile = visitor.path[visitor.path.length - 1];
+  const route = buildLandmarkErrandRoute(shopExitTile, landmark.id);
+  if (!route) {
+    return null;
+  }
+  return route;
+}
+
 function updateVisitors(delta) {
   for (const visitor of state.visitors) {
+    visitor.emoteCooldown = Math.max(0, (visitor.emoteCooldown || 0) - delta);
+    if (visitor.emote) {
+      visitor.emote.ttl -= delta;
+      if (visitor.emote.ttl <= 0) {
+        visitor.emote = null;
+      }
+    }
     if (
       visitor.phase === "to-grid" ||
       visitor.phase === "going" ||
+      visitor.phase === "errand-going" ||
       visitor.phase === "queueing" ||
       visitor.phase === "entering" ||
+      visitor.phase === "landmark-entering" ||
       visitor.phase === "exiting" ||
       visitor.phase === "leaving" ||
       visitor.phase === "leaving-road"
     ) {
       if (
-        visitor.phase !== "leaving" &&
-        visitor.phase !== "leaving-road" &&
+        (visitor.phase === "to-grid" ||
+          visitor.phase === "going" ||
+          visitor.phase === "queueing" ||
+          visitor.phase === "entering") &&
         !getFacilityById(visitor.targetFacilityId)
       ) {
         startVisitorLeaving(visitor);
@@ -2211,21 +3268,68 @@ function updateVisitors(delta) {
             }
             tryQueueVisitor(visitor, facility);
           }
+        } else if (visitor.phase === "errand-going") {
+          if (visitor.pathIndex < visitor.path.length - 1) {
+            visitor.pathIndex += 1;
+            setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+          } else {
+            const landmark = getFacilityById(visitor.errandLandmarkId);
+            if (!landmark) {
+              startVisitorLeaving(visitor);
+              continue;
+            }
+            visitor.phase = "landmark-entering";
+            setVisitorTargetToFacility(visitor, landmark);
+          }
         } else if (visitor.phase === "queueing") {
           visitor.phase = "queue-wait";
         } else if (visitor.phase === "entering") {
+          const facility = getFacilityById(visitor.targetFacilityId);
           visitor.phase = "inside";
-          visitor.wait = simulationTuning.visitorWait;
+          visitor.wait = facility
+            ? getFacilityServiceDuration(facility)
+            : simulationTuning.visitorWait;
+        } else if (visitor.phase === "landmark-entering") {
+          visitor.phase = "landmark-inside";
+          visitor.wait = getLandmarkStayDuration(visitor.errandLandmarkType);
+          if (Math.random() < 0.24) {
+            const landmarkName =
+              getStructureDef(visitor.errandLandmarkType)?.name || "默认建筑";
+            pushMessage(
+              `${visitor.profileLabel || "顾客"} 进了 ${landmarkName}${getLandmarkErrandLabel(
+                visitor.errandLandmarkType,
+                visitor.profileId,
+              )}。`,
+            );
+          }
         } else if (visitor.phase === "exiting") {
-          visitor.phase = "leaving";
-          visitor.pathIndex = Math.max(0, visitor.path.length - 1);
-          if (visitor.pathIndex > 0) {
-            visitor.pathIndex -= 1;
-            setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+          if (visitor.pendingErrandPath?.length) {
+            visitor.path = visitor.pendingErrandPath;
+            visitor.pendingErrandPath = null;
+            visitor.pathIndex = Math.min(1, visitor.path.length - 1);
+            if (visitor.path.length > 1) {
+              visitor.phase = "errand-going";
+              setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+            } else {
+              const landmark = getFacilityById(visitor.errandLandmarkId);
+              if (!landmark) {
+                startVisitorLeaving(visitor);
+                continue;
+              }
+              visitor.phase = "landmark-entering";
+              setVisitorTargetToFacility(visitor, landmark);
+            }
           } else {
-            visitor.phase = "leaving-road";
-            visitor.targetX = visitor.exitRoadX;
-            visitor.targetY = visitor.exitRoadY;
+            visitor.phase = "leaving";
+            visitor.pathIndex = Math.max(0, visitor.path.length - 1);
+            if (visitor.pathIndex > 0) {
+              visitor.pathIndex -= 1;
+              setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+            } else {
+              visitor.phase = "leaving-road";
+              visitor.targetX = visitor.exitRoadX;
+              visitor.targetY = visitor.exitRoadY;
+            }
           }
         } else if (visitor.phase === "leaving") {
           if (visitor.pathIndex > 0) {
@@ -2259,9 +3363,16 @@ function updateVisitors(delta) {
         continue;
       }
       visitor.queuePatience -= delta;
+      visitor.queuePatience -=
+        delta * Math.max(0, getIncidentQueueDrainMultiplier(facility) - 1);
+      if (Math.random() < delta * 0.46) {
+        maybeTriggerQueueReaction(visitor, facility, 0.18);
+      }
       if (visitor.queuePatience <= 0) {
         removeVisitorFromFacilityQueue(facility, visitor.id);
         syncFacilityQueueTargets(facility);
+        facility.patienceLeaves += 1;
+        noteFacilityCrowd(facility, 0.9);
         state.floaters.push({
           x: visitor.x,
           y: visitor.y - 14,
@@ -2283,10 +3394,32 @@ function updateVisitors(delta) {
     } else if (visitor.phase === "inside") {
       visitor.wait -= delta;
       if (visitor.wait <= 0) {
+        const plannedErrand = planVisitorErrandAfterService(visitor);
         visitFacility(visitor);
         const approachTile = visitor.path[visitor.path.length - 1];
+        visitor.pendingErrandPath = plannedErrand?.path || null;
         visitor.phase = "exiting";
         setVisitorTargetToTile(visitor, approachTile);
+        if (plannedErrand && Math.random() < 0.28) {
+          const landmarkName = getStructureDef(plannedErrand.landmark.type)?.name || "默认建筑";
+          triggerDialogue(
+            "errand",
+            {
+              landmarkName,
+              profileLabel: visitor.profileLabel || "顾客",
+              errandLabel: getLandmarkErrandLabel(
+                plannedErrand.landmark.type,
+                visitor.profileId,
+              ),
+            },
+            { chance: 1, speakerId: visitor.id },
+          );
+        }
+      }
+    } else if (visitor.phase === "landmark-inside") {
+      visitor.wait -= delta;
+      if (visitor.wait <= 0) {
+        visitor.done = true;
       }
     }
   }
@@ -2305,7 +3438,8 @@ function advanceDay() {
   const previousSeasonId = state.world.season.id;
   state.day += 1;
   state.rating += 2;
-  state.world = buildWorld(state.day, state.world);
+  state.world = buildWorld(state.day, state.world, state.facilities);
+  state.eventActors = createIncidentActors(state.world.incidentQueue, state.facilities);
   const upkeep = Math.max(0, listFacilities().length - 4) * 3;
   if (upkeep > 0) {
     state.money = Math.max(0, state.money - upkeep);
@@ -2348,6 +3482,15 @@ function advanceDay() {
       4.4,
     );
   }
+  if (state.world.incidentQueue.length) {
+    const incident = state.world.incidentQueue[0];
+    pushMessage(`${incident.title}：${incident.description}`);
+    setEnvironmentNotice(`${incident.title}：${incident.description}`, incident.color, 4.6);
+    triggerDialogue("incident", { incidentTitle: incident.title }, { chance: 0.28 });
+    if (state.eventActors[0]) {
+      triggerEventActorDialogue(state.eventActors[0], true);
+    }
+  }
   triggerDialogue("trend", { trendName: state.todayTrend.name }, { chance: 0.2 });
   triggerDialogue("weather", { weatherLabel: state.world.weather.label }, { chance: 0.18 });
   if (previousSeasonId !== state.world.season.id) {
@@ -2366,6 +3509,7 @@ function update(delta) {
     updateFloaters(delta);
     return;
   }
+  updateEventActors(delta);
 
   state.spawnTimer -= delta;
   state.dayTimer += delta;
@@ -2392,11 +3536,15 @@ function update(delta) {
   }
 
   updateVisitors(delta);
+  updateFacilityCrowding(delta);
   updateFloaters(delta);
   state.visitorTalkTimer -= delta;
   if (state.visitorTalkTimer <= 0) {
     maybeTriggerVisitorThought();
-    state.visitorTalkTimer = 7 + Math.random() * 4;
+    const queuePresent = state.visitors.some(
+      (visitor) => visitor.phase === "queueing" || visitor.phase === "queue-wait",
+    );
+    state.visitorTalkTimer = queuePresent ? 4.5 + Math.random() * 2.2 : 7 + Math.random() * 4;
   }
 }
 
@@ -2483,9 +3631,7 @@ function getBusiestFacility() {
   }
   return (
     [...shops].sort((a, b) => {
-      const aLoad = a.queue.length + (a.activeServiceId ? 1 : 0);
-      const bLoad = b.queue.length + (b.activeServiceId ? 1 : 0);
-      return bLoad - aLoad;
+      return getFacilityCrowdScore(b) - getFacilityCrowdScore(a);
     })[0] || null
   );
 }
@@ -2737,7 +3883,7 @@ function drawPlacementPreview() {
 
 function drawApproachMarkers() {
   for (const facility of listFacilities()) {
-    const approachTiles = getApproachTiles(facility);
+    const approachTiles = getApproachTiles(facility, { includeFallback: true });
     for (const tile of approachTiles) {
       const pos = tileToScreen(tile.col, tile.row);
       ctx.fillStyle = "rgba(255, 248, 220, 0.72)";
@@ -2756,6 +3902,30 @@ function drawApproachMarkers() {
       ctx.fillRect(pos.x + 18, pos.y + 4, 18, 8);
       ctx.fillStyle = "rgba(124, 92, 68, 0.38)";
       ctx.fillRect(pos.x + 20, pos.y + 6, 14, 4);
+    }
+  }
+}
+
+function drawQueueLaneMarkers() {
+  for (const facility of listFacilities()) {
+    if (!facility.queue.length) {
+      continue;
+    }
+    const laneTiles = getFacilityQueueLaneTiles(facility, Math.min(getFacilityQueueCapacity(facility), 4));
+    if (!laneTiles.length) {
+      continue;
+    }
+    for (let index = 0; index < laneTiles.length; index += 1) {
+      const slotTile = laneTiles[index];
+      const pos = tileToScreen(slotTile.col, slotTile.row);
+      if (index >= facility.queue.length) {
+        continue;
+      }
+      ctx.fillStyle = "rgba(255, 228, 146, 0.12)";
+      ctx.fillRect(pos.x + 20, pos.y + 20, layout.tile - 42, layout.tile - 42);
+      ctx.strokeStyle = "rgba(255, 222, 132, 0.54)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(pos.x + 20, pos.y + 20, layout.tile - 42, layout.tile - 42);
     }
   }
 }
@@ -2798,6 +3968,7 @@ function drawGrid() {
     }
   }
   drawApproachMarkers();
+  drawQueueLaneMarkers();
   drawPlacementPreview();
   const facilities = [...state.facilities].sort(
     (a, b) => a.row + a.height - (b.row + b.height),
@@ -2856,24 +4027,27 @@ function drawFacility(facility) {
   }
 
   const queueCount = facility.queue.length;
-  const queueCapacity = getFacilityQueueCapacity(facility);
+  const crowdState = getFacilityCrowdState(facility);
   const serviceBusy = Boolean(facility.activeServiceId);
-  if (queueCount || serviceBusy) {
-    const badgeW = queueCount >= queueCapacity ? 68 : 54;
-    ctx.fillStyle =
-      queueCount >= queueCapacity
-        ? "#c44d2f"
-        : serviceBusy
-          ? "#4066b1"
-          : "#4f6b3f";
+  if (crowdState.id !== "calm" || serviceBusy) {
+    const badgeW = crowdState.shortLabel.length > 10 ? 74 : 60;
+    ctx.fillStyle = crowdState.badgeColor;
     ctx.fillRect(pos.x + width - badgeW - 10, pos.y + height - 24, badgeW, 14);
     ctx.fillStyle = "#fff8dd";
     ctx.font = "bold 9px Trebuchet MS";
-    const badgeText =
-      queueCount >= queueCapacity
-        ? `FULL ${queueCount}`
-        : `Q${queueCount}${serviceBusy ? " / Busy" : ""}`;
-    ctx.fillText(badgeText, pos.x + width - badgeW - 6, pos.y + height - 13);
+    ctx.fillText(crowdState.shortLabel, pos.x + width - badgeW - 6, pos.y + height - 13);
+  }
+  if (crowdState.id !== "calm") {
+    const pulseWidth = Math.min(width - 18, 42 + Math.round((facility.crowdHeat || 0) * 8));
+    ctx.fillStyle = `${crowdState.accent}44`;
+    ctx.fillRect(pos.x + 10, pos.y + 22, pulseWidth, 6);
+    ctx.fillStyle = crowdState.accent;
+    ctx.fillRect(pos.x + 10, pos.y + 22, Math.max(10, pulseWidth - 10), 3);
+    for (let index = 0; index < Math.min(3, queueCount + (serviceBusy ? 1 : 0)); index += 1) {
+      ctx.fillStyle = crowdState.accent;
+      ctx.fillRect(pos.x + width - 16 - index * 5, pos.y + 8, 3, 3);
+      ctx.fillRect(pos.x + width - 17 - index * 5, pos.y + 11, 5, 4);
+    }
   }
 }
 
@@ -2897,6 +4071,34 @@ function drawVisitors() {
     ctx.fillRect(x + 1, y + 13, 3, 8);
     ctx.fillStyle = "rgba(255, 248, 214, 0.92)";
     ctx.fillRect(x - 8, y - 18, 16, 4);
+    if (visitor.phase === "queueing" || visitor.phase === "queue-wait") {
+      const patienceRatio = Math.max(
+        0,
+        Math.min(1, visitor.queuePatience / 10),
+      );
+      ctx.fillStyle = "#2f2231";
+      ctx.fillRect(x - 10, y - 24, 20, 4);
+      ctx.fillStyle = patienceRatio < 0.35 ? "#ff8f70" : "#ffe08f";
+      ctx.fillRect(x - 9, y - 23, Math.max(2, Math.round(18 * patienceRatio)), 2);
+      ctx.fillStyle = "#fff5da";
+      ctx.fillRect(x - 4, y - 28, 8, 4);
+      ctx.fillStyle = "#8f6b3d";
+      ctx.fillRect(x - 3, y - 27, 2, 2);
+      ctx.fillRect(x + 1, y - 27, 2, 2);
+    }
+    if (visitor.emote) {
+      const emoteDef = visitorEmoteSprites[visitor.emote.type];
+      if (emoteDef) {
+        ctx.fillStyle = "rgba(47, 34, 49, 0.18)";
+        ctx.fillRect(x - 10, y - 41, 20, 14);
+        ctx.fillStyle = "#fff8de";
+        ctx.fillRect(x - 11, y - 43, 20, 14);
+        ctx.strokeStyle = "#7f675f";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 10, y - 42, 18, 12);
+        drawSprite(emoteDef.sprite, emoteDef.palette, x - 5, y - 39, 2);
+      }
+    }
   }
 }
 
@@ -2920,6 +4122,34 @@ function drawNPCs() {
     ctx.fillRect(x + 1, y + 16, 3, 9);
     if (active) {
       ctx.strokeStyle = npc.accent;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x - 11, y - 14, 22, 31);
+    }
+  }
+  for (const actor of state.eventActors) {
+    const active =
+      state.activeDialogue &&
+      state.activeDialogue.speakerKind === "event-actor" &&
+      state.activeDialogue.speakerId === actor.id;
+    const bob = Math.sin(state.cameraPulse * 2.8 + actor.bobPhase) * 2;
+    const x = Math.round(actor.x);
+    const y = Math.round(actor.y + bob);
+    ctx.fillStyle = "rgba(0,0,0,0.2)";
+    ctx.fillRect(x - 9, y + 8, 18, 4);
+    ctx.fillStyle = actor.hair;
+    ctx.fillRect(x - 5, y - 11, 10, 5);
+    ctx.fillStyle = "#f4d8be";
+    ctx.fillRect(x - 6, y - 6, 12, 10);
+    ctx.fillStyle = actor.shirt;
+    ctx.fillRect(x - 7, y + 4, 14, 12);
+    ctx.fillStyle = "#4c3d37";
+    ctx.fillRect(x - 4, y + 16, 3, 9);
+    ctx.fillRect(x + 1, y + 16, 3, 9);
+    ctx.fillStyle = actor.accent;
+    ctx.fillRect(x - 8, y - 18, 16, 4);
+    ctx.fillRect(x - 2, y - 22, 4, 4);
+    if (active) {
+      ctx.strokeStyle = actor.accent;
       ctx.lineWidth = 3;
       ctx.strokeRect(x - 11, y - 14, 22, 31);
     }
@@ -2949,7 +4179,7 @@ function drawSidebar() {
   ctx.clip();
 
   ctx.fillStyle = "#362734";
-  ctx.fillRect(layout.sidebarX + 18, layout.sidebarY + 18, layout.sidebarW - 36, 160);
+  ctx.fillRect(layout.sidebarX + 18, layout.sidebarY + 18, layout.sidebarW - 36, 176);
   ctx.fillStyle = "#ffefbd";
   ctx.font = "bold 19px Trebuchet MS";
   ctx.fillText(`Day ${state.day}`, layout.sidebarX + 34, layout.sidebarY + 46);
@@ -2972,25 +4202,36 @@ function drawSidebar() {
     layout.sidebarY + 92,
     infoWidth,
     13,
-    2,
+    1,
   );
-  ctx.fillText("Trend today", infoX, layout.sidebarY + 112);
+  ctx.fillText("Incident now", infoX, layout.sidebarY + 108);
+  wrapText(
+    state.world.incidentQueue[0]
+      ? state.world.incidentQueue[0].title
+      : "今天街区风平浪静",
+    infoX,
+    layout.sidebarY + 122,
+    infoWidth,
+    13,
+    1,
+  );
+  ctx.fillText("Trend today", infoX, layout.sidebarY + 138);
   wrapText(
     `${state.todayTrend.name} +${state.todayTrend.incomeBonus}G/+${state.todayTrend.ratingBonus}★`,
     infoX,
-    layout.sidebarY + 126,
+    layout.sidebarY + 152,
     infoWidth,
     13,
-    2,
+    1,
   );
-  ctx.fillText("Next fest", infoX, layout.sidebarY + 146);
+  ctx.fillText("Next fest", infoX, layout.sidebarY + 168);
   wrapText(
     state.world.upcomingFestival.name,
     infoX,
-    layout.sidebarY + 160,
+    layout.sidebarY + 182,
     infoWidth,
     13,
-    2,
+    1,
   );
 
   ctx.fillStyle = "#3d2b35";
@@ -3068,16 +4309,18 @@ function drawSidebar() {
   }
   const pulseText = busiestFacility
     ? (() => {
-        const def = getFacilityDef(busiestFacility.type);
-        const queueCount = busiestFacility.queue.length;
-        if (queueCount >= getFacilityQueueCapacity(busiestFacility)) {
-          return `Street Pulse：${def.name} 已爆满，门口顾客正在外溢。`;
+        const crowdState = getFacilityCrowdState(busiestFacility);
+        if (crowdState.id === "overflow") {
+          return `Street Pulse：${crowdState.pulseText}`;
         }
-        if (queueCount > 0) {
-          return `Street Pulse：${def.name} 正在排队，当前 ${queueCount} 人等候。`;
+        if (crowdState.id === "packed") {
+          return `Street Pulse：${crowdState.pulseText}`;
+        }
+        if (crowdState.id === "busy") {
+          return `Street Pulse：${crowdState.pulseText} 已有 ${busiestFacility.patienceLeaves || 0} 人嫌久离开。`;
         }
         if (busiestFacility.activeServiceId) {
-          return `Street Pulse：${def.name} 正在接客，门口节奏很稳。`;
+          return `Street Pulse：${crowdState.pulseText}`;
         }
         return "Street Pulse：目前街区还比较从容，适合继续观察人流。";
       })()
@@ -3185,7 +4428,7 @@ function drawDialogueOverlay() {
   if (!state.activeDialogue) {
     return;
   }
-  const speaker = getVisitorById(state.activeDialogue.speakerId);
+  const speaker = resolveDialogueSpeaker(state.activeDialogue);
   if (!speaker) {
     return;
   }
@@ -3460,10 +4703,17 @@ window.render_game_to_text = () =>
       },
       upcomingFestival: state.world.upcomingFestival,
       activeFestival: state.world.activeFestival,
-      activeEvents: state.world.eventQueue.map((event) => ({
+      activeEvents: [...state.world.eventQueue, ...state.world.incidentQueue].map((event) => ({
         id: event.id,
         title: event.title,
         trafficModifier: event.trafficModifier,
+      })),
+      activeIncidents: state.world.incidentQueue.map((incident) => ({
+        id: incident.id,
+        title: incident.title,
+        description: incident.description,
+        featuredType: incident.featuredType || null,
+        zoneId: incident.zoneId || null,
       })),
       eventQueueSize: state.world.eventQueue.length,
       incidentQueueSize: state.world.incidentQueue.length,
@@ -3490,6 +4740,11 @@ window.render_game_to_text = () =>
       queueLength: facility.queue.length,
       queueCapacity: getFacilityQueueCapacity(facility),
       activeServiceId: facility.activeServiceId,
+      peakQueue: facility.peakQueue || 0,
+      turnaways: facility.turnaways || 0,
+      patienceLeaves: facility.patienceLeaves || 0,
+      crowdHeat: Number(facility.crowdHeat?.toFixed?.(2) || 0),
+      crowdState: getFacilityCrowdState(facility).id,
     })),
     visitors: state.visitors.map((visitor) => ({
       id: visitor.id,
@@ -3499,6 +4754,9 @@ window.render_game_to_text = () =>
       y: Math.round(visitor.y),
       phase: visitor.phase,
       queuePatience: Number(visitor.queuePatience?.toFixed?.(2) || 0),
+      emote: visitor.emote?.type || null,
+      originLandmarkType: visitor.originLandmarkType || null,
+      errandLandmarkType: visitor.errandLandmarkType || null,
       target: { col: visitor.targetCol, row: visitor.targetRow },
     })),
     npcs: state.npcs.map((npc) => ({
@@ -3508,10 +4766,22 @@ window.render_game_to_text = () =>
       y: Math.round(npc.y),
       speaking: state.activeDialogue?.speakerId === npc.id,
     })),
+    eventActors: state.eventActors.map((actor) => ({
+      id: actor.id,
+      incidentId: actor.incidentId,
+      role: actor.role,
+      name: actor.name,
+      x: Math.round(actor.x),
+      y: Math.round(actor.y),
+      speaking:
+        state.activeDialogue?.speakerKind === "event-actor" &&
+        state.activeDialogue?.speakerId === actor.id,
+    })),
     dialogue: state.activeDialogue
       ? {
           speakerName: state.activeDialogue.speakerName,
           speakerId: state.activeDialogue.speakerId,
+          speakerKind: state.activeDialogue.speakerKind,
           topic: state.activeDialogue.topic,
           text: state.activeDialogue.text,
         }
