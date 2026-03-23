@@ -65,9 +65,14 @@ function runSmoke() {
       "scripts",
       "web_game_playwright_client.js",
     );
-  const actionsPath = path.join(rootDir, "smoke-actions.json");
-  const screenshotDir = path.join(rootDir, "output", "web-game");
+  const actionsPath = process.env.SMOKE_ACTIONS
+    ? path.resolve(rootDir, process.env.SMOKE_ACTIONS)
+    : path.join(rootDir, "smoke-actions.json");
+  const screenshotDir = process.env.SMOKE_OUTPUT_DIR
+    ? path.resolve(rootDir, process.env.SMOKE_OUTPUT_DIR)
+    : path.join(rootDir, "output", "web-game");
   const smokeQuery = String(process.env.SMOKE_QUERY || "").trim();
+  const pauseMs = String(process.env.SMOKE_PAUSE_MS || "400");
   const targetUrl = `http://${host}:${port}/index.html${
     smokeQuery ? (smokeQuery.startsWith("?") ? smokeQuery : `?${smokeQuery}`) : ""
   }`;
@@ -89,7 +94,7 @@ function runSmoke() {
         "--iterations",
         "1",
         "--pause-ms",
-        "400",
+        pauseMs,
         "--screenshot-dir",
         screenshotDir,
       ],

@@ -360,6 +360,124 @@ const visitorEmoteSprites = {
   },
 };
 
+const landmarkRhythmDefinitions = {
+  library: {
+    color: "#92b8ff",
+    title: "图书角热起来了",
+    description: "图书馆今天来往明显变多，学生客和游客更愿意往安静路线走。",
+    profileBias: { student: 0.9, traveler: 0.35, family: 0.18 },
+    facilityBias: { park: 1.3, tower: 1.8, snack: 0.6 },
+    thresholds: [2, 4],
+  },
+  clinic: {
+    color: "#ffb3b3",
+    title: "诊所门口人来人往",
+    description: "诊所事务变多，家庭客更常出现，大家也更偏好轻松一点的店。",
+    profileBias: { family: 0.85, worker: 0.25 },
+    facilityBias: { bath: 1.6, park: 1.1, arcade: -0.5 },
+    thresholds: [2, 4],
+  },
+  post: {
+    color: "#ffd28b",
+    title: "邮局今天很忙",
+    description: "寄件和取件的人多了，游客和上班族会更多地拐进街边小店。",
+    profileBias: { traveler: 0.78, worker: 0.44 },
+    facilityBias: { snack: 1.5, tower: 1.1, arcade: 0.7 },
+    thresholds: [2, 4],
+  },
+  police: {
+    color: "#b9ceff",
+    title: "警务亭问路的人变多",
+    description: "更多人会先去问路，随后更愿意继续逛完整条街。",
+    profileBias: { family: 0.4, worker: 0.34, traveler: 0.28 },
+    facilityBias: { park: 1.2, snack: 0.8, tower: 0.8 },
+    thresholds: [2, 4],
+  },
+  workshop: {
+    color: "#dcb79d",
+    title: "工坊事务正忙",
+    description: "工坊交接频繁，上班族会更多出现，办完事后也更想顺手消费。",
+    profileBias: { worker: 0.92, traveler: 0.12 },
+    facilityBias: { snack: 1.4, arcade: 1.2, bath: 0.7 },
+    thresholds: [2, 4],
+  },
+};
+
+const landmarkResultSprites = {
+  library: {
+    sprite: [
+      ".bbbb.",
+      ".bwwb.",
+      ".bwwb.",
+      ".bppb.",
+      ".bppb.",
+      ".bbbb.",
+    ],
+    palette: {
+      b: "#6b8fd8",
+      w: "#f7fbff",
+      p: "#9bb7ee",
+    },
+  },
+  clinic: {
+    sprite: [
+      "..rr..",
+      "..rr..",
+      "rrrrrr",
+      "rrrrrr",
+      "..rr..",
+      "..rr..",
+    ],
+    palette: {
+      r: "#ef7481",
+    },
+  },
+  post: {
+    sprite: [
+      "yyyyyy",
+      "ywwwwy",
+      "ywwwwy",
+      "yywwyy",
+      "ywywyy",
+      "yyyyyy",
+    ],
+    palette: {
+      y: "#ffd37e",
+      w: "#fff7ea",
+    },
+  },
+  police: {
+    sprite: [
+      "..bb..",
+      ".bbbb.",
+      "bbddbb",
+      ".byyb.",
+      "..bb..",
+      "..bb..",
+    ],
+    palette: {
+      b: "#6f8fd8",
+      d: "#dfe9ff",
+      y: "#ffe38a",
+    },
+  },
+  workshop: {
+    sprite: [
+      "..oo..",
+      ".oooo.",
+      ".ooto.",
+      "..tt..",
+      "..tt..",
+      ".bbbb.",
+    ],
+    palette: {
+      o: "#d68d55",
+      t: "#8e613f",
+      b: "#5a4740",
+    },
+  },
+};
+
 const landmarkTypes = [
   {
     id: "clinic",
@@ -1002,6 +1120,7 @@ function createStructureEntity(type, col, row, id, overrides = {}) {
     turnaways: 0,
     patienceLeaves: 0,
     crowdHeat: 0,
+    landmarkVisits: 0,
     ...overrides,
   };
 }
@@ -1742,6 +1861,10 @@ function createInitialState() {
     servedVisitors: 0,
     lifetimeIncome: 0,
     todayTrend: buildTrend(initialRating, initialDay),
+    dailyLandmarkStats: {},
+    landmarkSpotlights: [],
+    dailyLandmarkSpotlightIds: {},
+    observerNotes: ["观察记录：先盯住默认建筑的人来人往，再看整条街怎么被带动。"],
     goals: goalDefinitions.map((goal) => ({
       ...goal,
       completed: false,
@@ -1819,6 +1942,24 @@ function applyDebugIncident(incidentId = null) {
   return state.world.incidentQueue[0]?.id || null;
 }
 
+function refreshIncidentQueueForCurrentFacilities() {
+  const forcedIncidentId = state.debug?.forcedIncidentId || null;
+  const currentIncidentId =
+    state.world.incidentQueue[0]?.id?.replace(/^incident-/, "") || null;
+  const nextIncidentId = forcedIncidentId || currentIncidentId;
+  if (!nextIncidentId) {
+    return;
+  }
+  state.world.incidentQueue = buildLightweightIncident(
+    state.day,
+    state.world.season,
+    state.world.weather,
+    state.facilities,
+    nextIncidentId,
+  );
+  state.eventActors = createIncidentActors(state.world.incidentQueue, state.facilities);
+}
+
 function startGame() {
   if (state.mode === "play") {
     return;
@@ -1849,6 +1990,90 @@ function startGame() {
 function pushMessage(text) {
   state.messages.unshift(text);
   state.messages = state.messages.slice(0, 5);
+}
+
+function noteLandmarkVisit(landmark) {
+  if (!landmark) {
+    return;
+  }
+  const current = state.dailyLandmarkStats[landmark.id] || {
+    facilityId: landmark.id,
+    type: landmark.type,
+    name: getStructureDef(landmark.type)?.name || "默认建筑",
+    visits: 0,
+  };
+  current.visits += 1;
+  state.dailyLandmarkStats[landmark.id] = current;
+}
+
+function getLandmarkRoutineScale(landmarkType) {
+  const dailyVisits = Object.values(state.dailyLandmarkStats || {})
+    .filter((item) => item.type === landmarkType)
+    .reduce((sum, item) => sum + item.visits, 0);
+  return Math.min(2.4, dailyVisits * 0.45);
+}
+
+function maybeActivateLandmarkSpotlight(landmark) {
+  const rhythm = landmarkRhythmDefinitions[landmark.type];
+  if (!rhythm) {
+    return;
+  }
+  const dailyVisits = state.dailyLandmarkStats[landmark.id]?.visits || 0;
+  for (const threshold of rhythm.thresholds) {
+    const key = `${landmark.id}:${threshold}`;
+    if (dailyVisits < threshold || state.dailyLandmarkSpotlightIds[key]) {
+      continue;
+    }
+    state.dailyLandmarkSpotlightIds[key] = true;
+    const spotlight = {
+      id: key,
+      landmarkType: landmark.type,
+      landmarkId: landmark.id,
+      title: rhythm.title,
+      description: rhythm.description,
+      color: rhythm.color,
+      threshold,
+    };
+    state.landmarkSpotlights.unshift(spotlight);
+    state.landmarkSpotlights = state.landmarkSpotlights.slice(0, 3);
+    pushMessage(`${getStructureDef(landmark.type)?.name || "默认建筑"}：${rhythm.title}`);
+    setEnvironmentNotice(`${rhythm.title}，${rhythm.description}`, rhythm.color, 4.2);
+  }
+}
+
+function getLandmarkActivityRows(limit = 3) {
+  const rows = Object.values(state.dailyLandmarkStats || {})
+    .sort((left, right) => {
+      if (right.visits !== left.visits) {
+        return right.visits - left.visits;
+      }
+      const leftTotal = getFacilityById(left.facilityId)?.landmarkVisits || 0;
+      const rightTotal = getFacilityById(right.facilityId)?.landmarkVisits || 0;
+      return rightTotal - leftTotal;
+    })
+    .slice(0, limit)
+    .map((item) => {
+      const total = getFacilityById(item.facilityId)?.landmarkVisits || item.visits;
+      return `${item.name} 今日 ${item.visits} / 累计 ${total}`;
+    });
+  return rows.length ? rows : ["今天默认建筑还没接到明显办事人流。"];
+}
+
+function getObserverSnapshot() {
+  const activeRoutine = Object.values(state.dailyLandmarkStats || {}).sort(
+    (left, right) => right.visits - left.visits,
+  )[0];
+  const busiestFacility = getBusiestFacility();
+  if (activeRoutine && busiestFacility) {
+    return `观察记录：${activeRoutine.name} 今天最忙，${getFacilityDef(busiestFacility.type).name} 也在跟着吃人流。`;
+  }
+  if (activeRoutine) {
+    return `观察记录：${activeRoutine.name} 今天最活跃，街上的办事节奏已经成形。`;
+  }
+  if (busiestFacility) {
+    return `观察记录：${getFacilityDef(busiestFacility.type).name} 是当前街区热点，小镇还在缓慢长出自己的习惯。`;
+  }
+  return "观察记录：今天街区还在热身，更多变化会在建筑和人流里慢慢出现。";
 }
 
 function getFacilityDef(type) {
@@ -1888,6 +2113,12 @@ function pickVisitorArchetype() {
       profile.festivalBias.includes(state.world.activeFestival.id)
     ) {
       weight += 1.4;
+    }
+    for (const [landmarkType, rhythm] of Object.entries(landmarkRhythmDefinitions)) {
+      const bias = rhythm.profileBias?.[profile.id] || 0;
+      if (bias) {
+        weight += bias * getLandmarkRoutineScale(landmarkType);
+      }
     }
     return { profile, weight };
   });
@@ -2473,6 +2704,102 @@ function getLandmarkErrandLabel(landmarkType, profileId) {
   }
 }
 
+function getLandmarkCompletionPayload(visitor, landmarkType) {
+  const profileLabel = visitor.profileLabel || "顾客";
+  switch (landmarkType) {
+    case "library":
+      return visitor.profileId === "student"
+        ? {
+            resultText: `${profileLabel} 借到了新书`,
+            floaterText: "新书到手",
+            emote: "heart",
+            badgeType: "library",
+            color: "#bfe1ff",
+            dialogue: "这趟图书馆没白来，借到的书够我再逛一路。",
+          }
+        : {
+            resultText: `${profileLabel} 看完了公告板`,
+            floaterText: "消息入手",
+            emote: "note",
+            badgeType: "library",
+            color: "#d9ebff",
+            dialogue: "公告板今天信息不少，顺手把街上的新消息也看了。",
+          };
+    case "clinic":
+      return {
+        resultText: `${profileLabel} 在诊所处理完了琐事`,
+        floaterText: "问诊完成",
+        emote: "dots",
+        badgeType: "clinic",
+        color: "#ffd3d3",
+        dialogue: "诊所这边总算处理完了，接下来能轻松一点继续逛。",
+      };
+    case "post":
+      return visitor.profileId === "traveler"
+        ? {
+            resultText: `${profileLabel} 寄出了明信片`,
+            floaterText: "寄件完成",
+            emote: "star",
+            badgeType: "post",
+            color: "#ffe4a8",
+            dialogue: "明信片寄出去了，这趟小镇之行算是留下纪念了。",
+          }
+        : {
+            resultText: `${profileLabel} 把信件寄出去了`,
+            floaterText: "寄信完成",
+            emote: "note",
+            badgeType: "post",
+            color: "#ffe0a6",
+            dialogue: "信一寄出去，今天这趟事就算办利索了。",
+          };
+    case "police":
+      return visitor.profileId === "worker"
+        ? {
+            resultText: `${profileLabel} 完成了报备`,
+            floaterText: "报备完成",
+            emote: "dots",
+            badgeType: "police",
+            color: "#d6e2ff",
+            dialogue: "该报备的都报备完了，接下来就能安心回去了。",
+          }
+        : {
+            resultText: `${profileLabel} 问清了路线`,
+            floaterText: "路线确认",
+            emote: "star",
+            badgeType: "police",
+            color: "#dce5ff",
+            dialogue: "路线总算问明白了，再逛这条街就不会绕晕。",
+          };
+    case "workshop":
+      return visitor.profileId === "worker"
+        ? {
+            resultText: `${profileLabel} 在工坊交完了班`,
+            floaterText: "交班结束",
+            emote: "heart",
+            badgeType: "workshop",
+            color: "#f4deb8",
+            dialogue: "工坊这边的活已经交掉，今天逛街才算真正开始。",
+          }
+        : {
+            resultText: `${profileLabel} 在工坊办完了手头事务`,
+            floaterText: "事务办妥",
+            emote: "note",
+            badgeType: "workshop",
+            color: "#ead8c0",
+            dialogue: "工坊这边的事情处理好，整个人都轻松下来了。",
+          };
+    default:
+      return {
+        resultText: `${profileLabel} 办完了事`,
+        floaterText: "办妥了",
+        emote: "note",
+        badgeType: "post",
+        color: "#fff0b8",
+        dialogue: "事情办完，接下来就可以慢慢离开这条街了。",
+      };
+  }
+}
+
 function incidentAffectsFacilityZone(incident, facility) {
   if (!incident.zoneRange) {
     return false;
@@ -2831,6 +3158,45 @@ function getLandmarkStayDuration(landmarkType) {
   }
 }
 
+function completeLandmarkErrand(visitor) {
+  const landmark = getFacilityById(visitor.errandLandmarkId);
+  if (!landmark) {
+    return;
+  }
+  landmark.landmarkVisits = (landmark.landmarkVisits || 0) + 1;
+  noteLandmarkVisit(landmark);
+  maybeActivateLandmarkSpotlight(landmark);
+  const landmarkName = getStructureDef(landmark.type)?.name || "默认建筑";
+  const payload = getLandmarkCompletionPayload(visitor, landmark.type);
+  if ((visitor.emoteCooldown || 0) <= 0) {
+    setVisitorEmote(visitor, payload.emote, 1.6 + Math.random() * 0.6);
+  }
+  visitor.errandBadge = {
+    type: payload.badgeType,
+    ttl: 3.2 + Math.random() * 1,
+  };
+  state.floaters.push({
+    x: visitor.x,
+    y: visitor.y - 14,
+    text: payload.floaterText,
+    color: payload.color,
+    ttl: 1.8,
+  });
+  if (Math.random() < 0.42) {
+    pushMessage(`${payload.resultText}，从 ${landmarkName} 出来了。`);
+  }
+  if (!state.activeDialogue || state.dialogueCooldown <= 0 || Math.random() < 0.24) {
+    openDialogueForSpeaker(
+      "visitor",
+      visitor.id,
+      visitor.profileLabel || "顾客",
+      payload.dialogue,
+      "landmark-finish",
+      3.2,
+    );
+  }
+}
+
 function canPlaceFacility(col, row, def) {
   const { w, h } = def.footprint;
   if (col + w > layout.cols || row + h > layout.rows) {
@@ -2876,18 +3242,18 @@ function listFacilities() {
 function getObserveCardRect() {
   return {
     x: layout.sidebarX + 22,
-    y: layout.sidebarY + 212,
+    y: layout.sidebarY + 182,
     w: layout.sidebarW - 44,
-    h: 30,
+    h: 32,
   };
 }
 
 function getFacilityCardRect(index) {
   return {
     x: layout.sidebarX + 22,
-    y: layout.sidebarY + 252 + index * 52,
+    y: layout.sidebarY + 220 + index * 44,
     w: layout.sidebarW - 44,
-    h: 44,
+    h: 42,
   };
 }
 
@@ -3012,6 +3378,12 @@ function getVisitorPreferenceScore(profile, facility) {
       (festivalBonus.pop || 0) +
       (festivalBonus.rating || 0) +
       Math.max(0, festivalBonus.income || 0);
+  }
+  for (const [landmarkType, rhythm] of Object.entries(landmarkRhythmDefinitions)) {
+    const facilityDelta = rhythm.facilityBias?.[facility.type] || 0;
+    if (facilityDelta) {
+      score += facilityDelta * getLandmarkRoutineScale(landmarkType);
+    }
   }
   score += getIncidentFacilityPreferenceDelta(facility);
   return score;
@@ -3194,6 +3566,7 @@ function placeFacility(col, row, type) {
   }
   checkUnlockAnnouncements();
   evaluateGoals();
+  refreshIncidentQueueForCurrentFacilities();
   return true;
 }
 
@@ -3223,6 +3596,7 @@ function removeFacility(col, row) {
   pushMessage(`${def.name} 已拆除，回收一部分资金。`);
   triggerDialogue("removal", { facilityName: def.name }, { chance: 0.16 });
   evaluateGoals();
+  refreshIncidentQueueForCurrentFacilities();
 }
 
 function getVisitorSpawnDelay() {
@@ -3477,6 +3851,7 @@ function spawnVisitor() {
     emote: null,
     emoteCooldown: 0.6 + Math.random() * 1.8,
     incidentPause: 0,
+    errandBadge: null,
   });
   state.nextVisitorId += 1;
 }
@@ -3558,6 +3933,12 @@ function updateVisitors(delta) {
   for (const visitor of state.visitors) {
     visitor.emoteCooldown = Math.max(0, (visitor.emoteCooldown || 0) - delta);
     visitor.incidentPause = Math.max(0, (visitor.incidentPause || 0) - delta);
+    if (visitor.errandBadge) {
+      visitor.errandBadge.ttl -= delta;
+      if (visitor.errandBadge.ttl <= 0) {
+        visitor.errandBadge = null;
+      }
+    }
     if (visitor.emote) {
       visitor.emote.ttl -= delta;
       if (visitor.emote.ttl <= 0) {
@@ -3762,7 +4143,17 @@ function updateVisitors(delta) {
     } else if (visitor.phase === "landmark-inside") {
       visitor.wait -= delta;
       if (visitor.wait <= 0) {
-        visitor.done = true;
+        completeLandmarkErrand(visitor);
+        visitor.phase = "leaving";
+        visitor.pathIndex = Math.max(0, visitor.path.length - 1);
+        if (visitor.pathIndex > 0) {
+          visitor.pathIndex -= 1;
+          setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+        } else {
+          visitor.phase = "leaving-road";
+          visitor.targetX = visitor.exitRoadX;
+          visitor.targetY = visitor.exitRoadY;
+        }
       }
     }
   }
@@ -3779,8 +4170,14 @@ function updateFloaters(delta) {
 
 function advanceDay() {
   const previousSeasonId = state.world.season.id;
+  const observerSnapshot = getObserverSnapshot();
   state.day += 1;
   state.rating += 2;
+  state.dailyLandmarkStats = {};
+  state.dailyLandmarkSpotlightIds = {};
+  state.landmarkSpotlights = [];
+  state.observerNotes.unshift(observerSnapshot);
+  state.observerNotes = state.observerNotes.slice(0, 4);
   rebuildWorldForCurrentDay();
   const upkeep = Math.max(0, listFacilities().length - 4) * 3;
   if (upkeep > 0) {
@@ -4428,6 +4825,20 @@ function drawVisitors() {
       ctx.fillRect(x - 3, y - 27, 2, 2);
       ctx.fillRect(x + 1, y - 27, 2, 2);
     }
+    if (visitor.errandBadge) {
+      const badgeDef = landmarkResultSprites[visitor.errandBadge.type];
+      if (badgeDef) {
+        const badgeY = visitor.emote ? y - 58 : y - 41;
+        ctx.fillStyle = "rgba(47, 34, 49, 0.16)";
+        ctx.fillRect(x - 8, badgeY + 2, 16, 16);
+        ctx.fillStyle = "#fff8de";
+        ctx.fillRect(x - 9, badgeY, 16, 16);
+        ctx.strokeStyle = "#7f675f";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 8, badgeY + 1, 14, 14);
+        drawSprite(badgeDef.sprite, badgeDef.palette, x - 5, badgeY + 3, 2);
+      }
+    }
     if (visitor.emote) {
       const emoteDef = visitorEmoteSprites[visitor.emote.type];
       if (emoteDef) {
@@ -4551,8 +4962,11 @@ function drawNPCs() {
 }
 
 function drawSidebar() {
-  const infoX = layout.sidebarX + 196;
-  const infoWidth = layout.sidebarW - 226;
+  const headerX = layout.sidebarX + 18;
+  const headerY = layout.sidebarY + 18;
+  const headerW = layout.sidebarW - 36;
+  const headerH = 146;
+  const lowerStartY = layout.sidebarY + 482;
   ctx.fillStyle = "#2f2231";
   ctx.fillRect(layout.sidebarX, layout.sidebarY, layout.sidebarW, layout.sidebarH);
   ctx.fillStyle = "#fff0ce";
@@ -4573,64 +4987,49 @@ function drawSidebar() {
   ctx.clip();
 
   ctx.fillStyle = "#362734";
-  ctx.fillRect(layout.sidebarX + 18, layout.sidebarY + 18, layout.sidebarW - 36, 176);
+  ctx.fillRect(headerX, headerY, headerW, headerH);
   ctx.fillStyle = "#ffefbd";
-  ctx.font = "bold 19px Trebuchet MS";
-  ctx.fillText(`Day ${state.day}`, layout.sidebarX + 34, layout.sidebarY + 46);
-  ctx.fillText(`${state.money} G`, layout.sidebarX + 34, layout.sidebarY + 72);
-  ctx.fillText(`${state.rating} ★`, layout.sidebarX + 34, layout.sidebarY + 98);
+  ctx.font = "bold 22px Trebuchet MS";
+  ctx.fillText(`Day ${state.day}`, layout.sidebarX + 32, layout.sidebarY + 48);
+  ctx.fillText(`${state.money} G`, layout.sidebarX + 32, layout.sidebarY + 80);
+  ctx.fillText(`${state.rating} ★`, layout.sidebarX + 32, layout.sidebarY + 112);
 
-  ctx.fillStyle = state.world.season.color;
-  ctx.font = "bold 12px Trebuchet MS";
-  ctx.fillText(state.world.season.label, infoX, layout.sidebarY + 40);
-  ctx.fillStyle = "#ffefbd";
-  ctx.fillText(state.world.weather.label, infoX, layout.sidebarY + 58);
-  ctx.fillStyle = "#8a6f79";
-  ctx.font = "11px Trebuchet MS";
-  ctx.fillText("Festival now", infoX, layout.sidebarY + 78);
-  wrapText(
-    state.world.activeFestival
-      ? state.world.activeFestival.name
-      : "今天没有节庆活动",
-    infoX,
-    layout.sidebarY + 92,
-    infoWidth,
-    13,
-    1,
-  );
-  ctx.fillText("Incident now", infoX, layout.sidebarY + 108);
-  wrapText(
-    state.world.incidentQueue[0]
-      ? state.world.incidentQueue[0].title
-      : "今天街区风平浪静",
-    infoX,
-    layout.sidebarY + 122,
-    infoWidth,
-    13,
-    1,
-  );
-  ctx.fillText("Trend today", infoX, layout.sidebarY + 138);
-  wrapText(
-    `${state.todayTrend.name} +${state.todayTrend.incomeBonus}G/+${state.todayTrend.ratingBonus}★`,
-    infoX,
-    layout.sidebarY + 152,
-    infoWidth,
-    13,
-    1,
-  );
-  ctx.fillText("Next fest", infoX, layout.sidebarY + 168);
-  wrapText(
-    state.world.upcomingFestival.name,
-    infoX,
-    layout.sidebarY + 182,
-    infoWidth,
-    13,
-    1,
-  );
+  ctx.fillStyle = "#5a4358";
+  ctx.fillRect(layout.sidebarX + 148, layout.sidebarY + 32, 2, 112);
+
+  const infoRows = [
+    { label: "Season", value: state.world.season.label, color: state.world.season.color },
+    { label: "Weather", value: state.world.weather.label, color: "#ffefbd" },
+    {
+      label: "Festival",
+      value: state.world.activeFestival ? state.world.activeFestival.name : "今天没有节庆活动",
+      color: "#ffefbd",
+    },
+    {
+      label: "Incident",
+      value: state.world.incidentQueue[0] ? state.world.incidentQueue[0].title : "今天街区风平浪静",
+      color: "#ffefbd",
+    },
+    {
+      label: "Trend",
+      value: `${state.todayTrend.name} +${state.todayTrend.incomeBonus}G/+${state.todayTrend.ratingBonus}★`,
+      color: "#ffefbd",
+    },
+    { label: "Next Fest", value: state.world.upcomingFestival.name, color: "#ffefbd" },
+  ];
+  infoRows.forEach((row, index) => {
+    const rowY = layout.sidebarY + 42 + index * 18;
+    ctx.fillStyle = "#9e8898";
+    ctx.font = "bold 11px Trebuchet MS";
+    ctx.fillText(row.label, layout.sidebarX + 170, rowY);
+    ctx.fillStyle = row.color;
+    ctx.font = "bold 13px Trebuchet MS";
+    wrapText(row.value, layout.sidebarX + 236, rowY, headerW - 250, 12, 1);
+  });
 
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 14px Trebuchet MS";
-  ctx.fillText("Facilities", layout.sidebarX + 24, layout.sidebarY + 200);
+  ctx.fillText("Facilities", layout.sidebarX + 24, layout.sidebarY + 174);
 
   const observeRect = getObserveCardRect();
   const observing = !state.selectedType;
@@ -4640,13 +5039,17 @@ function drawSidebar() {
   ctx.lineWidth = 3;
   ctx.strokeRect(observeRect.x + 1.5, observeRect.y + 1.5, observeRect.w - 3, observeRect.h - 3);
   ctx.fillStyle = "#2f2231";
-  ctx.font = "bold 12px Trebuchet MS";
-  ctx.fillText("Observe Mode", observeRect.x + 12, observeRect.y + 13);
-  ctx.font = "10px Trebuchet MS";
+  ctx.font = "bold 13px Trebuchet MS";
+  ctx.fillText("Observe Mode", observeRect.x + 12, observeRect.y + 15);
+  ctx.font = "11px Trebuchet MS";
   ctx.fillText(
-    observing ? "当前不会放置商店，左键只观察地图。" : "点击这里取消当前商店选中。",
+    fitTextToWidth(
+      observing ? "当前不会放置商店，左键只观察地图。" : "点击这里取消当前商店选中。",
+      observeRect.w - 24,
+      "…",
+    ),
     observeRect.x + 12,
-    observeRect.y + 24,
+    observeRect.y + 27,
   );
 
   facilityTypes.forEach((def, index) => {
@@ -4664,29 +5067,44 @@ function drawSidebar() {
     drawSprite(def.sprite, def.palette, cardX + 10, cardY + 7, 2);
 
     ctx.fillStyle = "#2f2231";
-    ctx.font = "bold 11px Trebuchet MS";
-    ctx.fillText(fitTextToWidth(def.name, cardW - 92), cardX + 46, cardY + 17);
-    ctx.font = "10px Trebuchet MS";
-    const price = unlocked ? `${def.cost}G | ${def.footprint.w}x${def.footprint.h}` : `Unlock ${def.unlockAt}★`;
-    ctx.fillText(price, cardX + 46, cardY + 29);
-    ctx.fillStyle = "#7f6470";
-    ctx.fillText(fitTextToWidth(def.bonusText, cardW - 104), cardX + 46, cardY + 39);
+    ctx.font = "bold 12px Trebuchet MS";
+    ctx.fillText(fitTextToWidth(def.name, cardW - 92, "…"), cardX + 46, cardY + 17);
+    ctx.font = "11px Trebuchet MS";
+    ctx.fillStyle = unlocked ? "#5d4951" : "#6d5860";
+    const summary = unlocked
+      ? `${def.cost}G | ${def.footprint.w}x${def.footprint.h} | ${def.bonusText}`
+      : `${def.unlockAt}★解锁 | ${def.bonusText}`;
+    ctx.fillText(fitTextToWidth(summary, cardW - 104, "…"), cardX + 46, cardY + 31);
   });
 
   const activeGoal = getActiveGoal();
   const busiestFacility = getBusiestFacility();
+  const activeSpotlight = state.landmarkSpotlights[0] || null;
+  const routineRows = getLandmarkActivityRows(activeSpotlight ? 1 : 2);
+  const observerText =
+    state.activeDialogue?.text ||
+    state.observerNotes[0] ||
+    state.dialogueFeed[0]?.text ||
+    state.messages[0] ||
+    "暂无消息";
+
   ctx.fillStyle = "#3d2b35";
-  ctx.font = "bold 14px Trebuchet MS";
-  ctx.fillText("Goal & Town Talk", layout.sidebarX + 24, layout.sidebarY + 526);
+  ctx.font = "bold 15px Trebuchet MS";
+  ctx.fillText("Goal", layout.sidebarX + 24, lowerStartY + 6);
+  ctx.fillStyle = "#f8ecd1";
+  ctx.fillRect(layout.sidebarX + 22, lowerStartY + 16, layout.sidebarW - 44, 54);
+  ctx.strokeStyle = "#b5976d";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(layout.sidebarX + 23.5, lowerStartY + 17.5, layout.sidebarW - 47, 51);
   ctx.fillStyle = "#6f5a62";
   if (activeGoal) {
     const progress = getGoalProgress(activeGoal);
     wrapText(
       `${activeGoal.title} (${Math.min(progress.value, progress.target)}/${progress.target})`,
       layout.sidebarX + 24,
-      layout.sidebarY + 546,
+      lowerStartY + 38,
       layout.sidebarW - 48,
-      15,
+      16,
       2,
     );
   } else {
@@ -4695,9 +5113,9 @@ function drawSidebar() {
         ? "阶段目标已清空。小镇会继续营业，终章观察区暂未开放。"
         : "全部目标达成，商店街已进入展示完成态。",
       layout.sidebarX + 24,
-      layout.sidebarY + 546,
+      lowerStartY + 38,
       layout.sidebarW - 48,
-      15,
+      16,
       2,
     );
   }
@@ -4719,20 +5137,48 @@ function drawSidebar() {
         return "Street Pulse：目前街区还比较从容，适合继续观察人流。";
       })()
     : "Street Pulse：先摆出第一家店，再观察哪一类顾客最先被吸引。";
-  ctx.fillStyle = "#8b6d61";
-  wrapText(pulseText, layout.sidebarX + 24, layout.sidebarY + 578, layout.sidebarW - 48, 14, 2);
-  const talk =
-    state.activeDialogue?.text ||
-    state.dialogueFeed[0]?.text ||
-    state.messages[0] ||
-    "暂无消息";
+  ctx.fillStyle = "#3d2b35";
+  ctx.font = "bold 15px Trebuchet MS";
+  ctx.fillText("Street Pulse", layout.sidebarX + 24, lowerStartY + 92);
   ctx.fillStyle = "#f8ecd1";
-  ctx.fillRect(layout.sidebarX + 22, layout.sidebarY + 612, layout.sidebarW - 44, 106);
+  ctx.fillRect(layout.sidebarX + 22, lowerStartY + 102, layout.sidebarW - 44, 62);
   ctx.strokeStyle = "#b5976d";
   ctx.lineWidth = 2;
-  ctx.strokeRect(layout.sidebarX + 23.5, layout.sidebarY + 613.5, layout.sidebarW - 47, 103);
+  ctx.strokeRect(layout.sidebarX + 23.5, lowerStartY + 103.5, layout.sidebarW - 47, 59);
+  ctx.fillStyle = "#8b6d61";
+  wrapText(pulseText, layout.sidebarX + 32, lowerStartY + 124, layout.sidebarW - 64, 15, 3);
+  ctx.fillStyle = "#3d2b35";
+  ctx.font = "bold 15px Trebuchet MS";
+  ctx.fillText("Town Routines", layout.sidebarX + 24, lowerStartY + 188);
+  ctx.fillStyle = "#f8ecd1";
+  ctx.fillRect(layout.sidebarX + 22, lowerStartY + 198, layout.sidebarW - 44, 74);
+  ctx.strokeStyle = "#b5976d";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(layout.sidebarX + 23.5, lowerStartY + 199.5, layout.sidebarW - 47, 71);
   ctx.fillStyle = "#6f5a62";
-  wrapText(talk, layout.sidebarX + 32, layout.sidebarY + 634, layout.sidebarW - 64, 15, 4);
+  routineRows.forEach((row, index) => {
+    wrapText(row, layout.sidebarX + 32, lowerStartY + 219 + index * 16, layout.sidebarW - 64, 14, 1);
+  });
+  if (activeSpotlight) {
+    wrapText(
+      `今日焦点：${activeSpotlight.title}`,
+      layout.sidebarX + 32,
+      lowerStartY + 251,
+      layout.sidebarW - 64,
+      14,
+      1,
+    );
+  }
+  ctx.fillStyle = "#3d2b35";
+  ctx.font = "bold 15px Trebuchet MS";
+  ctx.fillText("Town Talk & Notes", layout.sidebarX + 24, lowerStartY + 296);
+  ctx.fillStyle = "#f8ecd1";
+  ctx.fillRect(layout.sidebarX + 22, lowerStartY + 306, layout.sidebarW - 44, 126);
+  ctx.strokeStyle = "#b5976d";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(layout.sidebarX + 23.5, lowerStartY + 307.5, layout.sidebarW - 47, 123);
+  ctx.fillStyle = "#6f5a62";
+  wrapText(observerText, layout.sidebarX + 32, lowerStartY + 330, layout.sidebarW - 64, 16, 5);
   ctx.restore();
 }
 
@@ -5118,9 +5564,22 @@ window.render_game_to_text = () =>
         featuredType: incident.featuredType || null,
         zoneId: incident.zoneId || null,
       })),
+      landmarkSpotlights: state.landmarkSpotlights.map((spotlight) => ({
+        id: spotlight.id,
+        landmarkType: spotlight.landmarkType,
+        title: spotlight.title,
+        threshold: spotlight.threshold,
+      })),
       eventQueueSize: state.world.eventQueue.length,
       incidentQueueSize: state.world.incidentQueue.length,
     },
+    dailyLandmarkStats: Object.values(state.dailyLandmarkStats || {}).map((item) => ({
+      facilityId: item.facilityId,
+      type: item.type,
+      name: item.name,
+      visits: item.visits,
+    })),
+    observerNotes: [...state.observerNotes],
     structures: state.facilities.map((facility) => ({
       id: facility.id,
       type: facility.type,
@@ -5130,6 +5589,7 @@ window.render_game_to_text = () =>
       row: facility.row,
       width: facility.width,
       height: facility.height,
+      landmarkVisits: facility.landmarkVisits || 0,
     })),
     facilities: listFacilities().map((facility) => ({
       id: facility.id,
@@ -5158,6 +5618,7 @@ window.render_game_to_text = () =>
       phase: visitor.phase,
       queuePatience: Number(visitor.queuePatience?.toFixed?.(2) || 0),
       emote: visitor.emote?.type || null,
+      errandBadge: visitor.errandBadge?.type || null,
       originLandmarkType: visitor.originLandmarkType || null,
       errandLandmarkType: visitor.errandLandmarkType || null,
       target: { col: visitor.targetCol, row: visitor.targetRow },

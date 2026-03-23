@@ -5,7 +5,9 @@
   "main": "game.js",
   "scripts": {
     "serve": "python -m http.server 4173",
-    "test": "node ./scripts/smoke.mjs"
+    "test": "node ./scripts/smoke.mjs",
+    "test:incidents": "node ./scripts/incident-matrix.mjs",
+    "test:queue": "node ./scripts/queue-stress.mjs"
   },
   "repository": {
     "type": "git",
