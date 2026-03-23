@@ -3239,22 +3239,112 @@ function listFacilities() {
   return state.facilities.filter((facility) => facility.kind === "shop");
 }
 
-function getObserveCardRect() {
+function getSidebarPanelHeights(totalContentHeight, specs) {
+  const minTotal = specs.reduce((sum, spec) => sum + spec.minHeight, 0);
+  if (totalContentHeight <= minTotal) {
+    const scaled = specs.map((spec) =>
+      Math.max(28, Math.floor((spec.minHeight / minTotal) * totalContentHeight)),
+    );
+    let allocated = scaled.reduce((sum, value) => sum + value, 0);
+    let index = scaled.length - 1;
+    while (allocated > totalContentHeight && index >= 0) {
+      if (scaled[index] > 28) {
+        scaled[index] -= 1;
+        allocated -= 1;
+      } else {
+        index -= 1;
+      }
+    }
+    return scaled;
+  }
+  const extra = totalContentHeight - minTotal;
+  const weightTotal = specs.reduce((sum, spec) => sum + spec.weight, 0) || 1;
+  const heights = specs.map((spec) => spec.minHeight);
+  let remaining = extra;
+  specs.forEach((spec, index) => {
+    if (index === specs.length - 1) {
+      heights[index] += remaining;
+      return;
+    }
+    const bonus = Math.floor((extra * spec.weight) / weightTotal);
+    heights[index] += bonus;
+    remaining -= bonus;
+  });
+  return heights;
+}
+
+function getSidebarPanelLayout(startY, endY) {
+  const specs = [
+    { id: "goal", minHeight: 34, weight: 0.7 },
+    { id: "pulse", minHeight: 42, weight: 1 },
+    { id: "routines", minHeight: 44, weight: 0.9 },
+    { id: "notes", minHeight: 60, weight: 1.5 },
+  ];
+  const titleHeight = 16;
+  const sectionGap = 8;
+  const totalContentHeight = Math.max(
+    0,
+    endY - startY - specs.length * titleHeight - (specs.length - 1) * sectionGap,
+  );
+  const heights = getSidebarPanelHeights(totalContentHeight, specs);
+  const panels = {};
+  let cursorY = startY;
+  specs.forEach((spec, index) => {
+    const contentHeight = heights[index];
+    panels[spec.id] = {
+      titleY: cursorY + 13,
+      boxY: cursorY + titleHeight,
+      boxH: contentHeight,
+    };
+    cursorY += titleHeight + contentHeight + sectionGap;
+  });
+  return panels;
+}
+
+function getSidebarUILayout() {
+  const cardX = layout.sidebarX + 22;
+  const cardW = layout.sidebarW - 44;
+  const header = {
+    x: layout.sidebarX + 18,
+    y: layout.sidebarY + 18,
+    w: layout.sidebarW - 36,
+    h: 146,
+  };
+  const facilitiesTitleY = header.y + header.h + 22;
+  const observeRect = {
+    x: cardX,
+    y: facilitiesTitleY + 7,
+    w: cardW,
+    h: 30,
+  };
+  const facilityCards = facilityTypes.map((_, index) => ({
+    x: cardX,
+    y: observeRect.y + observeRect.h + 8 + index * 42,
+    w: cardW,
+    h: 40,
+  }));
+  const facilityBottom =
+    facilityCards.length > 0
+      ? facilityCards[facilityCards.length - 1].y + facilityCards[facilityCards.length - 1].h
+      : observeRect.y + observeRect.h;
+  const lowerStartY = facilityBottom + 14;
+  const panels = getSidebarPanelLayout(lowerStartY, layout.sidebarY + layout.sidebarH - 16);
   return {
-    x: layout.sidebarX + 22,
-    y: layout.sidebarY + 182,
-    w: layout.sidebarW - 44,
-    h: 32,
+    header,
+    facilitiesTitleY,
+    observeRect,
+    facilityCards,
+    lowerStartY,
+    panels,
   };
 }
 
+function getObserveCardRect() {
+  return getSidebarUILayout().observeRect;
+}
+
 function getFacilityCardRect(index) {
-  return {
-    x: layout.sidebarX + 22,
-    y: layout.sidebarY + 220 + index * 44,
-    w: layout.sidebarW - 44,
-    h: 42,
-  };
+  return getSidebarUILayout().facilityCards[index];
 }
 
 function getAdjacentFacilities(facilityLike) {
@@ -4962,11 +5052,12 @@ function drawNPCs() {
 }
 
 function drawSidebar() {
-  const headerX = layout.sidebarX + 18;
-  const headerY = layout.sidebarY + 18;
-  const headerW = layout.sidebarW - 36;
-  const headerH = 146;
-  const lowerStartY = layout.sidebarY + 482;
+  const sidebarLayout = getSidebarUILayout();
+  const { header, facilitiesTitleY, observeRect, panels } = sidebarLayout;
+  const headerX = header.x;
+  const headerY = header.y;
+  const headerW = header.w;
+  const headerH = header.h;
   ctx.fillStyle = "#2f2231";
   ctx.fillRect(layout.sidebarX, layout.sidebarY, layout.sidebarW, layout.sidebarH);
   ctx.fillStyle = "#fff0ce";
@@ -5028,10 +5119,9 @@ function drawSidebar() {
   });
 
   ctx.fillStyle = "#3d2b35";
-  ctx.font = "bold 14px Trebuchet MS";
-  ctx.fillText("Facilities", layout.sidebarX + 24, layout.sidebarY + 174);
+  ctx.font = "bold 15px Trebuchet MS";
+  ctx.fillText("Facilities", layout.sidebarX + 24, facilitiesTitleY);
 
-  const observeRect = getObserveCardRect();
   const observing = !state.selectedType;
   ctx.fillStyle = observing ? "#d9f0bb" : "#f4ead4";
   ctx.fillRect(observeRect.x, observeRect.y, observeRect.w, observeRect.h);
@@ -5049,7 +5139,7 @@ function drawSidebar() {
       "…",
     ),
     observeRect.x + 12,
-    observeRect.y + 27,
+    observeRect.y + 26,
   );
 
   facilityTypes.forEach((def, index) => {
@@ -5090,22 +5180,22 @@ function drawSidebar() {
 
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 15px Trebuchet MS";
-  ctx.fillText("Goal", layout.sidebarX + 24, lowerStartY + 6);
+  ctx.fillText("Goal", layout.sidebarX + 24, panels.goal.titleY);
   ctx.fillStyle = "#f8ecd1";
-  ctx.fillRect(layout.sidebarX + 22, lowerStartY + 16, layout.sidebarW - 44, 54);
+  ctx.fillRect(layout.sidebarX + 22, panels.goal.boxY, layout.sidebarW - 44, panels.goal.boxH);
   ctx.strokeStyle = "#b5976d";
   ctx.lineWidth = 2;
-  ctx.strokeRect(layout.sidebarX + 23.5, lowerStartY + 17.5, layout.sidebarW - 47, 51);
+  ctx.strokeRect(layout.sidebarX + 23.5, panels.goal.boxY + 1.5, layout.sidebarW - 47, panels.goal.boxH - 3);
   ctx.fillStyle = "#6f5a62";
   if (activeGoal) {
     const progress = getGoalProgress(activeGoal);
     wrapText(
       `${activeGoal.title} (${Math.min(progress.value, progress.target)}/${progress.target})`,
       layout.sidebarX + 24,
-      lowerStartY + 38,
+      panels.goal.boxY + 18,
       layout.sidebarW - 48,
-      16,
-      2,
+      14,
+      panels.goal.boxH >= 42 ? 2 : 1,
     );
   } else {
     wrapText(
@@ -5113,10 +5203,10 @@ function drawSidebar() {
         ? "阶段目标已清空。小镇会继续营业，终章观察区暂未开放。"
         : "全部目标达成，商店街已进入展示完成态。",
       layout.sidebarX + 24,
-      lowerStartY + 38,
+      panels.goal.boxY + 15,
       layout.sidebarW - 48,
-      16,
-      2,
+      14,
+      panels.goal.boxH >= 42 ? 2 : 1,
     );
   }
   const pulseText = busiestFacility
@@ -5139,46 +5229,73 @@ function drawSidebar() {
     : "Street Pulse：先摆出第一家店，再观察哪一类顾客最先被吸引。";
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 15px Trebuchet MS";
-  ctx.fillText("Street Pulse", layout.sidebarX + 24, lowerStartY + 92);
+  ctx.fillText("Street Pulse", layout.sidebarX + 24, panels.pulse.titleY);
   ctx.fillStyle = "#f8ecd1";
-  ctx.fillRect(layout.sidebarX + 22, lowerStartY + 102, layout.sidebarW - 44, 62);
+  ctx.fillRect(layout.sidebarX + 22, panels.pulse.boxY, layout.sidebarW - 44, panels.pulse.boxH);
   ctx.strokeStyle = "#b5976d";
   ctx.lineWidth = 2;
-  ctx.strokeRect(layout.sidebarX + 23.5, lowerStartY + 103.5, layout.sidebarW - 47, 59);
+  ctx.strokeRect(layout.sidebarX + 23.5, panels.pulse.boxY + 1.5, layout.sidebarW - 47, panels.pulse.boxH - 3);
   ctx.fillStyle = "#8b6d61";
-  wrapText(pulseText, layout.sidebarX + 32, lowerStartY + 124, layout.sidebarW - 64, 15, 3);
+  wrapText(
+    pulseText,
+    layout.sidebarX + 32,
+    panels.pulse.boxY + 18,
+    layout.sidebarW - 64,
+    14,
+    panels.pulse.boxH >= 52 ? 3 : 2,
+  );
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 15px Trebuchet MS";
-  ctx.fillText("Town Routines", layout.sidebarX + 24, lowerStartY + 188);
+  ctx.fillText("Town Routines", layout.sidebarX + 24, panels.routines.titleY);
   ctx.fillStyle = "#f8ecd1";
-  ctx.fillRect(layout.sidebarX + 22, lowerStartY + 198, layout.sidebarW - 44, 74);
+  ctx.fillRect(layout.sidebarX + 22, panels.routines.boxY, layout.sidebarW - 44, panels.routines.boxH);
   ctx.strokeStyle = "#b5976d";
   ctx.lineWidth = 2;
-  ctx.strokeRect(layout.sidebarX + 23.5, lowerStartY + 199.5, layout.sidebarW - 47, 71);
+  ctx.strokeRect(
+    layout.sidebarX + 23.5,
+    panels.routines.boxY + 1.5,
+    layout.sidebarW - 47,
+    panels.routines.boxH - 3,
+  );
   ctx.fillStyle = "#6f5a62";
-  routineRows.forEach((row, index) => {
-    wrapText(row, layout.sidebarX + 32, lowerStartY + 219 + index * 16, layout.sidebarW - 64, 14, 1);
+  const routineLineLimit = activeSpotlight ? 1 : panels.routines.boxH >= 56 ? 2 : 1;
+  routineRows.slice(0, routineLineLimit).forEach((row, index) => {
+    wrapText(
+      row,
+      layout.sidebarX + 32,
+      panels.routines.boxY + 18 + index * 14,
+      layout.sidebarW - 64,
+      13,
+      1,
+    );
   });
   if (activeSpotlight) {
     wrapText(
       `今日焦点：${activeSpotlight.title}`,
       layout.sidebarX + 32,
-      lowerStartY + 251,
+      panels.routines.boxY + panels.routines.boxH - 10,
       layout.sidebarW - 64,
-      14,
+      13,
       1,
     );
   }
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 15px Trebuchet MS";
-  ctx.fillText("Town Talk & Notes", layout.sidebarX + 24, lowerStartY + 296);
+  ctx.fillText("Town Talk & Notes", layout.sidebarX + 24, panels.notes.titleY);
   ctx.fillStyle = "#f8ecd1";
-  ctx.fillRect(layout.sidebarX + 22, lowerStartY + 306, layout.sidebarW - 44, 126);
+  ctx.fillRect(layout.sidebarX + 22, panels.notes.boxY, layout.sidebarW - 44, panels.notes.boxH);
   ctx.strokeStyle = "#b5976d";
   ctx.lineWidth = 2;
-  ctx.strokeRect(layout.sidebarX + 23.5, lowerStartY + 307.5, layout.sidebarW - 47, 123);
+  ctx.strokeRect(layout.sidebarX + 23.5, panels.notes.boxY + 1.5, layout.sidebarW - 47, panels.notes.boxH - 3);
   ctx.fillStyle = "#6f5a62";
-  wrapText(observerText, layout.sidebarX + 32, lowerStartY + 330, layout.sidebarW - 64, 16, 5);
+  wrapText(
+    observerText,
+    layout.sidebarX + 32,
+    panels.notes.boxY + 22,
+    layout.sidebarW - 64,
+    14,
+    panels.notes.boxH >= 84 ? 4 : 3,
+  );
   ctx.restore();
 }
 
