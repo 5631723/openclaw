@@ -550,9 +550,20 @@ const socialBondDefinitions = {
     emote: "book",
     mood: "happy",
     pauseRange: [0.9, 1.4],
-    lines: [
+    chatLines: [
       "原来你也刚从那边过来，放学后果然还是会往这条街逛。",
       "等会儿一起去看看新店吧，这条街今天好像比平时更热闹。",
+      "作业先放一边，街口这阵动静不看一眼总觉得亏了。",
+      "每次经过这条街都能碰到点新鲜事，难怪大家老往这边跑。",
+      "那边的招牌又换过了，放学后绕来这里果然有得看。",
+    ],
+    waveLines: [
+      "放学后见到你正好，一起往前晃吧。",
+      "欸，你也来了，前面那一段今天好像挺热闹。",
+    ],
+    strollLines: [
+      "一起往前走吧，边逛边聊更有意思。",
+      "那就并排走一段，看看今天街上又多了什么。",
     ],
   },
   coworker: {
@@ -560,9 +571,20 @@ const socialBondDefinitions = {
     emote: "briefcase",
     mood: "calm",
     pauseRange: [0.8, 1.2],
-    lines: [
+    chatLines: [
       "班上的事先放一边，趁现在街上不挤，顺手逛一圈。",
       "这边碰到你正好，忙完再一起去前面那家店看看。",
+      "刚好换了个空档，街上这一阵人流看着还挺顺。",
+      "今天事情总算告一段落，走到这儿整个人都松下来了。",
+      "前面那家店门口又热起来了，下班路上不看两眼太可惜。",
+    ],
+    waveLines: [
+      "你也刚忙完？那前面一起看看。",
+      "正好碰上，先并排走一小段。",
+    ],
+    strollLines: [
+      "先别急着散，往前边那排店一起走走。",
+      "下班后的街景就该慢慢看，顺路一起过去吧。",
     ],
   },
   couple: {
@@ -570,9 +592,20 @@ const socialBondDefinitions = {
     emote: "heart",
     mood: "happy",
     pauseRange: [1, 1.6],
-    lines: [
+    chatLines: [
       "今天这条街的气氛不错，慢慢走一圈也挺舒服。",
       "那家店门口看着挺有意思，等会儿一起进去看看吧。",
+      "这会儿灯色刚刚好，沿着这排店慢慢逛最舒服。",
+      "街上的人一多起来，反而更有那种一起散步的感觉。",
+      "前面那边看起来又有热闹，我们慢慢走过去就行。",
+    ],
+    waveLines: [
+      "在这儿碰上正好，继续一起逛吧。",
+      "你也看到前面那阵热闹了吧，过去瞧瞧。",
+    ],
+    strollLines: [
+      "那就慢一点并排走，今天不着急。",
+      "一起往前看看吧，这条街现在最适合慢慢逛。",
     ],
   },
   neighbor: {
@@ -580,10 +613,173 @@ const socialBondDefinitions = {
     emote: "house",
     mood: "calm",
     pauseRange: [0.75, 1.15],
-    lines: [
+    chatLines: [
       "在这儿又碰到了，看来最近大家都爱往这条街散步。",
       "街口刚热闹起来，等会儿有空再一起过去看看。",
+      "最近这条街变化挺快，隔两天过来都像多了点新东西。",
+      "出来遛个弯还能碰见你，看来大家都盯上这边了。",
+      "前面那棵树旁边总有人停一下，连散步路线都变得有意思了。",
     ],
+    waveLines: [
+      "又遇到了，一起往街口走走？",
+      "前面正热闹着，边走边看吧。",
+    ],
+    strollLines: [
+      "刚好顺路，那就一起散一段。",
+      "一起走到前面看看，今天街上的节奏挺有意思。",
+    ],
+  },
+};
+
+const shopVisitFeedbackDefinitions = {
+  snack: {
+    badgeType: "snack",
+    moodId: "happy",
+    moodTtl: 5.6,
+    emotes: ["heart", "note"],
+    floaterTexts: ["吃饱了", "小点心真香", "嘴巴满足"],
+    dialogues: [
+      "这家点心一吃，脚步都跟着轻快起来了。",
+      "刚出炉的香味真顶，难怪门口总有人停下来看。",
+      "小吃摊这趟没白排，手上还留着点香味。",
+    ],
+  },
+  park: {
+    badgeType: "park",
+    moodId: "calm",
+    moodTtl: 6,
+    emotes: ["star", "dots"],
+    floaterTexts: ["心情转晴", "散步一下", "放松片刻"],
+    dialogues: [
+      "绕着公园走一圈，整个人都慢下来了。",
+      "草地边停一下，街上的声音都变得顺耳了。",
+      "在这儿晃一圈以后，再继续逛街也不急了。",
+    ],
+  },
+  arcade: {
+    badgeType: "arcade",
+    moodId: "rushed",
+    moodTtl: 4.6,
+    emotes: ["star", "exclaim"],
+    floaterTexts: ["赢了一把", "手感不错", "上头了"],
+    dialogues: [
+      "这一局打得太顺了，出来以后还想往下一家冲。",
+      "街机厅这趟很提劲，感觉还能再逛好几家。",
+      "刚才那一下赢得漂亮，整个人都精神了。",
+    ],
+  },
+  bath: {
+    badgeType: "bath",
+    moodId: "calm",
+    moodTtl: 6.4,
+    emotes: ["heart", "dots"],
+    floaterTexts: ["舒服多了", "暖和起来", "松一口气"],
+    dialogues: [
+      "泡完这一趟，脚步都不自觉慢下来了。",
+      "热气一散开，刚才那点疲惫一下就没了。",
+      "从浴场出来以后，整个人都柔和了不少。",
+    ],
+  },
+  tower: {
+    badgeType: "tower",
+    moodId: "happy",
+    moodTtl: 6.2,
+    emotes: ["heart", "note", "star"],
+    floaterTexts: ["气氛拉满", "应援完成", "今晚值了"],
+    dialogues: [
+      "舞台那股热度还没散，出来以后心情都跟着亮起来了。",
+      "刚才那段表演太带劲，走出来还想再回头看一眼。",
+      "偶像塔的气氛真会带人，离开以后还在回味。",
+    ],
+  },
+};
+
+const visitorServiceBadgeSprites = {
+  snack: {
+    sprite: [".....", ".yyy.", "yoooy", "yoooy", ".bbb."],
+    palette: { y: "#ffe17c", o: "#cf7a42", b: "#8f5f42" },
+  },
+  park: {
+    sprite: ["..g..", ".ggg.", "ggggg", "..g..", "..g.."],
+    palette: { g: "#86d267" },
+  },
+  arcade: {
+    sprite: ["ppppp", "pwwpp", "ppwpp", "pwwpp", "ppppp"],
+    palette: { p: "#7f7cff", w: "#fff2b8" },
+  },
+  bath: {
+    sprite: ["bbbbb", "bwwwb", "bwwwb", ".bbb.", "..b.."],
+    palette: { b: "#8ed6ff", w: "#f7fdff" },
+  },
+  tower: {
+    sprite: ["..p..", ".ppp.", "..p..", ".yyy.", "yyyyy"],
+    palette: { p: "#ff90b2", y: "#ffe170" },
+  },
+};
+
+const streetPickupDefinitions = {
+  paperbag: {
+    label: "纸袋",
+    emote: "note",
+    inspectText: "掉了个小纸袋",
+    sprite: ["..yy.", ".yyyy", ".y..y", ".yyyy", "..bb."],
+    palette: { y: "#ebc578", b: "#8a6547" },
+  },
+  receipt: {
+    label: "小票",
+    emote: "dots",
+    inspectText: "捡起一张小票",
+    sprite: ["wwww.", "w..w.", "wwww.", "w..w.", "wwww."],
+    palette: { w: "#fff6df" },
+  },
+  token: {
+    label: "代币",
+    emote: "star",
+    inspectText: "捡到一枚代币",
+    sprite: [".yyy.", "yoooy", "yoooy", "yoooy", ".yyy."],
+    palette: { y: "#ffd965", o: "#f4b83f" },
+  },
+  flyer: {
+    label: "宣传单",
+    emote: "note",
+    inspectText: "捡起一张宣传单",
+    sprite: ["wwwww", "wrrrw", "wwwww", "wrrrw", "wwwww"],
+    palette: { w: "#fff4de", r: "#ff9a8a" },
+  },
+  ticket: {
+    label: "票根",
+    emote: "heart",
+    inspectText: "捡到一张票根",
+    sprite: ["ppppp", "pwwwp", "ppppp", "pwwwp", "ppppp"],
+    palette: { p: "#ff98bf", w: "#fff7e7" },
+  },
+  leaf: {
+    label: "落叶",
+    emote: "star",
+    inspectText: "拈起一片落叶",
+    sprite: ["..o..", ".ooo.", "ooooo", ".ooo.", "..o.."],
+    palette: { o: "#e6a04d" },
+  },
+  petal: {
+    label: "花瓣",
+    emote: "heart",
+    inspectText: "拾起一片花瓣",
+    sprite: [".p.p.", "ppppp", ".ppp.", "..p..", "....."],
+    palette: { p: "#ff9fcb" },
+  },
+  coupon: {
+    label: "折扣券",
+    emote: "star",
+    inspectText: "捡到一张折扣券",
+    sprite: ["yyyyy", "ywwwy", "yyyyy", "ywwwy", "yyyyy"],
+    palette: { y: "#ffe17b", w: "#fff8e5" },
+  },
+  ribbon: {
+    label: "彩带",
+    emote: "note",
+    inspectText: "捡起一段彩带",
+    sprite: ["r...r", ".r.r.", "..r..", ".r.r.", "r...r"],
+    palette: { r: "#ff8eb3" },
   },
 };
 
@@ -1454,6 +1650,28 @@ function shuffleArray(items) {
   return copy;
 }
 
+function pickRandom(items) {
+  if (!items?.length) {
+    return null;
+  }
+  return items[Math.floor(Math.random() * items.length)] || items[0];
+}
+
+function pickWeightedByWeight(items) {
+  if (!items?.length) {
+    return null;
+  }
+  const total = items.reduce((sum, item) => sum + Math.max(0.01, item.weight || 1), 0);
+  let cursor = Math.random() * total;
+  for (const item of items) {
+    cursor -= Math.max(0.01, item.weight || 1);
+    if (cursor <= 0) {
+      return item;
+    }
+  }
+  return items[items.length - 1];
+}
+
 function getStructureDef(type) {
   return structureTypes.find((item) => item.id === type);
 }
@@ -2206,11 +2424,14 @@ function createInitialState() {
     grid: initialGrid,
     facilities: seededMap.structures,
     visitors: [],
+    streetPickups: [],
     floaters: [],
     messages: ["点击开始经营，做出一条热闹的商店街。"],
     nextVisitorId: 1,
     nextFacilityId: seededMap.nextId,
+    nextPickupId: 1,
     spawnTimer: simulationTuning.initialSpawnDelay,
+    pickupSpawnTimer: 4.6,
     dayTimer: 0,
     lastCombo: "暂无",
     hoveredTile: null,
@@ -2660,9 +2881,77 @@ function canVisitorStartAmbientAction(visitor) {
   );
 }
 
+function canVisitorsSocializeTogether(visitor, other, radius = 32) {
+  return !(
+    visitor.id === other.id ||
+    visitor.socialCooldown > 0 ||
+    other.socialCooldown > 0 ||
+    visitor.waveCooldown > 0 ||
+    other.waveCooldown > 0 ||
+    visitor.localPause > 0 ||
+    other.localPause > 0 ||
+    !canVisitorPauseForAmbient(visitor) ||
+    !canVisitorPauseForAmbient(other) ||
+    isVisitorNearDestination(visitor) ||
+    isVisitorNearDestination(other) ||
+    Math.hypot(visitor.x - other.x, visitor.y - other.y) > radius
+  );
+}
+
+function startCompanionWalk(visitor, other, ttl = 4.2) {
+  if (
+    visitor.targetFacilityId !== other.targetFacilityId ||
+    !canVisitorPauseForAmbient(visitor) ||
+    !canVisitorPauseForAmbient(other)
+  ) {
+    return false;
+  }
+  const leader = visitor.id < other.id ? visitor : other;
+  const follower = leader.id === visitor.id ? other : visitor;
+  leader.companionPartnerId = follower.id;
+  leader.companionLeadId = leader.id;
+  leader.companionWalkTtl = Math.max(leader.companionWalkTtl || 0, ttl);
+  leader.companionOffsetX = 0;
+  follower.companionPartnerId = leader.id;
+  follower.companionLeadId = leader.id;
+  follower.companionWalkTtl = Math.max(follower.companionWalkTtl || 0, ttl);
+  follower.companionOffsetX =
+    follower.x <= leader.x ? -10 - Math.random() * 3 : 10 + Math.random() * 3;
+  follower.companionOffsetY = Math.random() * 4 - 2;
+  return true;
+}
+
+function getCompanionMoveTarget(visitor) {
+  if (
+    !visitor.companionLeadId ||
+    visitor.companionLeadId === visitor.id ||
+    (visitor.companionWalkTtl || 0) <= 0 ||
+    !canVisitorPauseForAmbient(visitor)
+  ) {
+    return null;
+  }
+  const lead = getVisitorById(visitor.companionLeadId);
+  if (
+    !lead ||
+    lead.done ||
+    lead.phase !== visitor.phase ||
+    (lead.companionWalkTtl || 0) <= 0
+  ) {
+    return null;
+  }
+  return {
+    x: lead.x + (visitor.companionOffsetX || 0),
+    y: lead.y + (visitor.companionOffsetY || 0),
+  };
+}
+
 function maybeTriggerVisitorAmbientAction(visitor) {
   if (!canVisitorStartAmbientAction(visitor)) {
     return false;
+  }
+
+  if (maybeTriggerPickupInteraction(visitor)) {
+    return true;
   }
 
   if (
@@ -2747,25 +3036,50 @@ function maybeTriggerYieldInteraction(visitor, other) {
   return true;
 }
 
+function maybeTriggerWaveGreeting(visitor, other) {
+  if (!canVisitorsSocializeTogether(visitor, other, 42)) {
+    return false;
+  }
+  const bond = getVisitorBondBetween(visitor, other) || getVisitorBondBetween(other, visitor);
+  if (!bond || !bond.activeHours.includes(state.timeOfDay.id) || Math.random() > 0.11) {
+    return false;
+  }
+  const bondDef = socialBondDefinitions[bond.type];
+  if (!bondDef) {
+    return false;
+  }
+  visitor.socialCooldown = 9 + Math.random() * 4;
+  other.socialCooldown = 9 + Math.random() * 4;
+  visitor.waveCooldown = 7 + Math.random() * 3;
+  other.waveCooldown = 7 + Math.random() * 3;
+  visitor.localPause = 0.18 + Math.random() * 0.12;
+  other.localPause = 0.18 + Math.random() * 0.12;
+  if ((visitor.emoteCooldown || 0) <= 0) {
+    setVisitorEmote(visitor, bondDef.emote, 0.9);
+  }
+  if ((other.emoteCooldown || 0) <= 0) {
+    setVisitorEmote(other, bondDef.emote, 0.9);
+  }
+  if (Math.random() < 0.44) {
+    const speaker = Math.random() < 0.5 ? visitor : other;
+    speakAsVisitor(speaker, pickRandom(bondDef.waveLines) || pickRandom(bondDef.chatLines), "social-wave", 2.7);
+  }
+  if (Math.random() < 0.62) {
+    const ttl = 3.2 + Math.random() * 2.2;
+    if (startCompanionWalk(visitor, other, ttl) && Math.random() < 0.38) {
+      const speaker = Math.random() < 0.5 ? visitor : other;
+      speakAsVisitor(speaker, pickRandom(bondDef.strollLines) || "那就并排走一段。", "social-walk", 2.9);
+    }
+  }
+  return true;
+}
+
 function maybeTriggerSocialEncounter(visitor, other) {
-  if (
-    visitor.id === other.id ||
-    visitor.socialCooldown > 0 ||
-    other.socialCooldown > 0 ||
-    visitor.localPause > 0 ||
-    other.localPause > 0 ||
-    !canVisitorPauseForAmbient(visitor) ||
-    !canVisitorPauseForAmbient(other) ||
-    isVisitorNearDestination(visitor) ||
-    isVisitorNearDestination(other)
-  ) {
+  if (!canVisitorsSocializeTogether(visitor, other, 30)) {
     return false;
   }
   const bond = getVisitorBondBetween(visitor, other) || getVisitorBondBetween(other, visitor);
   if (!bond || !bond.activeHours.includes(state.timeOfDay.id)) {
-    return false;
-  }
-  if (Math.hypot(visitor.x - other.x, visitor.y - other.y) > 30) {
     return false;
   }
   const bondDef = socialBondDefinitions[bond.type];
@@ -2792,8 +3106,14 @@ function maybeTriggerSocialEncounter(visitor, other) {
   }
   if (Math.random() < 0.52) {
     const speaker = Math.random() < 0.5 ? visitor : other;
-    const line = bondDef.lines[Math.floor(Math.random() * bondDef.lines.length)] || bondDef.lines[0];
+    const line =
+      pickRandom(bondDef.chatLines) ||
+      pickRandom(bondDef.waveLines) ||
+      "又在街上碰到了。";
     speakAsVisitor(speaker, line, "social", 3.1);
+  }
+  if (Math.random() < 0.58) {
+    startCompanionWalk(visitor, other, 3.8 + Math.random() * 2.4);
   }
   return true;
 }
@@ -2804,6 +3124,9 @@ function updateVisitorAmbientLayer() {
     for (let otherIndex = index + 1; otherIndex < state.visitors.length; otherIndex += 1) {
       const other = state.visitors[otherIndex];
       if (maybeTriggerSocialEncounter(visitor, other)) {
+        continue;
+      }
+      if (maybeTriggerWaveGreeting(visitor, other)) {
         continue;
       }
       maybeTriggerYieldInteraction(visitor, other);
@@ -3528,6 +3851,234 @@ function getLandmarkCompletionPayload(visitor, landmarkType) {
         dialogue: "事情办完，接下来就可以慢慢离开这条街了。",
       };
   }
+}
+
+function getShopVisitFeedbackPayload(visitor, facilityType) {
+  const def = shopVisitFeedbackDefinitions[facilityType];
+  if (!def) {
+    return null;
+  }
+  return {
+    ...def,
+    floaterText: pickRandom(def.floaterTexts) || "逛得不错",
+    dialogue: pickRandom(def.dialogues) || "这趟逛得挺值。",
+    emote: pickRandom(def.emotes) || "note",
+  };
+}
+
+function applyShopVisitFeedback(visitor, facilityType) {
+  const payload = getShopVisitFeedbackPayload(visitor, facilityType);
+  if (!payload) {
+    return null;
+  }
+  if ((visitor.emoteCooldown || 0) <= 0 || Math.random() < 0.4) {
+    setVisitorEmote(visitor, payload.emote, 1.15 + Math.random() * 0.5);
+  }
+  visitor.serviceBadge = {
+    type: payload.badgeType,
+    ttl: 3.6 + Math.random() * 1.4,
+  };
+  setVisitorMoodBias(visitor, payload.moodId, payload.moodTtl);
+  state.floaters.push({
+    x: visitor.x,
+    y: visitor.y - 24,
+    text: payload.floaterText,
+    color: "#fff4d4",
+    ttl: 1.7,
+  });
+  if (Math.random() < 0.26) {
+    speakAsVisitor(visitor, payload.dialogue, "service-result", 3);
+  }
+  return payload;
+}
+
+function getFacilityPickupSpawnPoint(facility) {
+  const center = getTileCenter(facility.col, facility.row, facility.width, facility.height);
+  return {
+    x: center.x + (Math.random() * 26 - 13),
+    y: center.y + facility.height * 8 + (Math.random() * 16 - 8),
+  };
+}
+
+function buildStreetPickupSpawnCandidates() {
+  const candidates = [];
+  for (const facility of state.facilities) {
+    if (facility.kind === "landmark" || facility.kind === "tree") {
+      continue;
+    }
+    const point = getFacilityPickupSpawnPoint(facility);
+    switch (facility.type) {
+      case "snack":
+        candidates.push({ type: Math.random() < 0.55 ? "paperbag" : "receipt", point, weight: 1.8, sourceLabel: "Snack Bar 门口" });
+        break;
+      case "arcade":
+        candidates.push({ type: Math.random() < 0.55 ? "token" : "ticket", point, weight: 1.55, sourceLabel: "Mini Arcade 门口" });
+        break;
+      case "bath":
+        candidates.push({ type: Math.random() < 0.65 ? "flyer" : "coupon", point, weight: 1.2, sourceLabel: "Pocket Bath 门前" });
+        break;
+      case "tower":
+        candidates.push({ type: Math.random() < 0.6 ? "ticket" : "ribbon", point, weight: 1.6, sourceLabel: "Idol Tower 周围" });
+        break;
+      case "park":
+        candidates.push({
+          type:
+            state.world.season.id === "spring"
+              ? "petal"
+              : state.world.season.id === "autumn"
+                ? "leaf"
+                : Math.random() < 0.35
+                  ? "petal"
+                  : "leaf",
+          point,
+          weight: 1.1,
+          sourceLabel: "Sunny Park 边上",
+        });
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (state.world.weather.id === "drizzle") {
+    candidates.push({
+      type: "flyer",
+      point: {
+        x: layout.gridX + 80 + Math.random() * (layout.sidebarX - layout.gridX - 180),
+        y: layout.gridY + 120 + Math.random() * (layout.rows * layout.tile - 180),
+      },
+      weight: 1.2,
+      sourceLabel: "雨天被风吹落",
+    });
+  }
+  if (state.world.season.id === "spring") {
+    candidates.push({
+      type: "petal",
+      point: {
+        x: layout.gridX + 60 + Math.random() * (layout.sidebarX - layout.gridX - 140),
+        y: layout.gridY + 80 + Math.random() * (layout.rows * layout.tile - 140),
+      },
+      weight: 0.9,
+      sourceLabel: "春风吹来",
+    });
+  }
+  if (state.world.season.id === "autumn") {
+    candidates.push({
+      type: "leaf",
+      point: {
+        x: layout.gridX + 60 + Math.random() * (layout.sidebarX - layout.gridX - 140),
+        y: layout.gridY + 80 + Math.random() * (layout.rows * layout.tile - 140),
+      },
+      weight: 1,
+      sourceLabel: "秋风卷过",
+    });
+  }
+
+  for (const incident of state.world.incidentQueue) {
+    if (incident.id === "incident-flash-sale") {
+      candidates.push({
+        type: "coupon",
+        point: {
+          x: layout.gridX + 100 + Math.random() * (layout.sidebarX - layout.gridX - 200),
+          y: layout.gridY + 120 + Math.random() * (layout.rows * layout.tile - 180),
+        },
+        weight: 1.35,
+        sourceLabel: "折扣活动散落",
+      });
+    } else if (incident.id === "incident-street-performance") {
+      candidates.push({
+        type: Math.random() < 0.5 ? "ticket" : "ribbon",
+        point: {
+          x: layout.gridX + 120 + Math.random() * (layout.sidebarX - layout.gridX - 220),
+          y: layout.gridY + 110 + Math.random() * (layout.rows * layout.tile - 200),
+        },
+        weight: 1.15,
+        sourceLabel: "演出余波",
+      });
+    }
+  }
+
+  return candidates;
+}
+
+function spawnStreetPickup() {
+  if (state.streetPickups.length >= 6) {
+    return false;
+  }
+  const picked = pickWeightedByWeight(buildStreetPickupSpawnCandidates());
+  if (!picked) {
+    return false;
+  }
+  const def = streetPickupDefinitions[picked.type];
+  if (!def) {
+    return false;
+  }
+  state.streetPickups.push({
+    id: state.nextPickupId,
+    type: picked.type,
+    x: picked.point.x,
+    y: picked.point.y,
+    ttl: 10 + Math.random() * 6,
+    drift: Math.random() * Math.PI * 2,
+    sourceLabel: picked.sourceLabel,
+    inspectText: def.inspectText,
+    emote: def.emote,
+  });
+  state.nextPickupId += 1;
+  return true;
+}
+
+function updateStreetPickups(delta) {
+  state.pickupSpawnTimer -= delta;
+  if (state.pickupSpawnTimer <= 0) {
+    if (Math.random() < 0.72) {
+      spawnStreetPickup();
+    }
+    state.pickupSpawnTimer =
+      state.world.incidentQueue.length > 0
+        ? 3.6 + Math.random() * 2.4
+        : 4.8 + Math.random() * 3.4;
+  }
+  for (const pickup of state.streetPickups) {
+    pickup.ttl -= delta;
+    pickup.drift += delta * 1.8;
+  }
+  state.streetPickups = state.streetPickups.filter((pickup) => pickup.ttl > 0);
+}
+
+function getNearbyStreetPickup(visitor, radius = 22) {
+  return (
+    state.streetPickups.find(
+      (pickup) =>
+        pickup.ttl > 0.05 &&
+        Math.hypot(pickup.x - visitor.x, pickup.y - visitor.y) <= radius,
+    ) || null
+  );
+}
+
+function maybeTriggerPickupInteraction(visitor) {
+  const pickup = getNearbyStreetPickup(visitor);
+  if (!pickup || Math.random() > 0.34) {
+    return false;
+  }
+  visitor.localPause = 0.56 + Math.random() * 0.34;
+  visitor.ambientCooldown = 9 + Math.random() * 3;
+  setVisitorMoodBias(visitor, Math.random() < 0.45 ? "happy" : "calm", 3.4);
+  if ((visitor.emoteCooldown || 0) <= 0) {
+    setVisitorEmote(visitor, pickup.emote, 0.95);
+  }
+  state.floaters.push({
+    x: pickup.x,
+    y: pickup.y - 12,
+    text: pickup.inspectText,
+    color: "#fff0cf",
+    ttl: 1.45,
+  });
+  if (Math.random() < 0.18) {
+    speakAsVisitor(visitor, `${pickup.sourceLabel} 留了点小痕迹，顺手捡起来看看。`, "street", 2.8);
+  }
+  pickup.ttl = -0.01;
+  return true;
 }
 
 function incidentAffectsFacilityZone(incident, facility) {
@@ -4753,6 +5304,13 @@ function createVisitorFromPlan(plan, options = {}) {
     emoteCooldown: 0.6 + Math.random() * 1.8,
     incidentPause: 0,
     errandBadge: null,
+    serviceBadge: null,
+    waveCooldown: 3.2 + Math.random() * 2.8,
+    companionLeadId: companionAnchor?.id || null,
+    companionPartnerId: companionAnchor?.id || null,
+    companionOffsetX: companionAnchor ? positionOffset : 0,
+    companionOffsetY: 0,
+    companionWalkTtl: companionAnchor ? 2.8 + Math.random() * 1.2 : 0,
   };
   state.visitors.push(visitor);
   state.nextVisitorId += 1;
@@ -4794,6 +5352,12 @@ function maybeSpawnBondCompanion(primaryVisitor, primaryPlan) {
     siblingResidentId: primaryPlan.residentProfile.id,
   });
   primaryVisitor.siblingResidentId = companion.residentProfileId;
+  primaryVisitor.companionPartnerId = companion.id;
+  primaryVisitor.companionLeadId = primaryVisitor.id;
+  primaryVisitor.companionOffsetX = primaryVisitor.companionOffsetX || 0;
+  primaryVisitor.companionWalkTtl = Math.max(primaryVisitor.companionWalkTtl || 0, 3.2);
+  companion.companionPartnerId = primaryVisitor.id;
+  companion.companionLeadId = primaryVisitor.id;
   setVisitorMoodBias(primaryVisitor, "happy", 5.4);
   setVisitorMoodBias(companion, "happy", 5.4);
   return companion;
@@ -4820,7 +5384,7 @@ function visitFacility(visitor) {
   const facility = getFacilityById(visitor.targetFacilityId);
   if (!facility) {
     startVisitorLeaving(visitor);
-    return;
+    return null;
   }
   const def = getFacilityDef(facility.type);
   const bonus = calculateBonuses(facility);
@@ -4864,6 +5428,7 @@ function visitFacility(visitor) {
     color: "#ffffff",
     ttl: 1.8,
   });
+  const feedback = applyShopVisitFeedback(visitor, facility.type);
   pushMessage(`${def.name} 接待顾客，收入 +${income}G。`);
   if (state.servedVisitors % 3 === 0) {
     triggerDialogue("service", { facilityName: def.name }, { chance: 0.18, speakerId: visitor.id });
@@ -4871,6 +5436,7 @@ function visitFacility(visitor) {
   syncFacilityQueueTargets(facility);
   checkUnlockAnnouncements();
   evaluateGoals();
+  return feedback;
 }
 
 function planVisitorErrandAfterService(visitor) {
@@ -4894,12 +5460,20 @@ function updateVisitors(delta) {
     visitor.emoteCooldown = Math.max(0, (visitor.emoteCooldown || 0) - delta);
     visitor.incidentPause = Math.max(0, (visitor.incidentPause || 0) - delta);
     visitor.socialCooldown = Math.max(0, (visitor.socialCooldown || 0) - delta);
+    visitor.waveCooldown = Math.max(0, (visitor.waveCooldown || 0) - delta);
     visitor.ambientCooldown = Math.max(0, (visitor.ambientCooldown || 0) - delta);
     visitor.localPause = Math.max(0, (visitor.localPause || 0) - delta);
+    visitor.companionWalkTtl = Math.max(0, (visitor.companionWalkTtl || 0) - delta);
     if (visitor.errandBadge) {
       visitor.errandBadge.ttl -= delta;
       if (visitor.errandBadge.ttl <= 0) {
         visitor.errandBadge = null;
+      }
+    }
+    if (visitor.serviceBadge) {
+      visitor.serviceBadge.ttl -= delta;
+      if (visitor.serviceBadge.ttl <= 0) {
+        visitor.serviceBadge = null;
       }
     }
     if (visitor.emote) {
@@ -4924,6 +5498,18 @@ function updateVisitors(delta) {
         visitor.phase !== "queueing" &&
         visitor.phase !== "queue-wait"
       ) {
+        continue;
+      }
+      const companionTarget = getCompanionMoveTarget(visitor);
+      if (companionTarget) {
+        const followDx = companionTarget.x - visitor.x;
+        const followDy = companionTarget.y - visitor.y;
+        const followDist = Math.hypot(followDx, followDy);
+        if (followDist >= 2) {
+          const followMove = Math.min(followDist, getVisitorMoveSpeed(visitor) * delta);
+          visitor.x += (followDx / followDist) * followMove;
+          visitor.y += (followDy / followDist) * followMove;
+        }
         continue;
       }
       const dx = visitor.targetX - visitor.x;
@@ -5080,7 +5666,6 @@ function updateVisitors(delta) {
       if (visitor.wait <= 0) {
         const plannedErrand = planVisitorErrandAfterService(visitor);
         visitFacility(visitor);
-        setVisitorMoodBias(visitor, "happy", 6);
         const approachTile = visitor.path[visitor.path.length - 1];
         visitor.pendingErrandPath = plannedErrand?.path || null;
         visitor.phase = "exiting";
@@ -5236,6 +5821,7 @@ function update(delta) {
     advanceDay();
   }
 
+  updateStreetPickups(delta);
   updateVisitors(delta);
   updateVisitorAmbientLayer();
   updateFacilityCrowding(delta);
@@ -5790,6 +6376,26 @@ function drawQueueLaneMarkers() {
   }
 }
 
+function drawStreetPickups() {
+  for (const pickup of state.streetPickups) {
+    const def = streetPickupDefinitions[pickup.type];
+    if (!def) {
+      continue;
+    }
+    const bob = Math.sin(pickup.drift) * 1.5;
+    const x = Math.round(pickup.x);
+    const y = Math.round(pickup.y + bob);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+    ctx.fillRect(x - 5, y + 5, 10, 3);
+    drawSprite(def.sprite, def.palette, x - 5, y - 5, 2);
+    if (Math.sin(pickup.drift * 1.8) > 0.45) {
+      ctx.fillStyle = "#fff6cf";
+      ctx.fillRect(x + 5, y - 6, 2, 2);
+      ctx.fillRect(x + 7, y - 4, 1, 1);
+    }
+  }
+}
+
 function drawGrid() {
   for (let row = 0; row < layout.rows; row += 1) {
     for (let col = 0; col < layout.cols; col += 1) {
@@ -5836,6 +6442,7 @@ function drawGrid() {
   for (const facility of facilities) {
     drawFacility(facility);
   }
+  drawStreetPickups();
 }
 
 function drawFacility(facility) {
@@ -6110,6 +6717,21 @@ function drawVisitors() {
         ctx.fillStyle = "#fff8de";
         ctx.fillRect(x - 9, badgeY, 16, 16);
         ctx.strokeStyle = "#7f675f";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 8, badgeY + 1, 14, 14);
+        drawSprite(badgeDef.sprite, badgeDef.palette, x - 5, badgeY + 3, 2);
+        stackCursor = badgeY - 6;
+      }
+    }
+    if (visitor.serviceBadge) {
+      const badgeDef = visitorServiceBadgeSprites[visitor.serviceBadge.type];
+      if (badgeDef) {
+        const badgeY = stackCursor - 16;
+        ctx.fillStyle = "rgba(47, 34, 49, 0.16)";
+        ctx.fillRect(x - 8, badgeY + 2, 16, 16);
+        ctx.fillStyle = "#fff8de";
+        ctx.fillRect(x - 9, badgeY, 16, 16);
+        ctx.strokeStyle = "#c59f66";
         ctx.lineWidth = 2;
         ctx.strokeRect(x - 8, badgeY + 1, 14, 14);
         drawSprite(badgeDef.sprite, badgeDef.palette, x - 5, badgeY + 3, 2);
@@ -6898,6 +7520,13 @@ window.render_game_to_text = () =>
       height: facility.height,
       landmarkVisits: facility.landmarkVisits || 0,
     })),
+    streetPickups: state.streetPickups.map((pickup) => ({
+      id: pickup.id,
+      type: pickup.type,
+      sourceLabel: pickup.sourceLabel,
+      x: Math.round(pickup.x),
+      y: Math.round(pickup.y),
+    })),
     facilities: listFacilities().map((facility) => ({
       id: facility.id,
       type: facility.type,
@@ -6929,8 +7558,12 @@ window.render_game_to_text = () =>
       queuePatience: Number(visitor.queuePatience?.toFixed?.(2) || 0),
       emote: visitor.emote?.type || null,
       errandBadge: visitor.errandBadge?.type || null,
+      serviceBadge: visitor.serviceBadge?.type || null,
       localPause: Number(visitor.localPause?.toFixed?.(2) || 0),
       siblingResidentId: visitor.siblingResidentId || null,
+      companionLeadId: visitor.companionLeadId || null,
+      companionPartnerId: visitor.companionPartnerId || null,
+      companionWalkTtl: Number(visitor.companionWalkTtl?.toFixed?.(2) || 0),
       originLandmarkType: visitor.originLandmarkType || null,
       errandLandmarkType: visitor.errandLandmarkType || null,
       target: { col: visitor.targetCol, row: visitor.targetRow },
