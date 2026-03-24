@@ -58,6 +58,55 @@ const calendarTuning = {
   calendarDayStep: 15,
 };
 
+const pixelCloudTemplates = [
+  {
+    body: [
+      [4, 1, 8, 2],
+      [2, 3, 13, 3],
+      [0, 5, 16, 4],
+      [2, 9, 12, 2],
+    ],
+    highlight: [
+      [5, 2, 4, 1],
+      [3, 4, 7, 1],
+      [6, 6, 5, 1],
+    ],
+  },
+  {
+    body: [
+      [3, 1, 7, 2],
+      [1, 3, 10, 2],
+      [0, 5, 14, 3],
+      [4, 8, 8, 2],
+    ],
+    highlight: [
+      [4, 2, 3, 1],
+      [2, 4, 5, 1],
+      [7, 5, 4, 1],
+    ],
+  },
+  {
+    body: [
+      [2, 2, 6, 2],
+      [0, 4, 11, 2],
+      [1, 6, 13, 3],
+      [5, 9, 7, 2],
+    ],
+    highlight: [
+      [3, 3, 3, 1],
+      [1, 5, 5, 1],
+      [7, 6, 4, 1],
+    ],
+  },
+];
+
+const roadTrafficPalettes = [
+  { body: "#ef8f57", roof: "#fff1d7", trim: "#593d3d" },
+  { body: "#63a7e8", roof: "#edf7ff", trim: "#354b63" },
+  { body: "#74c56a", roof: "#f1ffe8", trim: "#416245" },
+  { body: "#ffd266", roof: "#fff7e0", trim: "#6a5140" },
+];
+
 const shellThemePalettes = {
   spring: {
     sunny: { top: "#f3d778", bottom: "#efab76", glow: "rgba(255,255,255,0.46)" },
@@ -287,12 +336,88 @@ const facilityTypes = [
   },
 ];
 
-const visitorPalette = [
-  { shirt: "#5c7cfa", hair: "#5a3d2b" },
-  { shirt: "#f06595", hair: "#2f2a46" },
-  { shirt: "#51cf66", hair: "#8d5b39" },
-  { shirt: "#ffd43b", hair: "#5a4638" },
-];
+const visitorAppearanceSets = {
+  student: [
+    {
+      shirt: "#5c7cfa",
+      hair: "#4d3a34",
+      accent: "#ffe69b",
+      pants: "#475cb2",
+      skin: "#f4d8be",
+      frame: "short",
+      accessory: "cap",
+    },
+    {
+      shirt: "#ff8fb7",
+      hair: "#3f3451",
+      accent: "#fff1bb",
+      pants: "#b45d84",
+      skin: "#f2d3b8",
+      frame: "short",
+      accessory: "ribbon",
+    },
+  ],
+  family: [
+    {
+      shirt: "#51cf66",
+      hair: "#7d5639",
+      accent: "#ffe4b8",
+      pants: "#4d9351",
+      skin: "#f4d8be",
+      frame: "standard",
+      accessory: "scarf",
+    },
+    {
+      shirt: "#ffb84d",
+      hair: "#4b3933",
+      accent: "#fff1d0",
+      pants: "#b97f39",
+      skin: "#f1d1b4",
+      frame: "standard",
+      accessory: "ribbon",
+    },
+  ],
+  worker: [
+    {
+      shirt: "#6e88ff",
+      hair: "#4a372f",
+      accent: "#dce4ff",
+      pants: "#4b5f92",
+      skin: "#efd0b5",
+      frame: "broad",
+      accessory: "briefcase",
+    },
+    {
+      shirt: "#7ec5ff",
+      hair: "#2f2b40",
+      accent: "#f6e2ab",
+      pants: "#4f6f9e",
+      skin: "#f2d4ba",
+      frame: "broad",
+      accessory: "tie",
+    },
+  ],
+  traveler: [
+    {
+      shirt: "#ffd166",
+      hair: "#5b493a",
+      accent: "#c7f0ff",
+      pants: "#9d7c38",
+      skin: "#f1cfb2",
+      frame: "tall",
+      accessory: "hat",
+    },
+    {
+      shirt: "#a28cff",
+      hair: "#3e314a",
+      accent: "#ffe7b8",
+      pants: "#6755ad",
+      skin: "#efcbb0",
+      frame: "tall",
+      accessory: "bag",
+    },
+  ],
+};
 
 const visitorArchetypes = [
   {
@@ -357,6 +482,108 @@ const visitorEmoteSprites = {
   star: {
     sprite: ["..y..", ".yyy.", "yyyyy", ".yyy.", "..y.."],
     palette: { y: "#ffe37a" },
+  },
+  sleep: {
+    sprite: ["zz...", ".zz..", "..zz.", "...zz", "....."],
+    palette: { z: "#7da7ff" },
+  },
+  book: {
+    sprite: ["bbbbb", "bwwpb", "bwwpb", "bpppb", "bbbbb"],
+    palette: { b: "#6d8ed8", w: "#f7fbff", p: "#9eb8ea" },
+  },
+  briefcase: {
+    sprite: ["..yy.", ".bbbb", "bwwpb", "bpppb", ".bbbb"],
+    palette: { y: "#f3d372", b: "#8f6847", w: "#f9f1de", p: "#bc8d61" },
+  },
+  house: {
+    sprite: ["..r..", ".rrr.", "bbbbb", "bwwbb", "bbbbb"],
+    palette: { r: "#ff9277", b: "#8f744f", w: "#fff1d6" },
+  },
+  exclaim: {
+    sprite: ["..r..", "..r..", "..r..", ".....", "..r.."],
+    palette: { r: "#ff8a72" },
+  },
+};
+
+const visitorEmotionDefinitions = {
+  calm: {
+    label: "平静",
+    speedMultiplier: 1,
+    accent: "#fff0ce",
+    emote: null,
+  },
+  happy: {
+    label: "开心",
+    speedMultiplier: 1.06,
+    accent: "#ffe07c",
+    emote: "note",
+  },
+  rushed: {
+    label: "着急",
+    speedMultiplier: 1.2,
+    accent: "#ffbf84",
+    emote: "exclaim",
+  },
+  tired: {
+    label: "犯困",
+    speedMultiplier: 0.84,
+    accent: "#9fb6ff",
+    emote: "sleep",
+  },
+  bored: {
+    label: "发呆",
+    speedMultiplier: 0.92,
+    accent: "#d8cbb7",
+    emote: "dots",
+  },
+  annoyed: {
+    label: "抱怨",
+    speedMultiplier: 1.08,
+    accent: "#ff9e93",
+    emote: "anger",
+  },
+};
+
+const socialBondDefinitions = {
+  classmate: {
+    label: "同学",
+    emote: "book",
+    mood: "happy",
+    pauseRange: [0.9, 1.4],
+    lines: [
+      "原来你也刚从那边过来，放学后果然还是会往这条街逛。",
+      "等会儿一起去看看新店吧，这条街今天好像比平时更热闹。",
+    ],
+  },
+  coworker: {
+    label: "同事",
+    emote: "briefcase",
+    mood: "calm",
+    pauseRange: [0.8, 1.2],
+    lines: [
+      "班上的事先放一边，趁现在街上不挤，顺手逛一圈。",
+      "这边碰到你正好，忙完再一起去前面那家店看看。",
+    ],
+  },
+  couple: {
+    label: "伴侣",
+    emote: "heart",
+    mood: "happy",
+    pauseRange: [1, 1.6],
+    lines: [
+      "今天这条街的气氛不错，慢慢走一圈也挺舒服。",
+      "那家店门口看着挺有意思，等会儿一起进去看看吧。",
+    ],
+  },
+  neighbor: {
+    label: "邻居",
+    emote: "house",
+    mood: "calm",
+    pauseRange: [0.75, 1.15],
+    lines: [
+      "在这儿又碰到了，看来最近大家都爱往这条街散步。",
+      "街口刚热闹起来，等会儿有空再一起过去看看。",
+    ],
   },
 };
 
@@ -702,6 +929,137 @@ const npcProfiles = [
   { id: "mika", name: "美佳", shirt: "#ff8aa1", hair: "#5c3d31", accent: "#fff0c5" },
   { id: "taichi", name: "太一", shirt: "#6db8ff", hair: "#48352f", accent: "#f6f3ce" },
   { id: "yuzu", name: "柚子", shirt: "#8edc74", hair: "#6b4c3d", accent: "#fff7d9" },
+];
+
+const residentProfiles = [
+  {
+    id: "aoi",
+    name: "葵",
+    archetypeId: "student",
+    socialAffinity: 0.82,
+    appearance: {
+      shirt: "#ff8fb7",
+      hair: "#5a412f",
+      accent: "#fff3c2",
+      pants: "#b76487",
+      skin: "#f4d8be",
+      frame: "short",
+      accessory: "ribbon",
+    },
+    bonds: [{ targetResidentId: "ren", type: "classmate", closeness: 0.9, activeHours: ["morning", "daytime", "evening"] }],
+  },
+  {
+    id: "ren",
+    name: "莲",
+    archetypeId: "student",
+    socialAffinity: 0.76,
+    appearance: {
+      shirt: "#67a3ff",
+      hair: "#39445e",
+      accent: "#ffe6a0",
+      pants: "#4963b8",
+      skin: "#f3d6bb",
+      frame: "short",
+      accessory: "cap",
+    },
+    bonds: [{ targetResidentId: "aoi", type: "classmate", closeness: 0.9, activeHours: ["morning", "daytime", "evening"] }],
+  },
+  {
+    id: "misaki",
+    name: "美咲",
+    archetypeId: "worker",
+    socialAffinity: 0.68,
+    appearance: {
+      shirt: "#ff9b72",
+      hair: "#47343c",
+      accent: "#ffe2b2",
+      pants: "#9d6550",
+      skin: "#f0ceb2",
+      frame: "broad",
+      accessory: "briefcase",
+    },
+    bonds: [{ targetResidentId: "shu", type: "coworker", closeness: 0.84, activeHours: ["morning", "evening"] }],
+  },
+  {
+    id: "shu",
+    name: "修司",
+    archetypeId: "worker",
+    socialAffinity: 0.64,
+    appearance: {
+      shirt: "#6ea5ff",
+      hair: "#2d3048",
+      accent: "#dce7ff",
+      pants: "#50638f",
+      skin: "#efd0b7",
+      frame: "broad",
+      accessory: "tie",
+    },
+    bonds: [{ targetResidentId: "misaki", type: "coworker", closeness: 0.84, activeHours: ["morning", "evening"] }],
+  },
+  {
+    id: "hana",
+    name: "花音",
+    archetypeId: "family",
+    socialAffinity: 0.74,
+    appearance: {
+      shirt: "#ffb55e",
+      hair: "#5a4037",
+      accent: "#fff0c9",
+      pants: "#bc8240",
+      skin: "#f3d5bc",
+      frame: "standard",
+      accessory: "ribbon",
+    },
+    bonds: [{ targetResidentId: "toma", type: "couple", closeness: 0.92, activeHours: ["daytime", "evening"] }],
+  },
+  {
+    id: "toma",
+    name: "斗真",
+    archetypeId: "family",
+    socialAffinity: 0.66,
+    appearance: {
+      shirt: "#63d17d",
+      hair: "#4a3a34",
+      accent: "#ffe1bb",
+      pants: "#4c9a60",
+      skin: "#f0d0b4",
+      frame: "standard",
+      accessory: "scarf",
+    },
+    bonds: [{ targetResidentId: "hana", type: "couple", closeness: 0.92, activeHours: ["daytime", "evening"] }],
+  },
+  {
+    id: "suzu",
+    name: "铃",
+    archetypeId: "family",
+    socialAffinity: 0.58,
+    appearance: {
+      shirt: "#ff8ab0",
+      hair: "#47354c",
+      accent: "#fff1cc",
+      pants: "#b26082",
+      skin: "#f1d1b6",
+      frame: "standard",
+      accessory: "ribbon",
+    },
+    bonds: [{ targetResidentId: "mina", type: "neighbor", closeness: 0.72, activeHours: ["daytime", "evening"] }],
+  },
+  {
+    id: "mina",
+    name: "美奈",
+    archetypeId: "family",
+    socialAffinity: 0.62,
+    appearance: {
+      shirt: "#8bdc78",
+      hair: "#7f5637",
+      accent: "#ffe4bf",
+      pants: "#5a9950",
+      skin: "#f3d6ba",
+      frame: "standard",
+      accessory: "scarf",
+    },
+    bonds: [{ targetResidentId: "suzu", type: "neighbor", closeness: 0.72, activeHours: ["daytime", "evening"] }],
+  },
 ];
 
 const incidentActorProfiles = {
@@ -2169,25 +2527,26 @@ function maybeTriggerVisitorThought() {
   const facility = getFacilityById(visitor.targetFacilityId);
   const facilityName = facility ? getFacilityDef(facility.type).name : "店铺";
   const profileLabel = visitor.profileLabel || "顾客";
+  const speakerName = getVisitorDisplayName(visitor);
   const lines =
     visitor.phase === "queueing" || visitor.phase === "queue-wait"
       ? [
           `${facilityName} 前面已经有人了，不过这家看起来值得等等。`,
-          `${profileLabel} 排着队也在看招牌，感觉这家店口碑不差。`,
+          `${speakerName} 排着队也在看招牌，感觉这家店口碑不差。`,
           `这条队伍排得还算整齐，就看 ${facilityName} 出客快不快了。`,
         ]
       : visitor.phase === "errand-going" || visitor.phase === "landmark-entering"
         ? [
-            `${profileLabel} 正往 ${getStructureDef(visitor.errandLandmarkType || visitor.originLandmarkType)?.name || "默认建筑"} 那边走，像是还有事要办。`,
+            `${speakerName} 正往 ${getStructureDef(visitor.errandLandmarkType || visitor.originLandmarkType)?.name || "默认建筑"} 那边走，像是还有事要办。`,
             `先逛店，再去 ${getStructureDef(visitor.errandLandmarkType || visitor.originLandmarkType)?.name || "默认建筑"}，这趟路线挺像小镇日常。`,
           ]
       : visitor.phase === "leaving"
         ? [
-            `${profileLabel} 逛完这一圈差不多了，下次再看看街区会不会更热闹。`,
+            `${speakerName} 逛完这一圈差不多了，下次再看看街区会不会更热闹。`,
             `${state.world.season.label} 的街景看够了，今天这趟算没白来。`,
           ]
         : [
-            `${profileLabel} 今天碰上 ${state.world.weather.label}，出来逛街正合适。`,
+            `${speakerName} 今天碰上 ${state.world.weather.label}，出来逛街正合适。`,
             `${facilityName} 看起来不错，今天就去这家看看。`,
             `${state.timeOfDay.label} 的街区节奏，和我这种 ${profileLabel} 挺合拍。`,
             `${state.world.season.label} 的街景真有味道，像小镇庆典前夕。`,
@@ -2205,8 +2564,8 @@ function maybeTriggerVisitorThought() {
   if (state.activeDialogue) {
     state.activeDialogue.text =
       lines[Math.floor(Math.random() * lines.length)];
-    state.activeDialogue.speakerName = profileLabel;
-    state.dialogueFeed[0].speakerName = profileLabel;
+    state.activeDialogue.speakerName = speakerName;
+    state.dialogueFeed[0].speakerName = speakerName;
     state.dialogueFeed[0].text = state.activeDialogue.text;
   }
 }
@@ -2249,6 +2608,209 @@ function maybeTriggerQueueReaction(visitor, facility, dialogueChance = 0.22) {
       },
       { chance: 1, speakerId: visitor.id },
     );
+  }
+}
+
+function speakAsVisitor(visitor, text, topic = "thought", ttl = 3.2, force = false) {
+  if (!visitor) {
+    return false;
+  }
+  if (!force) {
+    if (state.dialogueCooldown > 0) {
+      return false;
+    }
+    if (state.activeDialogue && state.activeDialogue.ttl > 1.5) {
+      return false;
+    }
+  }
+  openDialogueForSpeaker("visitor", visitor.id, getVisitorDisplayName(visitor), text, topic, ttl);
+  return true;
+}
+
+function getNearbyTree(visitor, radius = 34) {
+  return (
+    state.facilities.find(
+      (facility) =>
+        facility.kind === "scenery" &&
+        facility.type === "tree" &&
+        Math.hypot(getTileCenter(facility.col, facility.row).x - visitor.x, getTileCenter(facility.col, facility.row).y - visitor.y) <= radius,
+    ) || null
+  );
+}
+
+function getNearbyCuriousFacility(visitor, radius = 42) {
+  return (
+    state.facilities.find((facility) => {
+      if (facility.kind === "scenery" || facility.id === visitor.targetFacilityId) {
+        return false;
+      }
+      const center = getTileCenter(facility.col, facility.row, facility.width, facility.height);
+      return Math.hypot(center.x - visitor.x, center.y - visitor.y) <= radius;
+    }) || null
+  );
+}
+
+function canVisitorStartAmbientAction(visitor) {
+  return (
+    canVisitorPauseForAmbient(visitor) &&
+    visitor.ambientCooldown <= 0 &&
+    visitor.localPause <= 0 &&
+    visitor.incidentPause <= 0 &&
+    !isVisitorNearDestination(visitor)
+  );
+}
+
+function maybeTriggerVisitorAmbientAction(visitor) {
+  if (!canVisitorStartAmbientAction(visitor)) {
+    return false;
+  }
+
+  if (
+    (state.world.weather.id === "drizzle" || state.world.weather.id === "snow") &&
+    Math.random() < 0.22
+  ) {
+    visitor.hurryTtl = 4.2 + Math.random() * 1.8;
+    setVisitorMoodBias(visitor, "rushed", 3.8);
+    visitor.ambientCooldown = 7 + Math.random() * 3;
+    if ((visitor.emoteCooldown || 0) <= 0) {
+      setVisitorEmote(visitor, "sweat", 0.9);
+    }
+    if (Math.random() < 0.2) {
+      speakAsVisitor(visitor, "这天气得快走两步，不然一会儿鞋边都要湿了。", "street", 2.8);
+    }
+    return true;
+  }
+
+  const nearbyTree = getNearbyTree(visitor);
+  if (nearbyTree && Math.random() < 0.26) {
+    visitor.localPause = 0.75 + Math.random() * 0.55;
+    visitor.ambientCooldown = 8 + Math.random() * 3.4;
+    setVisitorMoodBias(visitor, Math.random() < 0.5 ? "happy" : "bored", 3.6);
+    if ((visitor.emoteCooldown || 0) <= 0) {
+      setVisitorEmote(visitor, Math.random() < 0.65 ? "star" : "dots", 0.95);
+    }
+    if (Math.random() < 0.16) {
+      speakAsVisitor(visitor, "树边停一下，整条街的动静一下就能看清。", "street", 2.8);
+    }
+    return true;
+  }
+
+  const curiousFacility = getNearbyCuriousFacility(visitor);
+  if (curiousFacility && Math.random() < 0.32) {
+    const facilityName = getStructureDef(curiousFacility.type)?.name || "这家店";
+    visitor.localPause = 0.65 + Math.random() * 0.45;
+    visitor.ambientCooldown = 7 + Math.random() * 3;
+    setVisitorMoodBias(visitor, "calm", 2.8);
+    if ((visitor.emoteCooldown || 0) <= 0) {
+      setVisitorEmote(visitor, "note", 0.9);
+    }
+    if (Math.random() < 0.18) {
+      speakAsVisitor(visitor, `${facilityName} 的招牌有点意思，先记住，下回再专门过来。`, "street", 2.9);
+    }
+    return true;
+  }
+
+  if (Math.random() < 0.08) {
+    visitor.localPause = 0.7 + Math.random() * 0.4;
+    visitor.ambientCooldown = 9 + Math.random() * 3.2;
+    if ((visitor.emoteCooldown || 0) <= 0) {
+      setVisitorEmote(visitor, "star", 0.85);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+function maybeTriggerYieldInteraction(visitor, other) {
+  if (
+    !canVisitorPauseForAmbient(visitor) ||
+    !canVisitorPauseForAmbient(other) ||
+    visitor.localPause > 0 ||
+    other.localPause > 0 ||
+    visitor.ambientCooldown > 0 ||
+    other.ambientCooldown > 0 ||
+    isVisitorNearDestination(visitor) ||
+    isVisitorNearDestination(other)
+  ) {
+    return false;
+  }
+  if (Math.hypot(visitor.x - other.x, visitor.y - other.y) > 14 || Math.random() > 0.12) {
+    return false;
+  }
+  const yielding = visitor.id < other.id ? visitor : other;
+  yielding.localPause = 0.28 + Math.random() * 0.24;
+  yielding.ambientCooldown = 5 + Math.random() * 2;
+  if ((yielding.emoteCooldown || 0) <= 0 && Math.random() < 0.45) {
+    setVisitorEmote(yielding, "dots", 0.75);
+  }
+  return true;
+}
+
+function maybeTriggerSocialEncounter(visitor, other) {
+  if (
+    visitor.id === other.id ||
+    visitor.socialCooldown > 0 ||
+    other.socialCooldown > 0 ||
+    visitor.localPause > 0 ||
+    other.localPause > 0 ||
+    !canVisitorPauseForAmbient(visitor) ||
+    !canVisitorPauseForAmbient(other) ||
+    isVisitorNearDestination(visitor) ||
+    isVisitorNearDestination(other)
+  ) {
+    return false;
+  }
+  const bond = getVisitorBondBetween(visitor, other) || getVisitorBondBetween(other, visitor);
+  if (!bond || !bond.activeHours.includes(state.timeOfDay.id)) {
+    return false;
+  }
+  if (Math.hypot(visitor.x - other.x, visitor.y - other.y) > 30) {
+    return false;
+  }
+  const bondDef = socialBondDefinitions[bond.type];
+  if (!bondDef) {
+    return false;
+  }
+  const pause =
+    bondDef.pauseRange[0] + Math.random() * (bondDef.pauseRange[1] - bondDef.pauseRange[0]);
+  visitor.localPause = pause;
+  other.localPause = pause * (0.88 + Math.random() * 0.18);
+  visitor.socialCooldown = 16 + Math.random() * 10;
+  other.socialCooldown = 16 + Math.random() * 10;
+  visitor.ambientCooldown = Math.max(visitor.ambientCooldown, 6);
+  other.ambientCooldown = Math.max(other.ambientCooldown, 6);
+  visitor.socialGlowTtl = Math.max(visitor.socialGlowTtl || 0, 7.5);
+  other.socialGlowTtl = Math.max(other.socialGlowTtl || 0, 7.5);
+  setVisitorMoodBias(visitor, bondDef.mood, 5.4);
+  setVisitorMoodBias(other, bondDef.mood, 5.4);
+  if ((visitor.emoteCooldown || 0) <= 0) {
+    setVisitorEmote(visitor, bondDef.emote, 1.05);
+  }
+  if ((other.emoteCooldown || 0) <= 0) {
+    setVisitorEmote(other, bondDef.emote, 1.05);
+  }
+  if (Math.random() < 0.52) {
+    const speaker = Math.random() < 0.5 ? visitor : other;
+    const line = bondDef.lines[Math.floor(Math.random() * bondDef.lines.length)] || bondDef.lines[0];
+    speakAsVisitor(speaker, line, "social", 3.1);
+  }
+  return true;
+}
+
+function updateVisitorAmbientLayer() {
+  for (let index = 0; index < state.visitors.length; index += 1) {
+    const visitor = state.visitors[index];
+    for (let otherIndex = index + 1; otherIndex < state.visitors.length; otherIndex += 1) {
+      const other = state.visitors[otherIndex];
+      if (maybeTriggerSocialEncounter(visitor, other)) {
+        continue;
+      }
+      maybeTriggerYieldInteraction(visitor, other);
+    }
+  }
+  for (const visitor of state.visitors) {
+    maybeTriggerVisitorAmbientAction(visitor);
   }
 }
 
@@ -2520,7 +3082,7 @@ function triggerEventActorInteraction(actor) {
       openDialogueForSpeaker(
         "visitor",
         visitor.id,
-        visitor.profileLabel || "顾客",
+        getVisitorDisplayName(visitor),
         visitorText,
         "incident-react",
         3.2,
@@ -2528,7 +3090,7 @@ function triggerEventActorInteraction(actor) {
     }
   }
   if (Math.random() < 0.22) {
-    pushMessage(`${visitor.profileLabel || "顾客"} 被 ${getEventActorDisplayName(actor)} 吸引，脚步慢了下来。`);
+    pushMessage(`${getVisitorDisplayName(visitor)} 被 ${getEventActorDisplayName(actor)} 吸引，脚步慢了下来。`);
   }
   return true;
 }
@@ -2605,7 +3167,7 @@ function triggerDialogue(topic, payload = {}, options = {}) {
   openDialogueForSpeaker(
     "visitor",
     speaker.id,
-    speaker.profileLabel || "顾客",
+    getVisitorDisplayName(speaker),
     text,
     topic,
   );
@@ -2683,6 +3245,174 @@ function getVisitorById(id) {
   return state.visitors.find((visitor) => visitor.id === id) || null;
 }
 
+function getResidentProfileById(id) {
+  return residentProfiles.find((profile) => profile.id === id) || null;
+}
+
+function cloneVisitorAppearance(appearance) {
+  return {
+    shirt: appearance.shirt,
+    hair: appearance.hair,
+    accent: appearance.accent,
+    pants: appearance.pants,
+    skin: appearance.skin,
+    frame: appearance.frame,
+    accessory: appearance.accessory,
+  };
+}
+
+function getVisitorAppearance(profileId, residentProfile, seed) {
+  if (residentProfile?.appearance) {
+    return cloneVisitorAppearance(residentProfile.appearance);
+  }
+  const presets = visitorAppearanceSets[profileId] || visitorAppearanceSets.family;
+  const preset = presets[seed % presets.length] || presets[0];
+  return cloneVisitorAppearance(preset);
+}
+
+function getVisitorDisplayName(visitor) {
+  return visitor?.displayName || visitor?.profileLabel || "顾客";
+}
+
+function getVisitorEmotionDefinition(id) {
+  return visitorEmotionDefinitions[id] || visitorEmotionDefinitions.calm;
+}
+
+function isVisitorMovingPhase(visitor) {
+  return (
+    visitor.phase === "to-grid" ||
+    visitor.phase === "going" ||
+    visitor.phase === "errand-going" ||
+    visitor.phase === "queueing" ||
+    visitor.phase === "entering" ||
+    visitor.phase === "landmark-entering" ||
+    visitor.phase === "exiting" ||
+    visitor.phase === "leaving" ||
+    visitor.phase === "leaving-road"
+  );
+}
+
+function canVisitorPauseForAmbient(visitor) {
+  return (
+    visitor.phase === "going" ||
+    visitor.phase === "errand-going" ||
+    visitor.phase === "leaving"
+  );
+}
+
+function getVisitorRemainingRouteSteps(visitor) {
+  if (visitor.phase === "going" || visitor.phase === "errand-going") {
+    return Math.max(0, visitor.path.length - 1 - visitor.pathIndex);
+  }
+  if (visitor.phase === "leaving") {
+    return Math.max(0, visitor.pathIndex);
+  }
+  return 0;
+}
+
+function isVisitorNearDestination(visitor) {
+  if (
+    visitor.phase === "queueing" ||
+    visitor.phase === "queue-wait" ||
+    visitor.phase === "entering" ||
+    visitor.phase === "landmark-entering" ||
+    visitor.phase === "inside" ||
+    visitor.phase === "landmark-inside"
+  ) {
+    return true;
+  }
+  return getVisitorRemainingRouteSteps(visitor) <= 1;
+}
+
+function setVisitorMoodBias(visitor, moodId, ttl = 4.2) {
+  if (!visitor) {
+    return;
+  }
+  visitor.moodBias = {
+    id: moodId,
+    ttl: Math.max(visitor.moodBias?.ttl || 0, ttl),
+  };
+}
+
+function getVisitorBondBetween(visitor, other) {
+  if (!visitor?.socialBonds?.length || !other?.residentProfileId) {
+    return null;
+  }
+  return (
+    visitor.socialBonds.find((bond) => bond.targetResidentId === other.residentProfileId) || null
+  );
+}
+
+function evaluateVisitorEmotion(visitor) {
+  if (visitor.moodBias?.ttl > 0) {
+    return visitor.moodBias.id;
+  }
+  if (visitor.phase === "queue-wait" || visitor.phase === "queueing") {
+    if (visitor.queuePatience <= 2.2) {
+      return "annoyed";
+    }
+    if (visitor.queuePatience <= 4.6) {
+      return "bored";
+    }
+    return profileIsVisitorFavorite(visitor, getFacilityById(visitor.targetFacilityId)?.type || "")
+      ? "happy"
+      : "calm";
+  }
+  if (visitor.phase === "leaving-road" && state.timeOfDay.id === "midnight") {
+    return "tired";
+  }
+  if (
+    (state.timeOfDay.id === "midnight" || state.timeOfDay.id === "morning") &&
+    (visitor.phase === "going" || visitor.phase === "leaving")
+  ) {
+    return "tired";
+  }
+  if (
+    visitor.hurryTtl > 0 ||
+    ((state.world.weather.id === "drizzle" || state.world.weather.id === "snow") &&
+      canVisitorPauseForAmbient(visitor) &&
+      !isVisitorNearDestination(visitor))
+  ) {
+    return "rushed";
+  }
+  if (visitor.socialGlowTtl > 0) {
+    return "happy";
+  }
+  if (visitor.localPause > 0.65 && canVisitorPauseForAmbient(visitor)) {
+    return "bored";
+  }
+  return "calm";
+}
+
+function updateVisitorEmotionState(visitor, delta) {
+  if (visitor.moodBias) {
+    visitor.moodBias.ttl -= delta;
+    if (visitor.moodBias.ttl <= 0) {
+      visitor.moodBias = null;
+    }
+  }
+  visitor.socialGlowTtl = Math.max(0, (visitor.socialGlowTtl || 0) - delta);
+  visitor.hurryTtl = Math.max(0, (visitor.hurryTtl || 0) - delta);
+  visitor.emotionSampleTimer = Math.max(0, (visitor.emotionSampleTimer || 0) - delta);
+  if (visitor.emotionSampleTimer > 0 && visitor.emotionId) {
+    return;
+  }
+  visitor.emotionSampleTimer = 0.9 + Math.random() * 0.8;
+  const nextEmotion = evaluateVisitorEmotion(visitor);
+  if (nextEmotion !== visitor.emotionId) {
+    visitor.emotionId = nextEmotion;
+    visitor.mood = nextEmotion;
+    const emotionDef = getVisitorEmotionDefinition(nextEmotion);
+    if (emotionDef.emote && (visitor.emoteCooldown || 0) <= 0 && Math.random() < 0.72) {
+      setVisitorEmote(visitor, emotionDef.emote, 0.95 + Math.random() * 0.5);
+    }
+  }
+}
+
+function getVisitorMoveSpeed(visitor) {
+  return visitor.speed * getVisitorEmotionDefinition(visitor.emotionId).speedMultiplier;
+}
+
 function listLandmarks() {
   return state.facilities.filter((facility) => facility.kind === "landmark");
 }
@@ -2705,7 +3435,7 @@ function getLandmarkErrandLabel(landmarkType, profileId) {
 }
 
 function getLandmarkCompletionPayload(visitor, landmarkType) {
-  const profileLabel = visitor.profileLabel || "顾客";
+  const profileLabel = getVisitorDisplayName(visitor);
   switch (landmarkType) {
     case "library":
       return visitor.profileId === "student"
@@ -3883,67 +4613,207 @@ function startVisitorLeaving(visitor) {
   visitor.targetY = visitor.exitRoadY;
 }
 
-function spawnVisitor() {
+function pickResidentProfileForArchetype(archetypeId, excludeIds = []) {
+  if (archetypeId === "traveler") {
+    return null;
+  }
+  const activeResidents = new Set(
+    state.visitors
+      .map((visitor) => visitor.residentProfileId)
+      .filter(Boolean),
+  );
+  const candidates = residentProfiles.filter(
+    (profile) =>
+      profile.archetypeId === archetypeId &&
+      !activeResidents.has(profile.id) &&
+      !excludeIds.includes(profile.id),
+  );
+  if (!candidates.length || Math.random() > 0.66) {
+    return null;
+  }
+  const weighted = candidates.map((profile) => {
+    const partnerActive = profile.bonds.some((bond) =>
+      state.visitors.some((visitor) => visitor.residentProfileId === bond.targetResidentId),
+    );
+    return { profile, weight: 1 + profile.socialAffinity + (partnerActive ? 0.9 : 0) };
+  });
+  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+  let cursor = Math.random() * totalWeight;
+  for (const item of weighted) {
+    cursor -= item.weight;
+    if (cursor <= 0) {
+      return item.profile;
+    }
+  }
+  return weighted[0]?.profile || null;
+}
+
+function buildVisitorSpawnPlan(profile, residentProfile = null, overrides = {}) {
   const facilities = listFacilities();
   if (!facilities.length) {
-    return;
+    return null;
   }
-  const profile = pickVisitorArchetype();
-  const target = chooseWeightedFacility(facilities, profile);
+  const target =
+    (overrides.targetFacilityId && getFacilityById(overrides.targetFacilityId)) ||
+    chooseWeightedFacility(facilities, profile);
+  if (!target) {
+    return null;
+  }
   const route =
-    (Math.random() < 0.58 && buildLandmarkOriginRoute(target, profile)) ||
-    buildVisitorRoute(target);
+    overrides.route ||
+    ((Math.random() < 0.58 && buildLandmarkOriginRoute(target, profile)) || buildVisitorRoute(target));
   if (!route) {
-    return;
+    return null;
   }
-  const palette =
-    visitorPalette[(state.nextVisitorId - 1) % visitorPalette.length];
+  const errandLandmark =
+    overrides.errandLandmark === undefined
+      ? Math.random() < 0.66
+        ? chooseErrandLandmark(profile, route.originLandmarkId || null)
+        : null
+      : overrides.errandLandmark;
+  return {
+    profile,
+    residentProfile,
+    target,
+    route,
+    errandLandmark,
+  };
+}
+
+function cloneRoute(route) {
+  return {
+    ...route,
+    roadEntry: route.roadEntry ? { ...route.roadEntry } : null,
+    roadExit: route.roadExit ? { ...route.roadExit } : null,
+    approachTile: route.approachTile ? { ...route.approachTile } : null,
+    path: route.path.map((tile) => ({ ...tile })),
+  };
+}
+
+function createVisitorFromPlan(plan, options = {}) {
+  const { companionAnchor = null, siblingResidentId = null } = options;
+  const appearance = getVisitorAppearance(
+    plan.profile.id,
+    plan.residentProfile,
+    state.nextVisitorId - 1,
+  );
+  const route = cloneRoute(plan.route);
   const firstTile = route.path[0];
   const firstCenter = getTileCenter(firstTile.col, firstTile.row);
   const nextPathIndex = route.originKind === "landmark" ? Math.min(1, route.path.length - 1) : 0;
   const firstTargetTile = route.path[nextPathIndex];
   const firstTargetCenter = getTileCenter(firstTargetTile.col, firstTargetTile.row);
-  const errandLandmark = Math.random() < 0.66
-    ? chooseErrandLandmark(profile, route.originLandmarkId || null)
-    : null;
-  state.visitors.push({
+  const positionOffset = companionAnchor ? (state.nextVisitorId % 2 === 0 ? 10 : -10) : 0;
+  const visitor = {
     id: state.nextVisitorId,
-    x: route.originKind === "landmark" ? firstCenter.x : route.roadEntry.x,
+    x:
+      (route.originKind === "landmark" ? firstCenter.x : route.roadEntry.x) + positionOffset,
     y: route.originKind === "landmark" ? firstCenter.y : route.roadEntry.y,
-    speed:
-      (52 + Math.random() * 16) * simulationTuning.visitorSpeedMultiplier,
-    mood: 1,
-    profileId: profile.id,
-    profileLabel: profile.label,
-    targetFacilityId: target.id,
-    targetCol: target.col,
-    targetRow: target.row,
+    speed: (52 + Math.random() * 16) * simulationTuning.visitorSpeedMultiplier,
+    mood: "calm",
+    emotionId: "calm",
+    emotionSampleTimer: 0.4 + Math.random() * 0.6,
+    moodBias: null,
+    profileId: plan.profile.id,
+    profileLabel: plan.profile.label,
+    displayName: plan.residentProfile?.name || plan.profile.label,
+    residentProfileId: plan.residentProfile?.id || null,
+    socialAffinity: plan.residentProfile?.socialAffinity || 0.34 + Math.random() * 0.28,
+    socialBonds: plan.residentProfile?.bonds?.map((bond) => ({ ...bond })) || [],
+    socialCooldown: 4 + Math.random() * 3.5,
+    ambientCooldown: 2.4 + Math.random() * 2.4,
+    localPause: companionAnchor ? 0.5 + Math.random() * 0.3 : 0,
+    socialGlowTtl: companionAnchor ? 2.8 + Math.random() * 1.2 : 0,
+    hurryTtl: 0,
+    siblingResidentId,
+    targetFacilityId: plan.target.id,
+    targetCol: plan.target.col,
+    targetRow: plan.target.row,
     targetApproachCol: route.approachTile.col,
     targetApproachRow: route.approachTile.row,
     phase: route.originKind === "landmark" ? "going" : "to-grid",
     wait: 0,
-    colors: palette,
+    appearance,
     path: route.path,
     pathIndex: nextPathIndex,
     queuePatience: 0,
     queueSlotIndex: 0,
     targetX:
-      route.originKind === "landmark" ? firstTargetCenter.x : firstCenter.x,
+      (route.originKind === "landmark" ? firstTargetCenter.x : firstCenter.x) + positionOffset,
     targetY:
       route.originKind === "landmark" ? firstTargetCenter.y : layout.roadY + 18,
     exitRoadX: route.roadExit.x,
     exitRoadY: route.roadExit.y,
     originLandmarkId: route.originLandmarkId || null,
     originLandmarkType: route.originLandmarkType || null,
-    errandLandmarkId: errandLandmark?.id || null,
-    errandLandmarkType: errandLandmark?.type || null,
+    errandLandmarkId: plan.errandLandmark?.id || null,
+    errandLandmarkType: plan.errandLandmark?.type || null,
     pendingErrandPath: null,
     emote: null,
     emoteCooldown: 0.6 + Math.random() * 1.8,
     incidentPause: 0,
     errandBadge: null,
-  });
+  };
+  state.visitors.push(visitor);
   state.nextVisitorId += 1;
+  return visitor;
+}
+
+function maybeSpawnBondCompanion(primaryVisitor, primaryPlan) {
+  if (!primaryPlan.residentProfile?.bonds?.length || state.visitors.length >= 16) {
+    return null;
+  }
+  const activeBond = primaryPlan.residentProfile.bonds.find((bond) =>
+    bond.activeHours.includes(state.timeOfDay.id),
+  );
+  if (!activeBond || Math.random() > activeBond.closeness * 0.72) {
+    return null;
+  }
+  if (getVisitorById(primaryVisitor.id)?.phase === "queue-wait") {
+    return null;
+  }
+  if (state.visitors.some((visitor) => visitor.residentProfileId === activeBond.targetResidentId)) {
+    return null;
+  }
+  const companionResident = getResidentProfileById(activeBond.targetResidentId);
+  if (!companionResident) {
+    return null;
+  }
+  const companionProfile =
+    visitorArchetypes.find((item) => item.id === companionResident.archetypeId) || primaryPlan.profile;
+  const companionPlan = buildVisitorSpawnPlan(companionProfile, companionResident, {
+    targetFacilityId: primaryPlan.target.id,
+    route: cloneRoute(primaryPlan.route),
+    errandLandmark: primaryPlan.errandLandmark,
+  });
+  if (!companionPlan) {
+    return null;
+  }
+  const companion = createVisitorFromPlan(companionPlan, {
+    companionAnchor: primaryVisitor,
+    siblingResidentId: primaryPlan.residentProfile.id,
+  });
+  primaryVisitor.siblingResidentId = companion.residentProfileId;
+  setVisitorMoodBias(primaryVisitor, "happy", 5.4);
+  setVisitorMoodBias(companion, "happy", 5.4);
+  return companion;
+}
+
+function spawnVisitor() {
+  const facilities = listFacilities();
+  if (!facilities.length) {
+    return;
+  }
+  const profile = pickVisitorArchetype();
+  const residentProfile = pickResidentProfileForArchetype(profile.id);
+  const plan = buildVisitorSpawnPlan(profile, residentProfile);
+  if (!plan) {
+    return;
+  }
+  const visitor = createVisitorFromPlan(plan);
+  if (visitor.residentProfileId) {
+    maybeSpawnBondCompanion(visitor, plan);
+  }
 }
 
 function visitFacility(visitor) {
@@ -4023,6 +4893,9 @@ function updateVisitors(delta) {
   for (const visitor of state.visitors) {
     visitor.emoteCooldown = Math.max(0, (visitor.emoteCooldown || 0) - delta);
     visitor.incidentPause = Math.max(0, (visitor.incidentPause || 0) - delta);
+    visitor.socialCooldown = Math.max(0, (visitor.socialCooldown || 0) - delta);
+    visitor.ambientCooldown = Math.max(0, (visitor.ambientCooldown || 0) - delta);
+    visitor.localPause = Math.max(0, (visitor.localPause || 0) - delta);
     if (visitor.errandBadge) {
       visitor.errandBadge.ttl -= delta;
       if (visitor.errandBadge.ttl <= 0) {
@@ -4035,17 +4908,8 @@ function updateVisitors(delta) {
         visitor.emote = null;
       }
     }
-    if (
-      visitor.phase === "to-grid" ||
-      visitor.phase === "going" ||
-      visitor.phase === "errand-going" ||
-      visitor.phase === "queueing" ||
-      visitor.phase === "entering" ||
-      visitor.phase === "landmark-entering" ||
-      visitor.phase === "exiting" ||
-      visitor.phase === "leaving" ||
-      visitor.phase === "leaving-road"
-    ) {
+    updateVisitorEmotionState(visitor, delta);
+    if (isVisitorMovingPhase(visitor)) {
       if (
         (visitor.phase === "to-grid" ||
           visitor.phase === "going" ||
@@ -4056,7 +4920,7 @@ function updateVisitors(delta) {
         startVisitorLeaving(visitor);
       }
       if (
-        visitor.incidentPause > 0 &&
+        (visitor.incidentPause > 0 || visitor.localPause > 0) &&
         visitor.phase !== "queueing" &&
         visitor.phase !== "queue-wait"
       ) {
@@ -4100,6 +4964,7 @@ function updateVisitors(delta) {
         } else if (visitor.phase === "entering") {
           const facility = getFacilityById(visitor.targetFacilityId);
           visitor.phase = "inside";
+          setVisitorMoodBias(visitor, "happy", 4.2);
           visitor.wait = facility
             ? getFacilityServiceDuration(facility)
             : simulationTuning.visitorWait;
@@ -4110,7 +4975,7 @@ function updateVisitors(delta) {
             const landmarkName =
               getStructureDef(visitor.errandLandmarkType)?.name || "默认建筑";
             pushMessage(
-              `${visitor.profileLabel || "顾客"} 进了 ${landmarkName}${getLandmarkErrandLabel(
+              `${getVisitorDisplayName(visitor)} 进了 ${landmarkName}${getLandmarkErrandLabel(
                 visitor.errandLandmarkType,
                 visitor.profileId,
               )}。`,
@@ -4166,7 +5031,7 @@ function updateVisitors(delta) {
           }
         }
       } else {
-        const move = Math.min(dist, visitor.speed * delta);
+        const move = Math.min(dist, getVisitorMoveSpeed(visitor) * delta);
         visitor.x += (dx / dist) * move;
         visitor.y += (dy / dist) * move;
       }
@@ -4179,6 +5044,11 @@ function updateVisitors(delta) {
       visitor.queuePatience -= delta;
       visitor.queuePatience -=
         delta * Math.max(0, getIncidentQueueDrainMultiplier(facility) - 1);
+      if (visitor.queuePatience <= 2.4) {
+        setVisitorMoodBias(visitor, "annoyed", 2.8);
+      } else if (visitor.queuePatience <= 4.8) {
+        setVisitorMoodBias(visitor, "bored", 2.2);
+      }
       if (Math.random() < delta * 0.46) {
         maybeTriggerQueueReaction(visitor, facility, 0.18);
       }
@@ -4210,6 +5080,7 @@ function updateVisitors(delta) {
       if (visitor.wait <= 0) {
         const plannedErrand = planVisitorErrandAfterService(visitor);
         visitFacility(visitor);
+        setVisitorMoodBias(visitor, "happy", 6);
         const approachTile = visitor.path[visitor.path.length - 1];
         visitor.pendingErrandPath = plannedErrand?.path || null;
         visitor.phase = "exiting";
@@ -4234,6 +5105,7 @@ function updateVisitors(delta) {
       visitor.wait -= delta;
       if (visitor.wait <= 0) {
         completeLandmarkErrand(visitor);
+        setVisitorMoodBias(visitor, "happy", 5.4);
         visitor.phase = "leaving";
         visitor.pathIndex = Math.max(0, visitor.path.length - 1);
         if (visitor.pathIndex > 0) {
@@ -4365,6 +5237,7 @@ function update(delta) {
   }
 
   updateVisitors(delta);
+  updateVisitorAmbientLayer();
   updateFacilityCrowding(delta);
   updateFloaters(delta);
   state.visitorTalkTimer -= delta;
@@ -4504,6 +5377,164 @@ function drawFittedSprite(sprite, palette, x, y, width, height) {
   drawSprite(sprite, palette, drawX, drawY, scale);
 }
 
+function drawPixelCloud(x, y, scale, alpha, variant = 0, weatherId = "sunny") {
+  const template = pixelCloudTemplates[variant % pixelCloudTemplates.length];
+  const light =
+    weatherId === "drizzle" ? "#edf3fb" : weatherId === "snow" ? "#f8fbff" : "#fffaf0";
+  const mid =
+    weatherId === "drizzle" ? "#dbe6f3" : weatherId === "snow" ? "#e6f1fb" : "#eef5ff";
+  const shade =
+    weatherId === "drizzle" ? "#bccbdd" : weatherId === "snow" ? "#c9d9ea" : "#d6e6f2";
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = shade;
+  template.body.forEach(([bx, by, bw, bh]) => {
+    ctx.fillRect(x + (bx + 1) * scale, y + (by + 2) * scale, bw * scale, bh * scale);
+  });
+  ctx.fillStyle = mid;
+  template.body.forEach(([bx, by, bw, bh]) => {
+    ctx.fillRect(x + bx * scale, y + (by + 1) * scale, bw * scale, bh * scale);
+  });
+  ctx.fillStyle = light;
+  template.body.forEach(([bx, by, bw, bh]) => {
+    ctx.fillRect(x + bx * scale, y + by * scale, bw * scale, bh * scale);
+  });
+  ctx.fillStyle = "rgba(255,255,255,0.42)";
+  template.highlight.forEach(([bx, by, bw, bh]) => {
+    ctx.fillRect(x + bx * scale, y + by * scale, bw * scale, bh * scale);
+  });
+  ctx.restore();
+}
+
+function drawBird(x, y, scale = 2, color = "#4f4448") {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y + scale, scale, scale);
+  ctx.fillRect(x + scale, y, scale, scale);
+  ctx.fillRect(x + scale * 2, y + scale, scale, scale);
+}
+
+function drawSkyTraffic(playfieldWidth) {
+  if (state.timeOfDay.id !== "midnight") {
+    const planeTravel = (state.cameraPulse * 20) % (playfieldWidth + 220);
+    const planeX = playfieldWidth + 140 - planeTravel;
+    const planeY = 86 + Math.sin(state.cameraPulse * 0.35) * 8;
+    const planeAlpha =
+      state.world.weather.id === "drizzle" ? 0.44 : state.world.weather.id === "cloudy" ? 0.62 : 0.86;
+    ctx.save();
+    ctx.globalAlpha = planeAlpha;
+    ctx.fillStyle = "#fff9e9";
+    ctx.fillRect(planeX, planeY + 3, 26, 4);
+    ctx.fillRect(planeX + 7, planeY, 10, 3);
+    ctx.fillRect(planeX + 9, planeY + 7, 8, 2);
+    ctx.fillRect(planeX + 17, planeY + 2, 8, 2);
+    ctx.fillStyle = "#c9d8e8";
+    ctx.fillRect(planeX + 4, planeY + 4, 16, 2);
+    if (state.world.activeFestival) {
+      ctx.fillStyle = state.world.activeFestival.color;
+      ctx.fillRect(planeX + 29, planeY + 3, 18, 2);
+      ctx.fillRect(planeX + 47, planeY + 3, 4, 4);
+    }
+    ctx.restore();
+  }
+
+  const flockCount =
+    state.world.weather.id === "drizzle" ? 1 : state.world.weather.id === "cloudy" ? 2 : 3;
+  for (let flock = 0; flock < flockCount; flock += 1) {
+    const speed = 32 + flock * 8;
+    const span = playfieldWidth + 180;
+    const leader = (state.cameraPulse * speed + flock * 140) % span;
+    const baseX = leader - 90;
+    const baseY = 98 + flock * 28 + Math.sin(state.cameraPulse * (0.9 + flock * 0.12)) * 6;
+    for (let index = 0; index < 3 + flock; index += 1) {
+      drawBird(
+        Math.round(baseX - index * 14),
+        Math.round(baseY + (index % 2 === 0 ? 0 : 4)),
+        2,
+        state.world.weather.id === "drizzle" ? "#66707d" : "#51474b",
+      );
+    }
+  }
+}
+
+function drawRoadVehicle(x, y, scale, palette, type = "car") {
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.fillRect(x + scale, y + scale * 6, scale * (type === "bus" ? 15 : 11), scale * 2);
+  ctx.fillStyle = palette.body;
+  if (type === "bus") {
+    ctx.fillRect(x, y + scale * 2, scale * 16, scale * 4);
+    ctx.fillRect(x + scale * 2, y, scale * 9, scale * 3);
+  } else if (type === "truck") {
+    ctx.fillRect(x, y + scale * 2, scale * 12, scale * 4);
+    ctx.fillRect(x + scale * 8, y, scale * 4, scale * 3);
+  } else {
+    ctx.fillRect(x, y + scale * 2, scale * 12, scale * 3);
+    ctx.fillRect(x + scale * 2, y, scale * 6, scale * 3);
+  }
+  ctx.fillStyle = palette.roof;
+  if (type === "bus") {
+    ctx.fillRect(x + scale * 3, y + scale, scale * 8, scale * 2);
+    ctx.fillRect(x + scale, y + scale * 3, scale * 13, scale);
+  } else if (type === "truck") {
+    ctx.fillRect(x + scale, y + scale * 3, scale * 6, scale);
+    ctx.fillRect(x + scale * 8, y + scale, scale * 3, scale * 2);
+  } else {
+    ctx.fillRect(x + scale * 2, y + scale, scale * 5, scale * 2);
+  }
+  ctx.fillStyle = palette.trim;
+  ctx.fillRect(x + scale * 2, y + scale * 6, scale * 2, scale * 2);
+  ctx.fillRect(x + scale * 8, y + scale * 6, scale * 2, scale * 2);
+  if (type === "bus") {
+    ctx.fillRect(x + scale * 12, y + scale * 6, scale * 2, scale * 2);
+  }
+}
+
+function drawRoadTraffic(playfieldWidth) {
+  const trafficScale =
+    state.timeOfDay.id === "midnight" ? 0.45 : state.timeOfDay.id === "evening" ? 0.8 : 1;
+  const vehicles = [
+    {
+      speed: 76 * trafficScale,
+      offset: 0,
+      y: layout.roadY + 10,
+      dir: 1,
+      scale: 2,
+      palette: roadTrafficPalettes[0],
+      type: "car",
+    },
+    {
+      speed: 54 * trafficScale,
+      offset: 190,
+      y: layout.roadY + 30,
+      dir: -1,
+      scale: 2,
+      palette: roadTrafficPalettes[1],
+      type: "truck",
+    },
+    {
+      speed: 34 * trafficScale,
+      offset: 420,
+      y: layout.roadY + 8,
+      dir: 1,
+      scale: 2,
+      palette: roadTrafficPalettes[3],
+      type: "bus",
+    },
+  ];
+  vehicles.forEach((vehicle, index) => {
+    const span = playfieldWidth + 220;
+    const travel = (state.cameraPulse * vehicle.speed + vehicle.offset) % span;
+    const x =
+      vehicle.dir > 0 ? Math.round(travel - 120) : Math.round(playfieldWidth + 120 - travel);
+    drawRoadVehicle(x, vehicle.y + (index % 2), vehicle.scale, vehicle.palette, vehicle.type);
+    if (state.timeOfDay.id === "evening" || state.timeOfDay.id === "midnight") {
+      ctx.fillStyle = "#ffe39f";
+      const lightX = vehicle.dir > 0 ? x + vehicle.scale * 14 : x - vehicle.scale;
+      ctx.fillRect(lightX, vehicle.y + 8, vehicle.scale, vehicle.scale);
+      ctx.fillRect(lightX, vehicle.y + 11, vehicle.scale, vehicle.scale);
+    }
+  });
+}
+
 function drawBackground() {
   const playfieldWidth = layout.sidebarX - 18;
   const skyPalette = {
@@ -4530,40 +5561,39 @@ function drawBackground() {
 
   const cloudBands = [
     {
-      speed: 9,
-      y: 112,
+      speed: 7,
+      y: 108,
       alpha: state.world.weather.id === "drizzle" ? 0.68 : 0.56,
       clouds: [
-        { x: 86, w: 88, h: 24 },
-        { x: 246, w: 72, h: 28 },
-        { x: 438, w: 84, h: 22 },
-        { x: 658, w: 96, h: 26 },
+        { x: 82, scale: 4, variant: 0 },
+        { x: 252, scale: 3, variant: 1 },
+        { x: 438, scale: 4, variant: 2 },
+        { x: 648, scale: 4, variant: 1 },
       ],
     },
     {
-      speed: 5,
-      y: 154,
+      speed: 4,
+      y: 150,
       alpha: state.world.weather.id === "drizzle" ? 0.54 : 0.42,
       clouds: [
-        { x: 152, w: 70, h: 18 },
-        { x: 382, w: 86, h: 20 },
-        { x: 618, w: 74, h: 18 },
+        { x: 148, scale: 3, variant: 2 },
+        { x: 372, scale: 3, variant: 0 },
+        { x: 610, scale: 3, variant: 1 },
       ],
     },
   ];
   for (const band of cloudBands) {
-    const drift = (state.cameraPulse * band.speed) % (playfieldWidth + 120);
-    ctx.fillStyle = `rgba(255, 255, 255, ${band.alpha})`;
+    const drift = (state.cameraPulse * band.speed) % (playfieldWidth + 220);
     for (const cloud of band.clouds) {
       const baseX = cloud.x + drift - 120;
-      for (const wrapOffset of [0, -(playfieldWidth + 160)]) {
+      for (const wrapOffset of [0, -(playfieldWidth + 240)]) {
         const drawX = baseX + wrapOffset;
-        ctx.fillRect(drawX, band.y, cloud.w, cloud.h);
-        ctx.fillRect(drawX + 18, band.y - 10, Math.max(34, cloud.w - 24), cloud.h);
-        ctx.fillRect(drawX + 10, band.y + 8, Math.max(26, cloud.w - 32), Math.max(10, cloud.h - 8));
+        drawPixelCloud(drawX, band.y, cloud.scale, band.alpha, cloud.variant, state.world.weather.id);
       }
     }
   }
+
+  drawSkyTraffic(playfieldWidth);
 
   const mountainColors =
     state.world.season.id === "winter"
@@ -4603,6 +5633,7 @@ function drawBackground() {
   for (let x = 20; x < playfieldWidth; x += 80) {
     ctx.fillRect(x, layout.roadY + 20, 34, 6);
   }
+  drawRoadTraffic(playfieldWidth);
 
   const treePalette =
     state.world.season.id === "winter"
@@ -4880,26 +5911,180 @@ function drawFacility(facility) {
   }
 }
 
+function getVisitorDrawMetrics(visitor) {
+  const frame = visitor.appearance?.frame || "standard";
+  switch (frame) {
+    case "short":
+      return {
+        shadowW: 13,
+        hairX: -5,
+        hairY: -13,
+        hairW: 9,
+        faceX: -5,
+        faceY: -8,
+        faceW: 10,
+        faceH: 9,
+        bodyX: -6,
+        bodyY: 3,
+        bodyW: 12,
+        bodyH: 10,
+        legY: 13,
+        legH: 8,
+      };
+    case "tall":
+      return {
+        shadowW: 14,
+        hairX: -4,
+        hairY: -13,
+        hairW: 8,
+        faceX: -5,
+        faceY: -8,
+        faceW: 10,
+        faceH: 10,
+        bodyX: -6,
+        bodyY: 1,
+        bodyW: 12,
+        bodyH: 13,
+        legY: 14,
+        legH: 9,
+      };
+    case "broad":
+      return {
+        shadowW: 16,
+        hairX: -5,
+        hairY: -12,
+        hairW: 10,
+        faceX: -6,
+        faceY: -7,
+        faceW: 12,
+        faceH: 9,
+        bodyX: -7,
+        bodyY: 2,
+        bodyW: 14,
+        bodyH: 11,
+        legY: 13,
+        legH: 8,
+      };
+    default:
+      return {
+        shadowW: 14,
+        hairX: -4,
+        hairY: -12,
+        hairW: 8,
+        faceX: -5,
+        faceY: -7,
+        faceW: 10,
+        faceH: 9,
+        bodyX: -6,
+        bodyY: 2,
+        bodyW: 12,
+        bodyH: 11,
+        legY: 13,
+        legH: 8,
+      };
+  }
+}
+
+function drawVisitorAccessory(visitor, x, y, metrics) {
+  const look = visitor.appearance;
+  if (!look?.accessory) {
+    return;
+  }
+  ctx.fillStyle = look.accent || "#fff1bf";
+  switch (look.accessory) {
+    case "cap":
+      ctx.fillRect(x + metrics.hairX - 1, y + metrics.hairY - 2, metrics.hairW + 2, 3);
+      ctx.fillRect(x + metrics.hairX + 1, y + metrics.hairY + 1, metrics.hairW - 1, 1);
+      break;
+    case "ribbon":
+      ctx.fillRect(x + metrics.hairX - 1, y + metrics.hairY + 1, 3, 3);
+      ctx.fillRect(x + metrics.hairX + metrics.hairW - 1, y + metrics.hairY + 1, 3, 3);
+      ctx.fillRect(x + metrics.hairX + 2, y + metrics.hairY + 2, metrics.hairW - 2, 1);
+      break;
+    case "scarf":
+      ctx.fillRect(x + metrics.bodyX + 1, y + metrics.bodyY + 1, metrics.bodyW - 2, 2);
+      ctx.fillRect(x + metrics.bodyX + 3, y + metrics.bodyY + 3, 3, 4);
+      break;
+    case "briefcase":
+      ctx.fillStyle = "#6b5547";
+      ctx.fillRect(x + metrics.bodyX + metrics.bodyW, y + metrics.bodyY + 5, 5, 5);
+      ctx.fillStyle = look.accent || "#fff1bf";
+      ctx.fillRect(x + metrics.bodyX + metrics.bodyW + 1, y + metrics.bodyY + 4, 3, 1);
+      break;
+    case "tie":
+      ctx.fillRect(x - 1, y + metrics.bodyY + 2, 2, 6);
+      ctx.fillRect(x - 2, y + metrics.bodyY + 7, 4, 2);
+      break;
+    case "hat":
+      ctx.fillRect(x + metrics.hairX - 1, y + metrics.hairY - 3, metrics.hairW + 2, 3);
+      ctx.fillRect(x + metrics.hairX + 1, y + metrics.hairY - 6, metrics.hairW - 2, 3);
+      break;
+    case "bag":
+      ctx.fillRect(x + metrics.bodyX + metrics.bodyW - 1, y + metrics.bodyY + 4, 5, 6);
+      ctx.fillRect(x + metrics.bodyX + metrics.bodyW - 2, y + metrics.bodyY + 2, 1, 4);
+      break;
+    default:
+      break;
+  }
+}
+
+function drawVisitorNameTag(visitor, x, topY) {
+  if (!visitor.residentProfileId) {
+    return;
+  }
+  const name = getVisitorDisplayName(visitor);
+  const accent = visitor.appearance?.accent || "#fff0ce";
+  ctx.save();
+  ctx.font = "bold 11px Trebuchet MS";
+  const width = Math.max(26, Math.ceil(ctx.measureText(name).width) + 12);
+  const boxX = Math.round(x - width / 2);
+  ctx.fillStyle = "rgba(47, 34, 49, 0.2)";
+  ctx.fillRect(boxX + 1, topY + 2, width, 14);
+  ctx.fillStyle = "#fff8de";
+  ctx.fillRect(boxX, topY, width, 14);
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(boxX + 1, topY + 1, width - 2, 12);
+  ctx.fillStyle = "#2f2231";
+  ctx.fillText(name, boxX + 5, topY + 10);
+  ctx.restore();
+}
+
 function drawVisitors() {
   for (const visitor of state.visitors) {
     if (visitor.phase === "inside") {
       continue;
     }
+    const look = visitor.appearance || getVisitorAppearance(visitor.profileId, null, visitor.id);
+    const metrics = getVisitorDrawMetrics(visitor);
     const x = Math.round(visitor.x);
     const y = Math.round(visitor.y);
     ctx.fillStyle = "rgba(0,0,0,0.18)";
-    ctx.fillRect(x - 7, y + 8, 14, 4);
-    ctx.fillStyle = visitor.colors.hair;
-    ctx.fillRect(x - 4, y - 12, 8, 5);
-    ctx.fillStyle = "#f4d8be";
-    ctx.fillRect(x - 5, y - 7, 10, 9);
-    ctx.fillStyle = visitor.colors.shirt;
-    ctx.fillRect(x - 6, y + 2, 12, 11);
+    ctx.fillRect(x - Math.floor(metrics.shadowW / 2), y + 8, metrics.shadowW, 4);
+    ctx.fillStyle = look.hair;
+    ctx.fillRect(x + metrics.hairX, y + metrics.hairY, metrics.hairW, 5);
+    drawVisitorAccessory(visitor, x, y, metrics);
+    ctx.fillStyle = look.skin || "#f4d8be";
+    ctx.fillRect(x + metrics.faceX, y + metrics.faceY, metrics.faceW, metrics.faceH);
+    ctx.fillStyle = look.shirt;
+    ctx.fillRect(x + metrics.bodyX, y + metrics.bodyY, metrics.bodyW, metrics.bodyH);
+    ctx.fillStyle = look.accent || "#fff0ce";
+    ctx.fillRect(x + metrics.bodyX + 1, y + metrics.bodyY + 2, metrics.bodyW - 2, 2);
     ctx.fillStyle = "#4c3d37";
-    ctx.fillRect(x - 4, y + 13, 3, 8);
-    ctx.fillRect(x + 1, y + 13, 3, 8);
+    ctx.fillRect(x + metrics.bodyX + 2, y + metrics.legY, 3, metrics.legH);
+    ctx.fillRect(x + metrics.bodyX + metrics.bodyW - 5, y + metrics.legY, 3, metrics.legH);
+    ctx.fillStyle = look.pants || "#5f5a78";
+    ctx.fillRect(x + metrics.bodyX + 1, y + metrics.bodyY + metrics.bodyH - 2, metrics.bodyW - 2, 2);
+    const emotionDef = getVisitorEmotionDefinition(visitor.emotionId);
     ctx.fillStyle = "rgba(255, 248, 214, 0.92)";
     ctx.fillRect(x - 8, y - 18, 16, 4);
+    ctx.fillStyle = emotionDef.accent;
+    ctx.fillRect(
+      x - 7,
+      y - 17,
+      visitor.emotionId === "calm" ? 6 : 12,
+      2,
+    );
     if (visitor.phase === "queueing" || visitor.phase === "queue-wait") {
       const patienceRatio = Math.max(
         0,
@@ -4915,10 +6100,11 @@ function drawVisitors() {
       ctx.fillRect(x - 3, y - 27, 2, 2);
       ctx.fillRect(x + 1, y - 27, 2, 2);
     }
+    let stackCursor = y - 34;
     if (visitor.errandBadge) {
       const badgeDef = landmarkResultSprites[visitor.errandBadge.type];
       if (badgeDef) {
-        const badgeY = visitor.emote ? y - 58 : y - 41;
+        const badgeY = stackCursor - 16;
         ctx.fillStyle = "rgba(47, 34, 49, 0.16)";
         ctx.fillRect(x - 8, badgeY + 2, 16, 16);
         ctx.fillStyle = "#fff8de";
@@ -4927,21 +6113,25 @@ function drawVisitors() {
         ctx.lineWidth = 2;
         ctx.strokeRect(x - 8, badgeY + 1, 14, 14);
         drawSprite(badgeDef.sprite, badgeDef.palette, x - 5, badgeY + 3, 2);
+        stackCursor = badgeY - 6;
       }
     }
     if (visitor.emote) {
       const emoteDef = visitorEmoteSprites[visitor.emote.type];
       if (emoteDef) {
+        const bubbleY = stackCursor - 18;
         ctx.fillStyle = "rgba(47, 34, 49, 0.18)";
-        ctx.fillRect(x - 10, y - 41, 20, 14);
+        ctx.fillRect(x - 13, bubbleY + 2, 26, 18);
         ctx.fillStyle = "#fff8de";
-        ctx.fillRect(x - 11, y - 43, 20, 14);
+        ctx.fillRect(x - 14, bubbleY, 26, 18);
         ctx.strokeStyle = "#7f675f";
         ctx.lineWidth = 2;
-        ctx.strokeRect(x - 10, y - 42, 18, 12);
-        drawSprite(emoteDef.sprite, emoteDef.palette, x - 5, y - 39, 2);
+        ctx.strokeRect(x - 13, bubbleY + 1, 24, 16);
+        drawSprite(emoteDef.sprite, emoteDef.palette, x - 7, bubbleY + 2, 3);
+        stackCursor = bubbleY - 6;
       }
     }
+    drawVisitorNameTag(visitor, x, stackCursor - 14);
   }
 }
 
@@ -5728,14 +6918,19 @@ window.render_game_to_text = () =>
     })),
     visitors: state.visitors.map((visitor) => ({
       id: visitor.id,
+      displayName: getVisitorDisplayName(visitor),
       profileId: visitor.profileId,
       profileLabel: visitor.profileLabel,
+      residentProfileId: visitor.residentProfileId || null,
       x: Math.round(visitor.x),
       y: Math.round(visitor.y),
       phase: visitor.phase,
+      emotionId: visitor.emotionId || "calm",
       queuePatience: Number(visitor.queuePatience?.toFixed?.(2) || 0),
       emote: visitor.emote?.type || null,
       errandBadge: visitor.errandBadge?.type || null,
+      localPause: Number(visitor.localPause?.toFixed?.(2) || 0),
+      siblingResidentId: visitor.siblingResidentId || null,
       originLandmarkType: visitor.originLandmarkType || null,
       errandLandmarkType: visitor.errandLandmarkType || null,
       target: { col: visitor.targetCol, row: visitor.targetRow },
