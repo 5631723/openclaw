@@ -4,6 +4,7 @@ ctx.imageSmoothingEnabled = false;
 
 const startButton = document.getElementById("start-btn");
 const restartButton = document.getElementById("restart-btn");
+const speedButtons = [...document.querySelectorAll(".speed-button")];
 const automationDriven = Boolean(window.navigator.webdriver);
 const initialDebugIncidentId = (() => {
   try {
@@ -47,6 +48,27 @@ const simulationTuning = automationDriven
       visitorSpeedMultiplier: 1,
       visitorWait: 0.9,
     };
+
+const playSpeedPresets = [
+  {
+    id: "relaxed",
+    label: "舒缓",
+    multiplier: 0.6,
+    description: "更适合挂机观察，天气和客流变化都会慢下来。",
+  },
+  {
+    id: "standard",
+    label: "标准",
+    multiplier: 1,
+    description: "正常的小镇节奏，适合边观察边操作。",
+  },
+  {
+    id: "busy",
+    label: "热闹",
+    multiplier: 1.5,
+    description: "街区节奏更快，适合快速验证变化。",
+  },
+];
 
 const layout = {
   gridX: 38,
@@ -3003,6 +3025,246 @@ function getTimeOfDay(hour) {
   );
 }
 
+function getPlaySpeedPreset(id = "standard") {
+  return playSpeedPresets.find((item) => item.id === id) || playSpeedPresets[1];
+}
+
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function smoothstep(value) {
+  const t = clamp01(value);
+  return t * t * (3 - 2 * t);
+}
+
+function mixNumber(from, to, t) {
+  return from + (to - from) * t;
+}
+
+function parseColor(color) {
+  if (!color) {
+    return { r: 255, g: 255, b: 255, a: 1 };
+  }
+  if (color.startsWith("#")) {
+    const hex = color.slice(1);
+    const normalized =
+      hex.length === 3
+        ? hex
+            .split("")
+            .map((part) => part + part)
+            .join("")
+        : hex;
+    return {
+      r: Number.parseInt(normalized.slice(0, 2), 16),
+      g: Number.parseInt(normalized.slice(2, 4), 16),
+      b: Number.parseInt(normalized.slice(4, 6), 16),
+      a: 1,
+    };
+  }
+  const matched = color.match(/rgba?\(([^)]+)\)/i);
+  if (!matched) {
+    return { r: 255, g: 255, b: 255, a: 1 };
+  }
+  const [r = 255, g = 255, b = 255, a = 1] = matched[1]
+    .split(",")
+    .map((part) => Number.parseFloat(part.trim()));
+  return { r, g, b, a };
+}
+
+function formatColor({ r, g, b, a = 1 }) {
+  return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${Number(a.toFixed(3))})`;
+}
+
+function mixColor(from, to, t) {
+  const source = parseColor(from);
+  const target = parseColor(to);
+  return formatColor({
+    r: mixNumber(source.r, target.r, t),
+    g: mixNumber(source.g, target.g, t),
+    b: mixNumber(source.b, target.b, t),
+    a: mixNumber(source.a, target.a, t),
+  });
+}
+
+function mixColorArray(from = [], to = [], t) {
+  return from.map((color, index) => mixColor(color, to[index] || color, t));
+}
+
+function getEnvironmentVisualProfile(world = state.world, timeOfDay = state.timeOfDay) {
+  const seasonId = world?.season?.id || "spring";
+  const weatherId = world?.weather?.id || "sunny";
+  const timeOfDayId = timeOfDay?.id || "daytime";
+  const seasonPalettes = shellThemePalettes[seasonId] || shellThemePalettes.spring;
+  const basePalette = seasonPalettes[weatherId] || seasonPalettes.sunny;
+  let shellTop = basePalette.top;
+  let shellBottom = basePalette.bottom;
+  let shellGlow = basePalette.glow;
+  if (timeOfDayId === "evening") {
+    shellTop = "#e6c17c";
+    shellBottom = "#b97a67";
+    shellGlow = "rgba(255, 226, 190, 0.28)";
+  } else if (timeOfDayId === "midnight") {
+    shellTop = "#889cc4";
+    shellBottom = "#4e6289";
+    shellGlow = "rgba(230, 240, 255, 0.18)";
+  } else if (timeOfDayId === "morning") {
+    shellGlow = "rgba(255, 250, 226, 0.46)";
+  }
+
+  const skyPalette = {
+    spring: ["#9be0ff", "#d2f2ff", "#ffe2b3"],
+    summer: ["#80d2ff", "#bfe9ff", "#ffd88c"],
+    autumn: ["#9ad2f2", "#d8efff", "#ffcf99"],
+    winter: ["#b9d9f8", "#edf6ff", "#e8f0ff"],
+  };
+  const mountainPalette = {
+    winter: ["#b9cad6", "#9eb3c0", "#8799a8"],
+    autumn: ["#c9af7f", "#bc9765", "#9d7a56"],
+    default: ["#99c27f", "#87b36a", "#6b9460"],
+  };
+  const lawnPalette = {
+    spring: ["#d9f3a4", "#92cf63"],
+    summer: ["#c9eb78", "#84c362"],
+    autumn: ["#d8d28b", "#aab25e"],
+    winter: ["#e7f0f6", "#a0bbd2"],
+  };
+  const treePalette = {
+    winter: { top: "#d7ebf5", trunk: "#7b675f", highlight: "#f5fbff" },
+    autumn: { top: "#ffbf66", trunk: "#7d5638", highlight: "#ffd28c" },
+    summer: { top: "#79c861", trunk: "#7b5735", highlight: "#9bdf7e" },
+    spring: { top: "#9ddc86", trunk: "#7d593e", highlight: "#bbea9b" },
+  };
+  const sunAlphaByTime = {
+    midnight: 0.08,
+    morning: 0.82,
+    daytime: 1,
+    evening: 0.5,
+  };
+
+  return {
+    shellTop,
+    shellBottom,
+    shellGlow,
+    pageCloudOpacityFront:
+      weatherId === "drizzle"
+        ? 0.42
+        : weatherId === "cloudy"
+          ? 0.48
+          : weatherId === "snow"
+            ? 0.28
+            : 0.34,
+    pageCloudOpacityBack:
+      weatherId === "drizzle"
+        ? 0.3
+        : weatherId === "cloudy"
+          ? 0.36
+          : weatherId === "snow"
+            ? 0.22
+            : 0.24,
+    pageRainOpacity: weatherId === "drizzle" ? 0.32 : 0,
+    skyStops: skyPalette[seasonId] || skyPalette.spring,
+    sunColor:
+      weatherId === "drizzle" ? "rgba(255, 245, 198, 0.55)" : "rgba(255, 240, 170, 0.95)",
+    sunAlpha:
+      weatherId === "snow" ? 0 : (sunAlphaByTime[timeOfDayId] || 1) * (weatherId === "cloudy" ? 0.72 : 1),
+    cloudBandBackAlpha: weatherId === "drizzle" ? 0.68 : 0.56,
+    cloudBandFrontAlpha: weatherId === "drizzle" ? 0.54 : 0.42,
+    mountainColors:
+      mountainPalette[seasonId] || mountainPalette.default,
+    grassLight: (lawnPalette[seasonId] || lawnPalette.spring)[0],
+    grassDark: (lawnPalette[seasonId] || lawnPalette.spring)[1],
+    grassHighlight: "rgba(255, 244, 198, 0.68)",
+    grassShadow: "rgba(145, 170, 97, 0.32)",
+    treeTop: (treePalette[seasonId] || treePalette.spring).top,
+    treeTrunk: (treePalette[seasonId] || treePalette.spring).trunk,
+    treeHighlight: (treePalette[seasonId] || treePalette.spring).highlight,
+    rainAlpha: weatherId === "drizzle" ? 1 : 0,
+    snowAlpha: weatherId === "snow" ? 1 : 0,
+    autumnLeafAlpha: seasonId === "autumn" ? 1 : 0,
+    timeOverlay: timeOfDay?.overlay || "rgba(255, 255, 255, 0)",
+    nightLampAlpha: timeOfDayId === "midnight" ? 1 : 0,
+  };
+}
+
+function blendEnvironmentProfile(from, to, t) {
+  return {
+    shellTop: mixColor(from.shellTop, to.shellTop, t),
+    shellBottom: mixColor(from.shellBottom, to.shellBottom, t),
+    shellGlow: mixColor(from.shellGlow, to.shellGlow, t),
+    pageCloudOpacityFront: mixNumber(from.pageCloudOpacityFront, to.pageCloudOpacityFront, t),
+    pageCloudOpacityBack: mixNumber(from.pageCloudOpacityBack, to.pageCloudOpacityBack, t),
+    pageRainOpacity: mixNumber(from.pageRainOpacity, to.pageRainOpacity, t),
+    skyStops: mixColorArray(from.skyStops, to.skyStops, t),
+    sunColor: mixColor(from.sunColor, to.sunColor, t),
+    sunAlpha: mixNumber(from.sunAlpha, to.sunAlpha, t),
+    cloudBandBackAlpha: mixNumber(from.cloudBandBackAlpha, to.cloudBandBackAlpha, t),
+    cloudBandFrontAlpha: mixNumber(from.cloudBandFrontAlpha, to.cloudBandFrontAlpha, t),
+    mountainColors: mixColorArray(from.mountainColors, to.mountainColors, t),
+    grassLight: mixColor(from.grassLight, to.grassLight, t),
+    grassDark: mixColor(from.grassDark, to.grassDark, t),
+    grassHighlight: mixColor(from.grassHighlight, to.grassHighlight, t),
+    grassShadow: mixColor(from.grassShadow, to.grassShadow, t),
+    treeTop: mixColor(from.treeTop, to.treeTop, t),
+    treeTrunk: mixColor(from.treeTrunk, to.treeTrunk, t),
+    treeHighlight: mixColor(from.treeHighlight, to.treeHighlight, t),
+    rainAlpha: mixNumber(from.rainAlpha, to.rainAlpha, t),
+    snowAlpha: mixNumber(from.snowAlpha, to.snowAlpha, t),
+    autumnLeafAlpha: mixNumber(from.autumnLeafAlpha, to.autumnLeafAlpha, t),
+    timeOverlay: mixColor(from.timeOverlay, to.timeOverlay, t),
+    nightLampAlpha: mixNumber(from.nightLampAlpha, to.nightLampAlpha, t),
+  };
+}
+
+function environmentProfilesMatch(from, to) {
+  return JSON.stringify(from) === JSON.stringify(to);
+}
+
+function beginEnvironmentTransition(targetProfile, duration = 1.65) {
+  const currentProfile =
+    state.environmentTransition?.current ||
+    state.environmentVisual ||
+    getEnvironmentVisualProfile(state.world, state.timeOfDay);
+  if (environmentProfilesMatch(currentProfile, targetProfile)) {
+    state.environmentVisual = targetProfile;
+    state.environmentTransition = null;
+    return;
+  }
+  state.environmentTransition = {
+    from: currentProfile,
+    to: targetProfile,
+    current: currentProfile,
+    progress: 0,
+    duration,
+  };
+}
+
+function updateEnvironmentTransition(delta) {
+  if (!state.environmentVisual) {
+    state.environmentVisual = getEnvironmentVisualProfile(state.world, state.timeOfDay);
+  }
+  if (!state.environmentTransition) {
+    return;
+  }
+  state.environmentTransition.progress = Math.min(
+    state.environmentTransition.duration,
+    state.environmentTransition.progress + delta,
+  );
+  const t = smoothstep(
+    state.environmentTransition.progress / state.environmentTransition.duration,
+  );
+  state.environmentTransition.current = blendEnvironmentProfile(
+    state.environmentTransition.from,
+    state.environmentTransition.to,
+    t,
+  );
+  state.environmentVisual = state.environmentTransition.current;
+  if (state.environmentTransition.progress >= state.environmentTransition.duration) {
+    state.environmentVisual = state.environmentTransition.to;
+    state.environmentTransition = null;
+  }
+}
+
 function getTrafficModifier() {
   const eventTraffic = state.world.eventQueue.reduce(
     (product, event) => product * (event.trafficModifier || 1),
@@ -3030,55 +3292,19 @@ function setEnvironmentNotice(text, color = "#ffe7a3", ttl = 3.8) {
 }
 
 function syncShellTheme() {
-  const seasonPalettes =
-    shellThemePalettes[state.world.season.id] || shellThemePalettes.spring;
-  const basePalette =
-    seasonPalettes[state.world.weather.id] || seasonPalettes.sunny;
-  let top = basePalette.top;
-  let bottom = basePalette.bottom;
-  let glow = basePalette.glow;
-
-  if (state.timeOfDay.id === "evening") {
-    top = "#e6c17c";
-    bottom = "#b97a67";
-    glow = "rgba(255, 226, 190, 0.28)";
-  } else if (state.timeOfDay.id === "midnight") {
-    top = "#889cc4";
-    bottom = "#4e6289";
-    glow = "rgba(230, 240, 255, 0.18)";
-  } else if (state.timeOfDay.id === "morning") {
-    glow = "rgba(255, 250, 226, 0.46)";
-  }
-
-  document.documentElement.style.setProperty("--bg-top", top);
-  document.documentElement.style.setProperty("--bg-bottom", bottom);
-  document.documentElement.style.setProperty("--bg-glow", glow);
-  const frontCloudOpacity =
-    state.world.weather.id === "drizzle"
-      ? 0.42
-      : state.world.weather.id === "cloudy"
-        ? 0.48
-        : state.world.weather.id === "snow"
-          ? 0.28
-          : 0.34;
-  const backCloudOpacity =
-    state.world.weather.id === "drizzle"
-      ? 0.3
-      : state.world.weather.id === "cloudy"
-        ? 0.36
-        : state.world.weather.id === "snow"
-          ? 0.22
-          : 0.24;
-  const rainOpacity = state.world.weather.id === "drizzle" ? 0.32 : 0;
+  const visual = state.environmentVisual || getEnvironmentVisualProfile(state.world, state.timeOfDay);
+  document.documentElement.style.setProperty("--bg-top", visual.shellTop);
+  document.documentElement.style.setProperty("--bg-bottom", visual.shellBottom);
+  document.documentElement.style.setProperty("--bg-glow", visual.shellGlow);
   document.documentElement.style.setProperty(
     "--page-cloud-opacity-front",
-    String(frontCloudOpacity),
+    String(visual.pageCloudOpacityFront),
   );
   document.documentElement.style.setProperty(
     "--page-cloud-opacity-back",
-    String(backCloudOpacity),
+    String(visual.pageCloudOpacityBack),
   );
-  document.documentElement.style.setProperty("--page-rain-opacity", String(rainOpacity));
+  document.documentElement.style.setProperty("--page-rain-opacity", String(visual.pageRainOpacity));
 }
 
 function createInitialState() {
@@ -3087,6 +3313,7 @@ function createInitialState() {
   const initialHour = 8;
   const initialGrid = createGrid();
   const seededMap = seedStartingStructures(initialGrid);
+  const initialTimeOfDay = getTimeOfDay(initialHour);
   const initialWorld = buildWorld(
     initialDay,
     null,
@@ -3094,6 +3321,7 @@ function createInitialState() {
     initialDebugIncidentId,
   );
   const initialQuarterStats = createQuarterStatsState(initialWorld.calendar);
+  const initialEnvironmentVisual = getEnvironmentVisualProfile(initialWorld, initialTimeOfDay);
   return {
     mode: "menu",
     money: 160,
@@ -3116,6 +3344,7 @@ function createInitialState() {
     lastCombo: "暂无",
     hoveredTile: null,
     cameraPulse: 0,
+    playSpeedId: "standard",
     comboCount: 0,
     servedVisitors: 0,
     lifetimeIncome: 0,
@@ -3142,7 +3371,9 @@ function createInitialState() {
     dialoguePointer: 0,
     dialogueCooldown: 1.6,
     visitorTalkTimer: 6.5,
-    timeOfDay: getTimeOfDay(initialHour),
+    timeOfDay: initialTimeOfDay,
+    environmentVisual: initialEnvironmentVisual,
+    environmentTransition: null,
     environmentNotice: {
       text: "白天营业开始，街区人流最旺。",
       color: "#ffe7a3",
@@ -3160,8 +3391,10 @@ function createInitialState() {
 
 function resetGame() {
   const preservedForcedIncidentId = state.debug?.forcedIncidentId || null;
+  const preservedPlaySpeedId = state.playSpeedId || "standard";
   const fresh = createInitialState();
   fresh.debug.forcedIncidentId = preservedForcedIncidentId || initialDebugIncidentId;
+  fresh.playSpeedId = preservedPlaySpeedId;
   fresh.world = buildWorld(
     fresh.day,
     null,
@@ -3181,6 +3414,7 @@ function rebuildWorldForCurrentDay() {
     state.debug?.forcedIncidentId || null,
   );
   state.eventActors = createIncidentActors(state.world.incidentQueue, state.facilities);
+  beginEnvironmentTransition(getEnvironmentVisualProfile(state.world, state.timeOfDay));
 }
 
 function applyDebugIncident(incidentId = null) {
@@ -6936,6 +7170,7 @@ function updateTrafficSignal(delta) {
 function update(delta) {
   state.cameraPulse += delta;
   updateDialogue(delta);
+  updateEnvironmentTransition(delta);
   if (state.quarterReport) {
     state.quarterReport.ttl = Math.max(0, (state.quarterReport.ttl || 0) - delta);
     if (state.quarterReport.ttl <= 0) {
@@ -6947,17 +7182,19 @@ function update(delta) {
     updateFloaters(delta);
     return;
   }
-  updateEventActors(delta);
-  updateTrafficSignal(delta);
-  updateRoadTraffic(delta);
+  const simDelta = delta * getPlaySpeedPreset(state.playSpeedId).multiplier;
+  updateEventActors(simDelta);
+  updateTrafficSignal(simDelta);
+  updateRoadTraffic(simDelta);
 
-  state.spawnTimer -= delta;
-  state.dayTimer += delta;
+  state.spawnTimer -= simDelta;
+  state.dayTimer += simDelta;
   const currentHour = getCurrentHour();
   state.clock = currentHour / 24;
   const nextTimeOfDay = getTimeOfDay(currentHour);
   if (nextTimeOfDay.id !== state.timeOfDay.id) {
     state.timeOfDay = nextTimeOfDay;
+    beginEnvironmentTransition(getEnvironmentVisualProfile(state.world, state.timeOfDay), 1.35);
     setEnvironmentNotice(
       `${state.timeOfDay.label} 时段，人流会明显${state.timeOfDay.visitorMultiplier < 1 ? "减少" : "上升"}。`,
       state.timeOfDay.accent,
@@ -6975,12 +7212,12 @@ function update(delta) {
     advanceDay();
   }
 
-  updateStreetPickups(delta);
-  updateVisitors(delta);
+  updateStreetPickups(simDelta);
+  updateVisitors(simDelta);
   updateVisitorAmbientLayer();
-  updateFacilityCrowding(delta);
+  updateFacilityCrowding(simDelta);
   updateFloaters(delta);
-  state.visitorTalkTimer -= delta;
+  state.visitorTalkTimer -= simDelta;
   if (state.visitorTalkTimer <= 0) {
     maybeTriggerVisitorThought();
     const queuePresent = state.visitors.some(
@@ -7081,6 +7318,29 @@ function getBusiestFacility() {
 function syncButtons() {
   startButton.disabled = state.mode === "play" || state.mode === "complete";
   restartButton.textContent = state.mode === "complete" ? "再开一轮" : "重新开档";
+}
+
+function syncSpeedButtons() {
+  const activeId = state.playSpeedId || "standard";
+  speedButtons.forEach((button) => {
+    const isActive = button.dataset.speed === activeId;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  });
+}
+
+function setPlaySpeed(speedId, options = {}) {
+  const preset = getPlaySpeedPreset(speedId);
+  if (!preset || state.playSpeedId === preset.id) {
+    return false;
+  }
+  state.playSpeedId = preset.id;
+  if (!options.silent) {
+    pushMessage(`观察节奏切到「${preset.label}」：${preset.description}`);
+    setEnvironmentNotice(`观察节奏：${preset.label}`, "#ffe39f", 2.8);
+  }
+  syncSpeedButtons();
+  return true;
 }
 
 function getQuarterReportButtonRect() {
@@ -7627,14 +7887,9 @@ function drawTrafficSignalPosts() {
 
 function drawBackground() {
   const playfieldWidth = layout.sidebarX - 18;
-  const skyPalette = {
-    spring: ["#9be0ff", "#d2f2ff", "#ffe2b3"],
-    summer: ["#80d2ff", "#bfe9ff", "#ffd88c"],
-    autumn: ["#9ad2f2", "#d8efff", "#ffcf99"],
-    winter: ["#b9d9f8", "#edf6ff", "#e8f0ff"],
-  };
-  const skyStops =
-    skyPalette[state.world.season.id] || skyPalette.spring;
+  const environment =
+    state.environmentVisual || getEnvironmentVisualProfile(state.world, state.timeOfDay);
+  const skyStops = environment.skyStops;
   const sky = ctx.createLinearGradient(0, 0, 0, layout.roadY);
   sky.addColorStop(0, skyStops[0]);
   sky.addColorStop(0.6, skyStops[1]);
@@ -7642,10 +7897,9 @@ function drawBackground() {
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  if (state.world.weather.id !== "snow") {
+  if (environment.sunAlpha > 0.02) {
     const sunX = 110 + Math.sin(state.cameraPulse * 0.25) * 8;
-    ctx.fillStyle =
-      state.world.weather.id === "drizzle" ? "rgba(255, 245, 198, 0.55)" : "rgba(255, 240, 170, 0.95)";
+    ctx.fillStyle = mixColor("rgba(255, 255, 255, 0)", environment.sunColor, environment.sunAlpha);
     ctx.fillRect(sunX, 48, 44, 44);
   }
 
@@ -7653,7 +7907,7 @@ function drawBackground() {
     {
       speed: 7,
       y: 108,
-      alpha: state.world.weather.id === "drizzle" ? 0.68 : 0.56,
+      alpha: environment.cloudBandBackAlpha,
       clouds: [
         { x: 82, scale: 4, variant: 0 },
         { x: 252, scale: 3, variant: 1 },
@@ -7664,7 +7918,7 @@ function drawBackground() {
     {
       speed: 4,
       y: 150,
-      alpha: state.world.weather.id === "drizzle" ? 0.54 : 0.42,
+      alpha: environment.cloudBandFrontAlpha,
       clouds: [
         { x: 148, scale: 3, variant: 2 },
         { x: 372, scale: 3, variant: 0 },
@@ -7685,13 +7939,7 @@ function drawBackground() {
 
   drawSkyTraffic(playfieldWidth);
 
-  const mountainColors =
-    state.world.season.id === "winter"
-      ? ["#b9cad6", "#9eb3c0", "#8799a8"]
-      : state.world.season.id === "autumn"
-        ? ["#c9af7f", "#bc9765", "#9d7a56"]
-        : ["#99c27f", "#87b36a", "#6b9460"];
-  mountainColors.forEach((color, index) => {
+  environment.mountainColors.forEach((color, index) => {
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(-40, 230 + index * 22);
@@ -7704,21 +7952,13 @@ function drawBackground() {
     ctx.fill();
   });
 
-  const lawnColors = {
-    spring: ["#d9f3a4", "#92cf63"],
-    summer: ["#c9eb78", "#84c362"],
-    autumn: ["#d8d28b", "#aab25e"],
-    winter: ["#e7f0f6", "#a0bbd2"],
-  };
-  const [grassLight, grassDark] =
-    lawnColors[state.world.season.id] || lawnColors.spring;
-  ctx.fillStyle = grassLight;
+  ctx.fillStyle = environment.grassLight;
   ctx.fillRect(0, layout.gridY - 26, playfieldWidth, layout.rows * layout.tile + 44);
-  ctx.fillStyle = grassDark;
+  ctx.fillStyle = environment.grassDark;
   ctx.fillRect(0, layout.roadY - 22, playfieldWidth, 22);
-  ctx.fillStyle = "rgba(255, 244, 198, 0.68)";
+  ctx.fillStyle = environment.grassHighlight;
   ctx.fillRect(0, layout.gridY - 4, playfieldWidth, 6);
-  ctx.fillStyle = "rgba(145, 170, 97, 0.32)";
+  ctx.fillStyle = environment.grassShadow;
   ctx.fillRect(0, layout.gridY + layout.rows * layout.tile - 10, playfieldWidth, 10);
 
   ctx.fillStyle = "#72606a";
@@ -7741,52 +7981,40 @@ function drawBackground() {
   drawRoadTraffic(playfieldWidth);
   drawTrafficSignalPosts();
 
-  const treePalette =
-    state.world.season.id === "winter"
-      ? { top: "#d7ebf5", trunk: "#7b675f" }
-      : state.world.season.id === "autumn"
-        ? { top: "#ffbf66", trunk: "#7d5638" }
-        : state.world.season.id === "summer"
-          ? { top: "#79c861", trunk: "#7b5735" }
-          : { top: "#9ddc86", trunk: "#7d593e" };
   for (let index = 0; index < 6; index += 1) {
     const x = 34 + index * 112;
-    ctx.fillStyle = `${treePalette.trunk}66`;
+    ctx.fillStyle = mixColor("rgba(0, 0, 0, 0)", environment.treeTrunk, 0.4);
     ctx.fillRect(x + 10, layout.gridY - 18, 34, 4);
     ctx.fillStyle = "#d5b37d";
     ctx.fillRect(x + 8, layout.gridY - 24, 38, 8);
     ctx.fillStyle = "#b48a59";
     ctx.fillRect(x + 10, layout.gridY - 22, 34, 4);
-    ctx.fillStyle = treePalette.top;
+    ctx.fillStyle = environment.treeTop;
     ctx.fillRect(x + 2, layout.gridY - 56, 38, 16);
     ctx.fillRect(x + 10, layout.gridY - 68, 24, 16);
-    ctx.fillStyle =
-      state.world.season.id === "winter"
-        ? "#f5fbff"
-        : state.world.season.id === "autumn"
-          ? "#ffd28c"
-          : state.world.season.id === "summer"
-            ? "#9bdf7e"
-            : "#bbea9b";
+    ctx.fillStyle = environment.treeHighlight;
     ctx.fillRect(x + 6, layout.gridY - 62, 28, 8);
     ctx.fillRect(x + 14, layout.gridY - 74, 12, 8);
-    ctx.fillStyle = treePalette.trunk;
+    ctx.fillStyle = environment.treeTrunk;
     ctx.fillRect(x + 16, layout.gridY - 40, 6, 18);
   }
 
-  if (state.world.weather.id === "drizzle") {
+  if (environment.rainAlpha > 0.02) {
     for (let i = 0; i < 54; i += 1) {
       const x = (i * 31 + (i % 4) * 11) % playfieldWidth;
       const fall = (state.cameraPulse * 240 + i * 28) % (layout.roadY - 72);
       const y = 86 + fall;
-      ctx.fillStyle = i % 3 === 0 ? "rgba(88, 133, 188, 0.54)" : "rgba(124, 164, 214, 0.46)";
+      ctx.fillStyle =
+        i % 3 === 0
+          ? mixColor("rgba(88, 133, 188, 0)", "rgba(88, 133, 188, 0.54)", environment.rainAlpha)
+          : mixColor("rgba(124, 164, 214, 0)", "rgba(124, 164, 214, 0.46)", environment.rainAlpha);
       ctx.fillRect(x, y, 2, 14);
       ctx.fillRect(x + 2, y + 8, 1, 6);
     }
   }
 
-  if (state.world.weather.id === "snow") {
-    ctx.fillStyle = "rgba(255,255,255,0.92)";
+  if (environment.snowAlpha > 0.02) {
+    ctx.fillStyle = mixColor("rgba(255,255,255,0)", "rgba(255,255,255,0.92)", environment.snowAlpha);
     for (let i = 0; i < 42; i += 1) {
       const x = (i * 31 + state.cameraPulse * 24) % playfieldWidth;
       const y = 78 + (i * 22 + state.cameraPulse * 14) % 420;
@@ -7794,10 +8022,10 @@ function drawBackground() {
     }
   }
 
-  if (state.world.season.id === "autumn") {
+  if (environment.autumnLeafAlpha > 0.02) {
     const leafColors = ["#ffb347", "#f18f43", "#d96f32"];
     for (let i = 0; i < 10; i += 1) {
-      ctx.fillStyle = leafColors[i % leafColors.length];
+      ctx.fillStyle = mixColor("rgba(255, 255, 255, 0)", leafColors[i % leafColors.length], environment.autumnLeafAlpha);
       ctx.fillRect(70 + i * 44, 162 + ((i + 1) % 3) * 18, 5, 3);
     }
   }
@@ -7821,13 +8049,13 @@ function drawBackground() {
     }
   }
 
-  if (state.timeOfDay.overlay) {
-    ctx.fillStyle = state.timeOfDay.overlay;
+  if (environment.timeOverlay) {
+    ctx.fillStyle = environment.timeOverlay;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  if (state.timeOfDay.id === "midnight") {
-    ctx.fillStyle = "#ffe7a8";
+  if (environment.nightLampAlpha > 0.02) {
+    ctx.fillStyle = mixColor("rgba(255, 231, 168, 0)", "#ffe7a8", environment.nightLampAlpha);
     for (let index = 0; index < 6; index += 1) {
       const x = 84 + index * 92;
       ctx.fillRect(x, layout.roadY - 18, 5, 20);
@@ -9385,6 +9613,7 @@ function drawQuarterReportOverlay() {
 
 function render() {
   syncButtons();
+  syncSpeedButtons();
   syncShellTheme();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawBackground();
@@ -9499,10 +9728,34 @@ restartButton.addEventListener("click", () => {
   resetGame();
 });
 
+speedButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    if (setPlaySpeed(button.dataset.speed || "standard")) {
+      render();
+    }
+  });
+});
+
 window.addEventListener("keydown", (event) => {
   if (state.quarterReport && (event.key === "Enter" || event.key === " ")) {
     closeQuarterReport();
     render();
+    return;
+  }
+  if (event.key === "-" || event.key === "_") {
+    const currentIndex = playSpeedPresets.findIndex((item) => item.id === state.playSpeedId);
+    const nextIndex = Math.max(0, currentIndex - 1);
+    if (setPlaySpeed(playSpeedPresets[nextIndex].id)) {
+      render();
+    }
+    return;
+  }
+  if (event.key === "=" || event.key === "+") {
+    const currentIndex = playSpeedPresets.findIndex((item) => item.id === state.playSpeedId);
+    const nextIndex = Math.min(playSpeedPresets.length - 1, currentIndex + 1);
+    if (setPlaySpeed(playSpeedPresets[nextIndex].id)) {
+      render();
+    }
     return;
   }
   if (event.key >= "1" && event.key <= "5") {
@@ -9576,6 +9829,7 @@ window.render_game_to_text = () =>
       rating: state.rating,
       day: state.day,
       quarterId: state.quarterStats?.id || null,
+      playSpeed: getPlaySpeedPreset(state.playSpeedId),
       selectedType: state.selectedType,
       lastCombo: state.lastCombo,
       debugIncidentId: state.debug?.forcedIncidentId || null,
