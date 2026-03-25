@@ -17,6 +17,16 @@ const initialDebugIncidentId = (() => {
     return null;
   }
 })();
+const initialDebugTrafficMode = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const raw = params.get("traffic") || params.get("debugTraffic") || "";
+    const normalized = String(raw || "").trim().toLowerCase();
+    return normalized === "stop" || normalized === "drive" ? normalized : null;
+  } catch {
+    return null;
+  }
+})();
 
 const simulationTuning = automationDriven
   ? {
@@ -29,7 +39,7 @@ const simulationTuning = automationDriven
       visitorWait: 0.22,
     }
   : {
-      dayLength: 18,
+      dayLength: 50,
       initialSpawnDelay: 1.8,
       minSpawnDelay: 1.05,
       spawnBaseDelay: 2.3,
@@ -52,10 +62,135 @@ const layout = {
   roadH: 62,
 };
 
+const streetLayout = {
+  verticalBand: { min: 5, max: 7 },
+  northLotRows: { min: 0, max: 2 },
+  mainStreetRows: {
+    northSidewalk: 3,
+    promenade: 4,
+    southSidewalk: 5,
+  },
+  southLotRows: { min: 6, max: 7 },
+  lowerPromenadeRows: {
+    upper: 8,
+    lower: 9,
+  },
+  crosswalkCols: [5, 6, 7],
+  signalCycle: {
+    walk: 4.8,
+    blink: 1.2,
+    drive: 5.2,
+  },
+};
+
+function isVerticalStreetTile(col) {
+  return col >= streetLayout.verticalBand.min && col <= streetLayout.verticalBand.max;
+}
+
+function isNorthLotRow(row) {
+  return row >= streetLayout.northLotRows.min && row <= streetLayout.northLotRows.max;
+}
+
+function isSouthLotRow(row) {
+  return row >= streetLayout.southLotRows.min && row <= streetLayout.southLotRows.max;
+}
+
+function isBuildLotTile(col, row) {
+  return !isVerticalStreetTile(col) && (isNorthLotRow(row) || isSouthLotRow(row));
+}
+
+function isSidewalkRow(row) {
+  return (
+    row === streetLayout.mainStreetRows.northSidewalk ||
+    row === streetLayout.mainStreetRows.southSidewalk ||
+    row === streetLayout.lowerPromenadeRows.upper ||
+    row === streetLayout.lowerPromenadeRows.lower
+  );
+}
+
+function isPromenadeTile(col, row) {
+  return row === streetLayout.mainStreetRows.promenade || row === streetLayout.lowerPromenadeRows.lower;
+}
+
+function isCrosswalkTile(col, row) {
+  return (
+    streetLayout.crosswalkCols.includes(col) &&
+    (row === streetLayout.mainStreetRows.promenade ||
+      row === streetLayout.lowerPromenadeRows.upper ||
+      row === streetLayout.lowerPromenadeRows.lower)
+  );
+}
+
+function isTownWalkwayTile(col, row) {
+  if (col < 0 || row < 0 || col >= layout.cols || row >= layout.rows) {
+    return false;
+  }
+  return isVerticalStreetTile(col) || isSidewalkRow(row) || isPromenadeTile(col, row);
+}
+
+function getTownTileKind(col, row) {
+  if (isBuildLotTile(col, row)) {
+    return "lot";
+  }
+  if (isCrosswalkTile(col, row)) {
+    return "crosswalk";
+  }
+  if (row === streetLayout.mainStreetRows.promenade) {
+    return "main-street";
+  }
+  if (row === streetLayout.lowerPromenadeRows.lower) {
+    return "lower-promenade";
+  }
+  if (row === streetLayout.lowerPromenadeRows.upper) {
+    return "curb";
+  }
+  if (isVerticalStreetTile(col)) {
+    return col === 6 ? "vertical-street" : "vertical-sidewalk";
+  }
+  if (isSidewalkRow(row)) {
+    return "sidewalk";
+  }
+  return "green";
+}
+
+function getTownLotPlacementCandidates(width, height) {
+  const candidates = [];
+  for (let row = 0; row <= layout.rows - height; row += 1) {
+    for (let col = 0; col <= layout.cols - width; col += 1) {
+      const tiles = getFootprintTiles(col, row, width, height);
+      if (!tiles.every((tile) => isBuildLotTile(tile.col, tile.row))) {
+        continue;
+      }
+      candidates.push({ col, row });
+    }
+  }
+  return candidates;
+}
+
+function getTreePlanterCandidates() {
+  return [
+    { col: 0, row: 5 },
+    { col: 2, row: 5 },
+    { col: 4, row: 8 },
+    { col: 9, row: 5 },
+    { col: 11, row: 8 },
+    { col: 13, row: 8 },
+    { col: 1, row: 8 },
+    { col: 12, row: 5 },
+  ];
+}
+
 const calendarTuning = {
   daysPerYear: 360,
   seasonLength: 90,
   calendarDayStep: 15,
+};
+
+const quarterSeasonLabels = {
+  spring: "春季",
+  summer: "夏季",
+  autumn: "秋季",
+  winter: "冬季",
 };
 
 const pixelCloudTemplates = [
@@ -107,6 +242,39 @@ const roadTrafficPalettes = [
   { body: "#ffd266", roof: "#fff7e0", trim: "#6a5140" },
 ];
 
+const roadTrafficConfigs = [
+  {
+    id: "car-east",
+    speed: 76,
+    y: () => layout.roadY + 4,
+    dir: 1,
+    scale: 3,
+    palette: roadTrafficPalettes[0],
+    type: "car",
+    startX: -120,
+  },
+  {
+    id: "truck-west",
+    speed: 54,
+    y: () => layout.roadY + 24,
+    dir: -1,
+    scale: 3,
+    palette: roadTrafficPalettes[1],
+    type: "truck",
+    startX: () => layout.sidebarX + 120,
+  },
+  {
+    id: "bus-east",
+    speed: 34,
+    y: () => layout.roadY + 2,
+    dir: 1,
+    scale: 3,
+    palette: roadTrafficPalettes[3],
+    type: "bus",
+    startX: -420,
+  },
+];
+
 const shellThemePalettes = {
   spring: {
     sunny: { top: "#f3d778", bottom: "#efab76", glow: "rgba(255,255,255,0.46)" },
@@ -152,22 +320,22 @@ const facilityTypes = [
     bonusText: "靠近 Park 时人气更高",
     synergy: { park: { income: 2, rating: 2, pop: 4 } },
     sprite: [
-      "..rrrrrrrrrr..",
-      ".rrrryyyyrrrr.",
-      "rrrwwwwwwwwrrr",
-      "rrwwooooooowrr",
-      "rrwwooooooowrr",
-      "rrwwwwwwwwwwrr",
-      ".rrrccccccrrr.",
-      "..rrccccccrr..",
-      "..rrccccccrr..",
-      ".rrrccccccrrr.",
-      ".rrll....llrr.",
-      ".rlll....lllrr",
-      ".rlll....lllrr",
-      "..lll....lll..",
-      "..bbb....bbb..",
-      "..............",
+      ".....yyyyy......",
+      "....yyoooyy.....",
+      "...rrrrrrrrrr...",
+      "..rrwwwwwwwwrr..",
+      "..rwwoooooowwr..",
+      "..rwwwwwwwwwwr..",
+      "..rccrrrrrrccr..",
+      "..rccrrrrrrccr..",
+      "..rwwyyyyyywwr..",
+      "..rwwttbbttwwr..",
+      "..rwwttbbttwwr..",
+      "..rllbddddbllr..",
+      "..rllbddddbllr..",
+      "...kk......kk...",
+      "...kk......kk...",
+      "................",
     ],
     palette: {
       r: "#d84c36",
@@ -175,8 +343,11 @@ const facilityTypes = [
       w: "#fff9e8",
       o: "#a34b2a",
       c: "#f4c780",
+      t: "#8ed4ef",
+      d: "#87563f",
       l: "#694640",
       b: "#463538",
+      k: "#433742",
     },
   },
   {
@@ -195,27 +366,31 @@ const facilityTypes = [
       bath: { income: 3, rating: 3, pop: 3 },
     },
     sprite: [
-      "...ggggggg....",
-      "..ggggggggg...",
-      ".ggggggggggg..",
-      ".ggggggggggg..",
-      "..ggggggggg...",
-      "...ggggggg....",
-      "......tt......",
-      ".....tttt.....",
-      "....tttttt....",
-      "...tttttttt...",
-      "..tttttttttt..",
-      "..tt..tt..tt..",
-      "..tt..tt..tt..",
-      ".bbbbbbbbbbbb.",
-      ".bbbbbbbbbbbb.",
-      "..............",
+      "....hhhhh.......",
+      "...hgggggh......",
+      "..hgggggggh.....",
+      "..ggggggggg.....",
+      "...hgggggh......",
+      "......tt........",
+      ".....tttt.......",
+      "...pppppppp.....",
+      "..ppybbbbypp....",
+      "..ppybttbypp....",
+      "..ppybttbypp....",
+      "...ppyyyypp.....",
+      "...ff....ff.....",
+      "..ffffffffff....",
+      "..ffffffffff....",
+      "................",
     ],
     palette: {
-      g: "#71bf57",
+      h: "#8dd56d",
+      g: "#63b552",
       t: "#8d5b39",
-      b: "#d9b46b",
+      p: "#d7c7a8",
+      y: "#f6df90",
+      b: "#9b6b41",
+      f: "#f08ca6",
     },
   },
   {
@@ -231,22 +406,22 @@ const facilityTypes = [
     bonusText: "挨着 Snack 时更会赚钱",
     synergy: { snack: { income: 4, rating: 2, pop: 3 } },
     sprite: [
-      "..bbbbbbbbbb..",
-      ".bbiiiiiiiiibb.",
-      "bbiiiiiiiiiiibb",
-      "bbiyyiiiiyyiibb",
-      "bbiyyiiiiyyiibb",
-      "bbiiiiiiiiiiibb",
-      "bbiiiccccciiibb",
-      ".bbiicccccciibb.",
-      ".bbiicpppcciibb.",
-      ".bbiiiccccciiibb",
-      ".bbll......llbb.",
-      ".bbll......llbb.",
-      ".bbll......llbb.",
-      "..kk........kk..",
-      "..kk........kk..",
-      "..............",
+      ".....yyyyy......",
+      "...bbbbbbbbbb...",
+      "..bbiiiiiiiibb..",
+      "..biyppppppyib..",
+      "..biypwwwwpyib..",
+      "..biypwwwwpyib..",
+      "..biiiccccciii..",
+      "..biiccppppcci..",
+      "..biiccppppcci..",
+      "..biittbbbbtti..",
+      "..biittbbbbtti..",
+      "..biillbddblli..",
+      "..biillbddblli..",
+      "...kk......kk...",
+      "...kk......kk...",
+      "................",
     ],
     palette: {
       b: "#4554a5",
@@ -254,8 +429,11 @@ const facilityTypes = [
       y: "#ffe26f",
       c: "#d5d7f6",
       p: "#f06390",
+      t: "#7cd6f5",
       l: "#2f3156",
       k: "#383240",
+      d: "#6d4d4b",
+      w: "#fff8eb",
     },
   },
   {
@@ -271,30 +449,36 @@ const facilityTypes = [
     bonusText: "靠近 Park 时评价涨得快",
     synergy: { park: { income: 3, rating: 5, pop: 2 } },
     sprite: [
-      "..cccccccccc..",
-      ".ccwwwwwwwwcc.",
-      "ccwwwwwwwwwwcc",
-      "ccwwoooooowwcc",
-      "ccwwoooooowwcc",
-      "ccwwwwwwwwwwcc",
-      "ccwwttttttwwcc",
-      ".ccwttttttwcc.",
-      ".ccwttttttwcc.",
-      ".ccwwwwwwwwcc.",
-      ".ccll....llcc.",
-      ".ccll....llcc.",
-      ".ccll....llcc.",
-      "..bb......bb..",
-      "..bb......bb..",
-      "..............",
+      "....ssssssss....",
+      "...sswwwwwwss...",
+      "..sswccccccwss..",
+      "..swccooooccws..",
+      "..swcwwwwwwcws..",
+      "..swcyyyyyycws..",
+      "..swcyttttycws..",
+      "..swcytmmtycws..",
+      "..swcytmmtycws..",
+      "..swcyppppycws..",
+      "..swllbddbllws..",
+      "..swllbddbllws..",
+      "..swkk....kkws..",
+      "...kk......kk...",
+      "...kk......kk...",
+      "................",
     ],
     palette: {
-      c: "#65c6d3",
+      s: "#63bfd1",
       w: "#f8f8f0",
-      o: "#f4a261",
-      t: "#89d5e3",
+      c: "#d9f4fb",
+      o: "#f0b87a",
+      y: "#f7e0a0",
+      t: "#8fd7ea",
+      m: "#63afcc",
+      p: "#6aa6de",
       l: "#58727a",
-      b: "#37505a",
+      b: "#4b6170",
+      d: "#8c654e",
+      k: "#37505a",
     },
   },
   {
@@ -310,28 +494,33 @@ const facilityTypes = [
     bonusText: "和 Arcade 配套会爆红",
     synergy: { arcade: { income: 5, rating: 6, pop: 5 } },
     sprite: [
-      "......pp......",
-      ".....pppp.....",
-      "....ppyypp....",
-      "...ppyyyypp...",
-      "..ppyyyyyypp..",
-      "..ppyyyyyypp..",
-      "...ppyyyypp...",
-      "...pppwwppp...",
-      "...ppwwwwpp...",
-      "...ppwwwwpp...",
-      "...ppwwwwpp...",
-      "...ppwwwwpp...",
-      "..rrppwwpprr..",
-      "..rr..ww..rr..",
-      "..rr..ww..rr..",
-      "..............",
+      "......yy........",
+      ".....yppy.......",
+      "....ppyyyy......",
+      "...pppwwypp.....",
+      "..ppwwwwwwpp....",
+      "..pwwwwwwwwp....",
+      "..pwwyssywwp....",
+      "..pwwsssswwp....",
+      "..pwwsssswwp....",
+      "..pwwyssywwp....",
+      "..pwwttbbttwp...",
+      "..pwwttbbttwp...",
+      "..prllbddbllrp..",
+      "..prllbddbllrp..",
+      "...rr......rr...",
+      "................",
     ],
     palette: {
       p: "#ea58a5",
       y: "#ffe26f",
       w: "#fff4fb",
+      s: "#ff8ac9",
+      t: "#91dcff",
+      b: "#6b4b5e",
+      d: "#9f7358",
       r: "#6f3c56",
+      l: "#4c3242",
     },
   },
 ];
@@ -907,34 +1096,36 @@ const landmarkTypes = [
     name: "Town Clinic",
     kind: "landmark",
     removable: false,
-    footprint: { w: 2, h: 2 },
+    footprint: { w: 2, h: 1 },
     color: "#e46b72",
     sprite: [
-      "................",
-      "..rrrrrrrrrr....",
-      ".rrwwwwwwwwrr...",
-      ".rrwwccccwwrr...",
-      ".rrwwccccwwrr...",
-      ".rrwwwwwwwwrr...",
-      ".rrbbyyyybbrr...",
-      ".rrbbyyyybbrr...",
-      ".rrwwwwwwwwrr...",
-      ".rrwwttttwwrr...",
-      ".rrwwttttwwrr...",
-      ".rrll....llrr...",
-      ".rrll....llrr...",
-      "..kk......kk....",
-      "..kk......kk....",
+      "...rrrrrrrrrr...",
+      "..rrmmmmmmmmrr..",
+      ".rrmwwwwwwwwmrr.",
+      ".rmwwccccccwwmr.",
+      ".rmwwccccccwwmr.",
+      ".rmwwwwwwwwwwmr.",
+      ".rmwwyywwyywwmr.",
+      ".rmwwwwwwwwwwmr.",
+      ".rmttttttttttmr.",
+      ".rmttrrbbrrttmr.",
+      ".rmttrrbbrrttmr.",
+      ".rmlllddddllmmr.",
+      ".rmlllddddllmmr.",
+      "..kk........kk..",
+      "..kk........kk..",
       "................",
     ],
     palette: {
       r: "#d95a63",
+      m: "#b84c55",
       w: "#fff5f1",
       c: "#f06b73",
       y: "#ffd97c",
-      b: "#f0c18d",
+      b: "#9d6f54",
       t: "#9ed3f8",
       l: "#705850",
+      d: "#f0c18d",
       k: "#43363d",
     },
   },
@@ -943,34 +1134,35 @@ const landmarkTypes = [
     name: "Town Library",
     kind: "landmark",
     removable: false,
-    footprint: { w: 2, h: 2 },
+    footprint: { w: 2, h: 1 },
     color: "#6b8fd8",
     sprite: [
-      "................",
-      "..bbbbbbbbbb....",
-      ".bbwwwwwwwwbb...",
-      ".bbwwppppwwbb...",
-      ".bbwwppppwwbb...",
-      ".bbwwwwwwwwbb...",
-      ".bbccyyyyccbb...",
-      ".bbccyyyyccbb...",
-      ".bbwwwwwwwwbb...",
-      ".bbwwttttwwbb...",
-      ".bbwwttttwwbb...",
-      ".bbll....llbb...",
-      ".bbll....llbb...",
-      "..kk......kk....",
-      "..kk......kk....",
+      "...bbbbbbbbbb...",
+      "..bbmmmmmmmmbb..",
+      ".bbmwwwwwwwwmbb.",
+      ".bmwwppppppwwmb.",
+      ".bmwwpwwwwpwwmb.",
+      ".bmwwppppppwwmb.",
+      ".bmwyyyyyyyywmb.",
+      ".bmwyppwwppywmb.",
+      ".bmwypttttpywmb.",
+      ".bmwypdbbdpywmb.",
+      ".bmwypdbbdpywmb.",
+      ".bmlllddddlllmb.",
+      ".bmlllddddlllmb.",
+      "..kk........kk..",
+      "..kk........kk..",
       "................",
     ],
     palette: {
       b: "#5d7fc5",
+      m: "#4868a9",
       w: "#f4f8ff",
       p: "#8ca6dd",
-      c: "#b6c7ea",
       y: "#ffd86e",
       t: "#a6d7f5",
       l: "#50627d",
+      d: "#8f644d",
       k: "#3d495a",
     },
   },
@@ -979,34 +1171,36 @@ const landmarkTypes = [
     name: "Post House",
     kind: "landmark",
     removable: false,
-    footprint: { w: 2, h: 2 },
+    footprint: { w: 2, h: 1 },
     color: "#e19e58",
     sprite: [
-      "................",
-      "..oooooooooo....",
-      ".oowwwwwwwwoo...",
-      ".oowwmmmmwwoo...",
-      ".oowmwwwwmwoo...",
-      ".oowwwwwwwwoo...",
-      ".ooccyyyyccoo...",
-      ".ooccyyyyccoo...",
-      ".oowwwwwwwwoo...",
-      ".oowwttttwwoo...",
-      ".oowwttttwwoo...",
-      ".ooll....lloo...",
-      ".ooll....lloo...",
-      "..kk......kk....",
-      "..kk......kk....",
+      "...oooooooooo...",
+      "..ooqqqqqqqqoo..",
+      ".ooqwwwwwwwwqoo.",
+      ".oqwwmmmmmmwwqo.",
+      ".oqwwmwwwwmwwqo.",
+      ".oqwwmmmmmmwwqo.",
+      ".oqwyyyyyyyywqo.",
+      ".oqwymmeemmywqo.",
+      ".oqwyttttttywqo.",
+      ".oqwyttbbttywqo.",
+      ".oqwyttbbttywqo.",
+      ".oqlllddddlllqo.",
+      ".oqlllddddlllqo.",
+      "..kk........kk..",
+      "..kk........kk..",
       "................",
     ],
     palette: {
       o: "#d98a46",
+      q: "#a16436",
       w: "#fff5e9",
       m: "#f1cda1",
-      c: "#f4d8a2",
       y: "#ffd86c",
       t: "#9fd7f4",
       l: "#795847",
+      b: "#6c4f42",
+      d: "#a56c4e",
       k: "#44363a",
     },
   },
@@ -1015,35 +1209,36 @@ const landmarkTypes = [
     name: "Police Box",
     kind: "landmark",
     removable: false,
-    footprint: { w: 2, h: 2 },
+    footprint: { w: 2, h: 1 },
     color: "#5c83c8",
     sprite: [
-      "................",
-      "..bbbbbbbbbb....",
-      ".bbwwwwwwwwbb...",
-      ".bbwwppppwwbb...",
-      ".bbwwpggpwwbb...",
-      ".bbwwppppwwbb...",
-      ".bbccyyyyccbb...",
-      ".bbccyyyyccbb...",
-      ".bbwwwwwwwwbb...",
-      ".bbwwttttwwbb...",
-      ".bbwwttttwwbb...",
-      ".bbll....llbb...",
-      ".bbll....llbb...",
-      "..kk......kk....",
-      "..kk......kk....",
+      "...bbbbbbbbbb...",
+      "..bbnnnnnnnnbb..",
+      ".bbnwwwwwwwwnbb.",
+      ".bnwwppppppwwnb.",
+      ".bnwwpggggpwwnb.",
+      ".bnwwppppppwwnb.",
+      ".bnwyyyyyyyywnb.",
+      ".bnwypbbbbpywnb.",
+      ".bnwypttttpywnb.",
+      ".bnwyttbbttywnb.",
+      ".bnwyttbbttywnb.",
+      ".bnlllddddlllnb.",
+      ".bnlllddddlllnb.",
+      "..kk........kk..",
+      "..kk........kk..",
       "................",
     ],
     palette: {
       b: "#567abf",
+      n: "#35547f",
       w: "#f4f8ff",
       p: "#87a6dd",
       g: "#ffe47a",
-      c: "#b6c8eb",
       y: "#ffd96f",
       t: "#a5d7f4",
       l: "#4d617c",
+      d: "#81614f",
       k: "#3c495b",
     },
   },
@@ -1052,35 +1247,195 @@ const landmarkTypes = [
     name: "Craft Works",
     kind: "landmark",
     removable: false,
-    footprint: { w: 3, h: 2 },
+    footprint: { w: 1, h: 2 },
     color: "#7c8a92",
     sprite: [
-      "...ssssssssss...",
-      "..sswwwwwwwwss..",
-      ".sswwhhhhhhwwss.",
-      ".sswwhwwwwhwwss.",
-      ".sswwhhhhhhwwss.",
-      ".sswwwwwwwwwwss.",
-      ".ssccbbccbbccss.",
-      ".ssccbbccbbccss.",
-      ".sswwwwttwwwwss.",
-      ".sswwwwttwwwwss.",
-      ".ssll..ll..llss.",
-      ".ssll..ll..llss.",
-      ".sskk..kk..kkss.",
-      ".sskk..kk..kkss.",
-      "..kk..........kk",
+      ".....cccc.......",
+      "....cchhc.......",
+      "...sshhhhs......",
+      "...shwwwhs......",
+      "...shwgqhs......",
+      "...shwqqhs......",
+      "...shwwwhs......",
+      "...shyyyys......",
+      "...shyttys......",
+      "...shytbys......",
+      "...shlbbls......",
+      "...shlbdls......",
+      "...shk..ks......",
+      "...ssk..ss......",
+      "................",
       "................",
     ],
     palette: {
       s: "#707d86",
+      h: "#56646d",
       w: "#f5f4ef",
-      h: "#b5c3cc",
-      c: "#9caab4",
-      b: "#ffd971",
+      c: "#9f7158",
+      g: "#d7c06a",
+      q: "#8d7a46",
+      y: "#c3d0d8",
+      b: "#8c694d",
       t: "#9fd5f1",
       l: "#5c6267",
       k: "#403b42",
+    },
+  },
+];
+
+const publicSpotTypes = [
+  {
+    id: "pocket-plaza",
+    name: "Pocket Plaza",
+    shortLabel: "Plaza",
+    kind: "public-spot",
+    removable: false,
+    footprint: { w: 2, h: 1 },
+    color: "#7dbd89",
+    ambientRole: "gather",
+    sprite: [
+      "...pppppppppp...",
+      "..ppsssssssspp..",
+      ".ppssggggggsspp.",
+      ".pssggttttggssp.",
+      ".pssggttttggssp.",
+      ".pssgghhhhggssp.",
+      ".pssgghhhhggssp.",
+      ".pssggttttggssp.",
+      ".pssggttttggssp.",
+      ".pssbbbbbbbbssp.",
+      ".pssbbbbbbbbssp.",
+      ".pssrr....rrssp.",
+      ".pssrr....rrssp.",
+      "..kk........kk..",
+      "..kk........kk..",
+      "................",
+    ],
+    palette: {
+      p: "#7dbd89",
+      s: "#d9c29b",
+      g: "#9ed57d",
+      t: "#e8d0a4",
+      h: "#c66c72",
+      b: "#8a664d",
+      r: "#6d4d3d",
+      k: "#3f353a",
+    },
+  },
+  {
+    id: "fountain-corner",
+    name: "Fountain Corner",
+    shortLabel: "Fountain",
+    kind: "public-spot",
+    removable: false,
+    footprint: { w: 1, h: 1 },
+    color: "#77b9dd",
+    ambientRole: "linger",
+    sprite: [
+      ".....ssss.......",
+      "...ssddddss.....",
+      "..sddwwwwdds....",
+      ".sddwbbbbwdds...",
+      ".sddwbccbwdds...",
+      "ssdwbcffcbwdss..",
+      "ssdwbcffcbwdss..",
+      ".sddwbccbwdds...",
+      ".sddwbbbbwdds...",
+      "..sddwwwwdds....",
+      "...ssddddss.....",
+      "....tttttt......",
+      "...ttmmmmtt.....",
+      "...tmmmmmm......",
+      "...ttttttt......",
+      "................",
+    ],
+    palette: {
+      s: "#d9c59d",
+      d: "#bba57d",
+      w: "#d8ecff",
+      b: "#7aaed8",
+      c: "#9ad2f6",
+      f: "#eff8ff",
+      t: "#71b6df",
+      m: "#5f95bb",
+    },
+  },
+  {
+    id: "metro-entrance",
+    name: "Metro Entrance",
+    shortLabel: "Metro",
+    kind: "public-spot",
+    removable: false,
+    footprint: { w: 1, h: 2 },
+    color: "#68a7e6",
+    ambientRole: "transit",
+    sprite: [
+      ".....bbbb.......",
+      "....bbssbb......",
+      "...bbssssbb.....",
+      "...bswwwwsb.....",
+      "...bswiiwsb.....",
+      "...bswwwwsb.....",
+      "...bsyyyysb.....",
+      "...bsyttysb.....",
+      "...bsyttysb.....",
+      "...bslddlsb.....",
+      "...bslddlsb.....",
+      "...kk....kk.....",
+      "...rr....rr.....",
+      "...rr....rr.....",
+      "................",
+      "................",
+    ],
+    palette: {
+      b: "#5e96d4",
+      s: "#3f5d87",
+      w: "#f3f9ff",
+      i: "#d94459",
+      y: "#b9d6ee",
+      t: "#8cc2e8",
+      l: "#62758f",
+      d: "#425266",
+      k: "#2d3848",
+      r: "#7e8fa3",
+    },
+  },
+  {
+    id: "street-stall",
+    name: "Street Stall",
+    shortLabel: "Stall",
+    kind: "public-spot",
+    removable: false,
+    footprint: { w: 1, h: 1 },
+    color: "#ef9f62",
+    ambientRole: "vendor",
+    sprite: [
+      ".....oooo.......",
+      "...oooyyyoo.....",
+      "..ooyyoooyyo....",
+      "..oyyoooooyyo...",
+      "..oyooooooooyo..",
+      "..oywwwwwwwwyo..",
+      "..oywrrrrrrwyo..",
+      "..oywrrrrrrwyo..",
+      "..oywttttttwyo..",
+      "..oywttttttwyo..",
+      "..oywbbbbbbwyo..",
+      "..oylbbbbbblyo..",
+      "...kk....kk.....",
+      "...kk....kk.....",
+      "................",
+      "................",
+    ],
+    palette: {
+      o: "#d88c4b",
+      y: "#ffd45f",
+      w: "#fff5df",
+      r: "#f06f6f",
+      t: "#e9b97b",
+      b: "#8d6549",
+      l: "#694c3f",
+      k: "#403238",
     },
   },
 ];
@@ -1094,32 +1449,34 @@ const sceneryTypes = [
     footprint: { w: 1, h: 1 },
     color: "#69b95b",
     sprite: [
-      ".....ggg........",
-      "....ggggg.......",
-      "...ggggggg......",
-      "...ggggggg......",
-      "....ggggg.......",
-      ".....ggg........",
-      "......tt........",
-      "......tt........",
-      ".....bbbb.......",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
+      ".....hhhhh......",
+      "....hgggggh.....",
+      "...hgggggggh....",
+      "...ggggggggg....",
+      "..hgggggggggh...",
+      "...ggggggggg....",
+      "....hgggggh.....",
+      ".....hgggh......",
+      "......ttt.......",
+      ".....tttt.......",
+      "....tttttt......",
+      "...pppppppp.....",
+      "...pbbbbbbp.....",
+      "...pbbbbbbp.....",
+      "...pppppppp.....",
       "................",
     ],
     palette: {
-      g: "#67b95d",
+      h: "#97da79",
+      g: "#59ad50",
       t: "#8d5b39",
-      b: "#d3b078",
+      p: "#c79d6d",
+      b: "#8c6942",
     },
   },
 ];
 
-const structureTypes = [...facilityTypes, ...landmarkTypes, ...sceneryTypes];
+const structureTypes = [...facilityTypes, ...landmarkTypes, ...publicSpotTypes, ...sceneryTypes];
 
 const npcProfiles = [
   { id: "mika", name: "美佳", shirt: "#ff8aa1", hair: "#5c3d31", accent: "#fff0c5" },
@@ -1697,6 +2054,8 @@ function createStructureEntity(type, col, row, id, overrides = {}) {
     patienceLeaves: 0,
     crowdHeat: 0,
     landmarkVisits: 0,
+    publicVisits: 0,
+    ambientRole: def.ambientRole || null,
     ...overrides,
   };
 }
@@ -1723,83 +2082,132 @@ function occupyStructureOnGrid(grid, structure) {
   }
 }
 
+function getSeedStructureGap(col, row, width, height, structures) {
+  if (!structures.length) {
+    return 6;
+  }
+  let bestGap = Number.POSITIVE_INFINITY;
+  for (const structure of structures) {
+    if (structure.kind === "tree") {
+      continue;
+    }
+    const gapX = Math.max(
+      0,
+      Math.max(structure.col - (col + width), col - (structure.col + structure.width)),
+    );
+    const gapY = Math.max(
+      0,
+      Math.max(structure.row - (row + height), row - (structure.row + structure.height)),
+    );
+    bestGap = Math.min(bestGap, gapX + gapY);
+  }
+  return Number.isFinite(bestGap) ? bestGap : 6;
+}
+
+function scorePublicSpotPlacement(def, spot, structures) {
+  const centerCol = spot.col + (def.footprint.w - 1) / 2;
+  const centerRow = spot.row + (def.footprint.h - 1) / 2;
+  const townCenterCol = (layout.cols - 1) / 2;
+  const centerDistance = Math.abs(centerCol - townCenterCol);
+  const gapScore = Math.min(6, getSeedStructureGap(spot.col, spot.row, def.footprint.w, def.footprint.h, structures));
+  let score = gapScore * 2 + Math.random() * 0.35;
+  switch (def.id) {
+    case "pocket-plaza":
+      score += 8 - centerDistance * 1.1;
+      score += centerRow >= streetLayout.southLotRows.min ? 2.8 : 0.6;
+      break;
+    case "fountain-corner":
+      score += 7 - centerDistance * 0.95;
+      score += spot.row === streetLayout.southLotRows.min || spot.row === streetLayout.northLotRows.max ? 2.4 : 0.5;
+      break;
+    case "metro-entrance": {
+      const bandDistance = Math.min(
+        Math.abs(centerCol - (streetLayout.verticalBand.min - 0.5)),
+        Math.abs(centerCol - (streetLayout.verticalBand.max + 0.5)),
+      );
+      score += centerRow >= streetLayout.southLotRows.min ? 5.5 : -2.5;
+      score += 5.4 - bandDistance * 1.2;
+      break;
+    }
+    case "street-stall":
+      score += 6.5 - Math.abs(centerDistance - 2.5) * 1.15;
+      score += spot.row === streetLayout.southLotRows.min || spot.row === streetLayout.northLotRows.max ? 2 : 0.5;
+      break;
+    default:
+      break;
+  }
+  return score;
+}
+
+function pickBestSeedSpot(grid, def, structures, scorer = null) {
+  const candidates = getTownLotPlacementCandidates(def.footprint.w, def.footprint.h).filter((spot) =>
+    canOccupyTiles(grid, spot.col, spot.row, def.footprint.w, def.footprint.h),
+  );
+  if (!candidates.length) {
+    return null;
+  }
+  if (!scorer) {
+    return shuffleArray(candidates)[0] || null;
+  }
+  return (
+    [...candidates].sort(
+      (left, right) =>
+        scorer(right, structures) - scorer(left, structures),
+    )[0] || candidates[0]
+  );
+}
+
 function seedStartingStructures(grid) {
   const structures = [];
   let nextId = 1;
   const landmarkPool = shuffleArray(landmarkTypes);
-  const landmarkCandidates = [];
-  for (let row = 0; row <= 4; row += 1) {
-    for (let col = 0; col < layout.cols; col += 1) {
-      landmarkCandidates.push({ col, row });
-    }
-  }
   for (const landmarkDef of landmarkPool) {
-    const shuffledSpots = shuffleArray(landmarkCandidates);
-    let placed = false;
-    for (const spot of shuffledSpots) {
-      if (
-        !canOccupyTiles(
-          grid,
-          spot.col,
-          spot.row,
-          landmarkDef.footprint.w,
-          landmarkDef.footprint.h,
-        )
-      ) {
-        continue;
-      }
-      const landmark = createStructureEntity(
-        landmarkDef.id,
-        spot.col,
-        spot.row,
-        nextId,
-      );
-      nextId += 1;
-      occupyStructureOnGrid(grid, landmark);
-      structures.push(landmark);
-      placed = true;
-      break;
+    const spot = pickBestSeedSpot(grid, landmarkDef, structures);
+    if (!spot) {
+      continue;
     }
-    if (!placed) {
-      const fallbackSpot = landmarkCandidates.find((spot) =>
-        canOccupyTiles(
-          grid,
-          spot.col,
-          spot.row,
-          landmarkDef.footprint.w,
-          landmarkDef.footprint.h,
-        ),
-      );
-      if (!fallbackSpot) {
-        continue;
-      }
-      const landmark = createStructureEntity(
-        landmarkDef.id,
-        fallbackSpot.col,
-        fallbackSpot.row,
-        nextId,
-      );
-      nextId += 1;
-      occupyStructureOnGrid(grid, landmark);
-      structures.push(landmark);
-    }
+    const landmark = createStructureEntity(
+      landmarkDef.id,
+      spot.col,
+      spot.row,
+      nextId,
+    );
+    nextId += 1;
+    occupyStructureOnGrid(grid, landmark);
+    structures.push(landmark);
   }
 
-  const treeCount = 4 + Math.floor(Math.random() * 3);
-  const candidates = [];
-  for (let row = 3; row < layout.rows - 1; row += 1) {
-    for (let col = 0; col < layout.cols; col += 1) {
-      candidates.push({ col, row });
+  for (const publicSpotDef of shuffleArray(publicSpotTypes)) {
+    const spot = pickBestSeedSpot(
+      grid,
+      publicSpotDef,
+      structures,
+      (candidate, currentStructures) =>
+        scorePublicSpotPlacement(publicSpotDef, candidate, currentStructures),
+    );
+    if (!spot) {
+      continue;
     }
+    const publicSpot = createStructureEntity(
+      publicSpotDef.id,
+      spot.col,
+      spot.row,
+      nextId,
+    );
+    nextId += 1;
+    occupyStructureOnGrid(grid, publicSpot);
+    structures.push(publicSpot);
   }
-  for (const tile of shuffleArray(candidates)) {
+
+  const treeCount = Math.min(5, getTreePlanterCandidates().length);
+  for (const tile of shuffleArray(getTreePlanterCandidates())) {
     if (structures.filter((item) => item.kind === "tree").length >= treeCount) {
       break;
     }
     if (!canOccupyTiles(grid, tile.col, tile.row, 1, 1)) {
       continue;
     }
-    if (tile.row >= layout.rows - 2 && (tile.col === 0 || tile.col === 1)) {
+    if (!isTownWalkwayTile(tile.col, tile.row)) {
       continue;
     }
     const tree = createStructureEntity("tree", tile.col, tile.row, nextId);
@@ -1823,6 +2231,9 @@ function isActorWalkableTile(col, row, facilities) {
   if (col < 0 || row < 0 || col >= layout.cols || row >= layout.rows) {
     return false;
   }
+  if (!isTownWalkwayTile(col, row)) {
+    return false;
+  }
   return !facilities.some(
     (facility) =>
       col >= facility.col &&
@@ -1834,8 +2245,8 @@ function isActorWalkableTile(col, row, facilities) {
 
 function collectWalkableTiles(
   range = { min: 0, max: layout.cols - 1 },
-  rowMin = 2,
-  rowMax = layout.rows - 2,
+  rowMin = 0,
+  rowMax = layout.rows - 1,
   facilities = [],
 ) {
   const tiles = [];
@@ -1999,6 +2410,124 @@ function buildCalendar(day) {
     label: `Y${year} / D${dayOfYear}`,
     seasonId: season.id,
     seasonName: season.label,
+  };
+}
+
+function getQuarterId(calendar) {
+  return `Y${calendar.year}-${calendar.seasonId}`;
+}
+
+function createQuarterStatsState(calendar) {
+  return {
+    id: getQuarterId(calendar),
+    year: calendar.year,
+    seasonId: calendar.seasonId,
+    seasonLabel: quarterSeasonLabels[calendar.seasonId] || calendar.seasonName || "本季",
+    startDayOfYear: calendar.dayOfYear,
+    revenue: 0,
+    visitorsServed: 0,
+    facilityVisits: {},
+    landmarkVisits: {},
+    publicSpotVisits: {},
+    notableEvents: [],
+    notableEventKeys: {},
+    notes: [],
+    noteKeys: {},
+  };
+}
+
+function incrementQuarterCounter(bucket, key, amount = 1) {
+  if (!bucket || !key) {
+    return;
+  }
+  bucket[key] = (bucket[key] || 0) + amount;
+}
+
+function recordQuarterEvent(text, key = text) {
+  if (!state?.quarterStats || !text) {
+    return;
+  }
+  if (state.quarterStats.notableEventKeys[key]) {
+    return;
+  }
+  state.quarterStats.notableEventKeys[key] = true;
+  state.quarterStats.notableEvents.push(text);
+  state.quarterStats.notableEvents = state.quarterStats.notableEvents.slice(0, 8);
+}
+
+function recordQuarterNote(text, key = text) {
+  if (!state?.quarterStats || !text) {
+    return;
+  }
+  if (state.quarterStats.noteKeys[key]) {
+    return;
+  }
+  state.quarterStats.noteKeys[key] = true;
+  state.quarterStats.notes.push(text);
+  state.quarterStats.notes = state.quarterStats.notes.slice(0, 8);
+}
+
+function getTopQuarterEntry(bucket) {
+  const entries = Object.entries(bucket || {});
+  if (!entries.length) {
+    return null;
+  }
+  const [name, value] = [...entries].sort((left, right) => right[1] - left[1])[0];
+  return { name, value };
+}
+
+function buildQuarterReport(stats) {
+  const topFacility = getTopQuarterEntry(stats.facilityVisits);
+  const topLandmark = getTopQuarterEntry(stats.landmarkVisits);
+  const topPublicSpot = getTopQuarterEntry(stats.publicSpotVisits);
+  const storyLine =
+    stats.notes[0] ||
+    (topPublicSpot
+      ? `${topPublicSpot.name} 附近开始形成固定停留人流。`
+      : topLandmark
+        ? `${topLandmark.name} 成了这季最常被观察到的默认建筑。`
+        : topFacility
+          ? `${topFacility.name} 是这季最容易吸住顾客视线的店。`
+          : "这一季的街区还在热身，但已经开始有自己的节奏。");
+  const highlights = [
+    {
+      title: "季度大事",
+      text:
+        stats.notableEvents[0] ||
+        `这季整体平稳推进，${stats.seasonLabel} 的街区气氛逐渐成型。`,
+      accent: "#ffd97a",
+    },
+    {
+      title: "最热店铺",
+      text: topFacility
+        ? `${topFacility.name} 本季接待 ${topFacility.value} 次，已经成了街面焦点。`
+        : "这季还没有形成明确的热店，像是在等第一家真正爆红的门脸。",
+      accent: "#ffb17d",
+    },
+    {
+      title: "观察趣闻",
+      text: topPublicSpot
+        ? `${topPublicSpot.name} 一带出现了 ${topPublicSpot.value} 次驻足停留，路人会在那里多看两眼。`
+        : topLandmark
+          ? `${topLandmark.name} 本季被居民光顾 ${topLandmark.value} 次，默认建筑终于开始带动街区日常。`
+          : storyLine,
+      accent: "#8fd3ff",
+    },
+  ];
+  return {
+    id: stats.id,
+    title: `${stats.year}年 ${stats.seasonLabel} 小镇报表`,
+    seasonLabel: stats.seasonLabel,
+    metrics: {
+      revenue: stats.revenue,
+      visitorsServed: stats.visitorsServed,
+      topFacility: topFacility?.name || "暂无",
+      topLandmark: topLandmark?.name || "暂无",
+      topPublicSpot: topPublicSpot?.name || "暂无",
+    },
+    highlights,
+    storyLine,
+    ctaLabel: "进入下一季",
   };
 }
 
@@ -2307,6 +2836,156 @@ function buildWorld(day, previousWorld = null, facilities = [], forcedIncidentId
   };
 }
 
+function getTrafficPhaseDuration(phase) {
+  switch (phase) {
+    case "walk":
+      return streetLayout.signalCycle.walk;
+    case "blink":
+      return streetLayout.signalCycle.blink;
+    default:
+      return streetLayout.signalCycle.drive;
+  }
+}
+
+function getNextTrafficPhase(phase) {
+  switch (phase) {
+    case "walk":
+      return "blink";
+    case "blink":
+      return "drive";
+    default:
+      return "walk";
+  }
+}
+
+function createTrafficSignalState(phase = "walk") {
+  return {
+    phase,
+    timer: getTrafficPhaseDuration(phase),
+  };
+}
+
+function getRoadTrafficScale() {
+  return state.timeOfDay.id === "midnight" ? 0.45 : state.timeOfDay.id === "evening" ? 0.8 : 1;
+}
+
+function getRoadVehicleLength(type, scale) {
+  switch (type) {
+    case "bus":
+      return scale * 18;
+    case "truck":
+      return scale * 14;
+    default:
+      return scale * 14;
+  }
+}
+
+function createRoadTrafficVehicles(debugMode = null) {
+  const vehicles = roadTrafficConfigs.map((config, index) => ({
+    id: config.id,
+    type: config.type,
+    dir: config.dir,
+    scale: config.scale,
+    palette: config.palette,
+    speed: config.speed,
+    y: typeof config.y === "function" ? config.y() : config.y,
+    x: typeof config.startX === "function" ? config.startX() : config.startX,
+    stopped: false,
+    stopBounce: index * 0.4,
+  }));
+  if (debugMode === "stop" || debugMode === "drive") {
+    for (const vehicle of vehicles) {
+      const stopLine = getRoadVehicleStopLineX(vehicle);
+      if (debugMode === "stop") {
+        vehicle.x = stopLine;
+        vehicle.stopped = true;
+      } else {
+        vehicle.x = vehicle.dir > 0 ? stopLine + 72 : stopLine - 72;
+        vehicle.stopped = false;
+      }
+    }
+  }
+  return vehicles;
+}
+
+function getRoadVehicleStopLineX(vehicle) {
+  const bounds = getBottomCrosswalkBounds();
+  const length = getRoadVehicleLength(vehicle.type, vehicle.scale);
+  if (vehicle.dir > 0) {
+    return bounds.x - 26 - length;
+  }
+  return bounds.x + bounds.w + 26;
+}
+
+function canPedestriansCrossRoad() {
+  return state.trafficSignal.phase === "walk" || state.trafficSignal.phase === "blink";
+}
+
+function getBottomCrosswalkBounds() {
+  const leftPos = tileToScreen(streetLayout.crosswalkCols[0], layout.rows - 1);
+  const rightPos = tileToScreen(
+    streetLayout.crosswalkCols[streetLayout.crosswalkCols.length - 1],
+    layout.rows - 1,
+  );
+  return {
+    x: leftPos.x + 8,
+    w: rightPos.x + layout.tile - leftPos.x - 18,
+    curbY: layout.gridY + layout.rows * layout.tile - 8,
+  };
+}
+
+function shouldPauseForTrafficSignal(visitor) {
+  if (canPedestriansCrossRoad()) {
+    return false;
+  }
+  if (visitor.phase === "to-grid") {
+    return visitor.y > getBottomCrosswalkBounds().curbY - 2;
+  }
+  if (visitor.phase === "leaving-road") {
+    return visitor.y < getBottomCrosswalkBounds().curbY + 6;
+  }
+  return false;
+}
+
+function updateRoadTraffic(delta) {
+  const roadLeft = -220;
+  const roadRight = layout.sidebarX + 220;
+  const carRedLight = state.trafficSignal.phase === "walk" || state.trafficSignal.phase === "blink";
+  const trafficScale = getRoadTrafficScale();
+  for (const vehicle of state.roadTrafficVehicles) {
+    vehicle.y = roadTrafficConfigs.find((config) => config.id === vehicle.id)?.y?.() ?? vehicle.y;
+    const step = vehicle.speed * trafficScale * delta;
+    const stopLine = getRoadVehicleStopLineX(vehicle);
+    if (carRedLight) {
+      if (vehicle.dir > 0 && vehicle.x < stopLine && vehicle.x + step >= stopLine) {
+        vehicle.x = stopLine;
+        vehicle.stopped = true;
+        continue;
+      }
+      if (vehicle.dir < 0 && vehicle.x > stopLine && vehicle.x - step <= stopLine) {
+        vehicle.x = stopLine;
+        vehicle.stopped = true;
+        continue;
+      }
+      if (vehicle.stopped) {
+        continue;
+      }
+    } else if (vehicle.stopped) {
+      vehicle.stopped = false;
+    }
+
+    vehicle.x += vehicle.dir * step;
+    const vehicleLength = getRoadVehicleLength(vehicle.type, vehicle.scale);
+    if (vehicle.dir > 0 && vehicle.x > roadRight) {
+      vehicle.x = roadLeft - vehicleLength - Math.random() * 140;
+      vehicle.stopped = false;
+    } else if (vehicle.dir < 0 && vehicle.x < roadLeft - vehicleLength) {
+      vehicle.x = roadRight + Math.random() * 140;
+      vehicle.stopped = false;
+    }
+  }
+}
+
 function getCurrentHour() {
   return (
     8 +
@@ -2414,6 +3093,7 @@ function createInitialState() {
     seededMap.structures,
     initialDebugIncidentId,
   );
+  const initialQuarterStats = createQuarterStatsState(initialWorld.calendar);
   return {
     mode: "menu",
     money: 160,
@@ -2444,6 +3124,8 @@ function createInitialState() {
     landmarkSpotlights: [],
     dailyLandmarkSpotlightIds: {},
     observerNotes: ["观察记录：先盯住默认建筑的人来人往，再看整条街怎么被带动。"],
+    quarterStats: initialQuarterStats,
+    quarterReport: null,
     goals: goalDefinitions.map((goal) => ({
       ...goal,
       completed: false,
@@ -2453,6 +3135,8 @@ function createInitialState() {
     world: initialWorld,
     npcs: createNPCs(),
     eventActors: createIncidentActors(initialWorld.incidentQueue, seededMap.structures),
+    trafficSignal: createTrafficSignalState(initialDebugTrafficMode === "drive" ? "drive" : "walk"),
+    roadTrafficVehicles: createRoadTrafficVehicles(initialDebugTrafficMode),
     activeDialogue: null,
     dialogueFeed: [],
     dialoguePointer: 0,
@@ -2466,6 +3150,7 @@ function createInitialState() {
     },
     debug: {
       forcedIncidentId: initialDebugIncidentId,
+      trafficMode: initialDebugTrafficMode,
     },
     announcedUnlocks: facilityTypes
       .filter((def) => def.unlockAt <= 0)
@@ -2569,6 +3254,20 @@ function startGame() {
 function pushMessage(text) {
   state.messages.unshift(text);
   state.messages = state.messages.slice(0, 5);
+}
+
+function openQuarterReport(report) {
+  state.quarterReport = {
+    ...report,
+    ttl: 20,
+  };
+  state.selectedType = null;
+  state.activeDialogue = null;
+  setEnvironmentNotice(`${report.seasonLabel} 季报出炉，先看看这季街区发生了什么。`, "#ffe39f", 5);
+}
+
+function closeQuarterReport() {
+  state.quarterReport = null;
 }
 
 function noteLandmarkVisit(landmark) {
@@ -2862,13 +3561,56 @@ function getNearbyTree(visitor, radius = 34) {
 function getNearbyCuriousFacility(visitor, radius = 42) {
   return (
     state.facilities.find((facility) => {
-      if (facility.kind === "scenery" || facility.id === visitor.targetFacilityId) {
+      if (
+        facility.kind === "scenery" ||
+        facility.kind === "public-spot" ||
+        facility.id === visitor.targetFacilityId
+      ) {
         return false;
       }
       const center = getTileCenter(facility.col, facility.row, facility.width, facility.height);
       return Math.hypot(center.x - visitor.x, center.y - visitor.y) <= radius;
     }) || null
   );
+}
+
+function getNearbyPublicSpot(visitor, radius = 44) {
+  return (
+    state.facilities.find((facility) => {
+      if (facility.kind !== "public-spot") {
+        return false;
+      }
+      const center = getTileCenter(facility.col, facility.row, facility.width, facility.height);
+      return Math.hypot(center.x - visitor.x, center.y - visitor.y) <= radius;
+    }) || null
+  );
+}
+
+function getPublicSpotAmbientLine(type) {
+  switch (type) {
+    case "pocket-plaza":
+      return pickRandom([
+        "小广场这块看着就适合站一会儿，街上的动静一眼就扫到了。",
+        "这个口袋公园摆得挺妙，站在边上看人来人往特别有味道。",
+      ]);
+    case "fountain-corner":
+      return pickRandom([
+        "喷泉边的水声一起来，整条街都像慢下来了一点。",
+        "这个喷泉角落挺会做气氛，路过都想多看两眼。",
+      ]);
+    case "metro-entrance":
+      return pickRandom([
+        "地铁口一摆上来，感觉这条街的人气一下就对了。",
+        "站口看着就很忙，像是下一波客人随时会冒出来。",
+      ]);
+    case "street-stall":
+      return pickRandom([
+        "这个小摊看着就热闹，路过的人很难不瞟一眼。",
+        "摊位一撑起来，街面终于有点集市味了。",
+      ]);
+    default:
+      return "这块公共点位挺有街区味，路过就会想停一下。";
+  }
 }
 
 function canVisitorStartAmbientAction(visitor) {
@@ -2980,6 +3722,37 @@ function maybeTriggerVisitorAmbientAction(visitor) {
     }
     if (Math.random() < 0.16) {
       speakAsVisitor(visitor, "树边停一下，整条街的动静一下就能看清。", "street", 2.8);
+    }
+    return true;
+  }
+
+  const nearbyPublicSpot = getNearbyPublicSpot(visitor);
+  if (nearbyPublicSpot && Math.random() < 0.28) {
+    visitor.localPause = 0.7 + Math.random() * 0.55;
+    visitor.ambientCooldown = 8.5 + Math.random() * 3.2;
+    setVisitorMoodBias(
+      visitor,
+      nearbyPublicSpot.type === "metro-entrance" ? "rushed" : "happy",
+      3.2,
+    );
+    if ((visitor.emoteCooldown || 0) <= 0) {
+      setVisitorEmote(
+        visitor,
+        nearbyPublicSpot.type === "metro-entrance"
+          ? "note"
+          : nearbyPublicSpot.type === "fountain-corner"
+            ? "star"
+            : "heart",
+        0.95,
+      );
+    }
+    if (Math.random() < 0.28) {
+      speakAsVisitor(
+        visitor,
+        getPublicSpotAmbientLine(nearbyPublicSpot.type),
+        "street",
+        2.9,
+      );
     }
     return true;
   }
@@ -3605,6 +4378,7 @@ function isVisitorMovingPhase(visitor) {
   return (
     visitor.phase === "to-grid" ||
     visitor.phase === "going" ||
+    visitor.phase === "public-spot-going" ||
     visitor.phase === "errand-going" ||
     visitor.phase === "queueing" ||
     visitor.phase === "entering" ||
@@ -3618,6 +4392,7 @@ function isVisitorMovingPhase(visitor) {
 function canVisitorPauseForAmbient(visitor) {
   return (
     visitor.phase === "going" ||
+    visitor.phase === "public-spot-going" ||
     visitor.phase === "errand-going" ||
     visitor.phase === "leaving"
   );
@@ -3738,6 +4513,193 @@ function getVisitorMoveSpeed(visitor) {
 
 function listLandmarks() {
   return state.facilities.filter((facility) => facility.kind === "landmark");
+}
+
+function listPublicSpots() {
+  return state.facilities.filter((facility) => facility.kind === "public-spot");
+}
+
+function getPublicSpotOriginChance(profileId) {
+  switch (profileId) {
+    case "traveler":
+      return 0.52;
+    case "worker":
+      return 0.38;
+    case "student":
+      return 0.29;
+    case "family":
+      return 0.18;
+    default:
+      return 0.24;
+  }
+}
+
+function buildPublicSpotOriginRoute(facility, profile) {
+  const metroSpots = shuffleArray(
+    listPublicSpots().filter((spot) => spot.type === "metro-entrance"),
+  );
+  for (const spot of metroSpots) {
+    const originTile = getPrimaryEntranceTile(spot);
+    if (!originTile) {
+      continue;
+    }
+    const path = buildFacilityPath(originTile, facility);
+    if (!path) {
+      continue;
+    }
+    return {
+      path,
+      originKind: "public-spot",
+      originPublicSpotId: spot.id,
+      originPublicSpotType: spot.type,
+      spawnTile: path[0],
+      approachTile: path[path.length - 1],
+      roadExit: getRoadPoint(pickRandom(["left", "center", "right"]) || "center", originTile.col),
+    };
+  }
+  return null;
+}
+
+function getPublicSpotDetourWeight(visitor, publicSpot) {
+  let weight = 1.1;
+  switch (publicSpot.type) {
+    case "pocket-plaza":
+      weight += visitor.profileId === "family" ? 1.3 : 0.7;
+      weight += visitor.emotionId === "happy" || visitor.emotionId === "calm" ? 0.5 : 0.1;
+      break;
+    case "fountain-corner":
+      weight += visitor.profileId === "traveler" ? 1.2 : 0.8;
+      weight += state.world.weather.id === "drizzle" ? -0.4 : 0.35;
+      break;
+    case "street-stall":
+      weight += visitor.profileId === "student" || visitor.profileId === "family" ? 1.1 : 0.5;
+      weight += state.timeOfDay.id === "evening" ? 0.55 : 0.2;
+      break;
+    default:
+      break;
+  }
+  return weight;
+}
+
+function planVisitorPublicSpotVisit(visitor) {
+  const startTile = visitor.path[visitor.path.length - 1];
+  if (!startTile) {
+    return null;
+  }
+  const candidates = listPublicSpots()
+    .filter((spot) => spot.type !== "metro-entrance")
+    .map((spot) => {
+      const path = buildFacilityPath(startTile, spot);
+      if (!path) {
+        return null;
+      }
+      return {
+        publicSpot: spot,
+        path,
+        weight: getPublicSpotDetourWeight(visitor, spot),
+      };
+    })
+    .filter(Boolean);
+  const picked = pickWeightedByWeight(candidates);
+  if (!picked) {
+    return null;
+  }
+  return {
+    publicSpot: picked.publicSpot,
+    path: picked.path,
+    approachTile: picked.path[picked.path.length - 1],
+  };
+}
+
+function getPublicSpotStayDuration(type) {
+  const base = simulationTuning.visitorWait;
+  switch (type) {
+    case "pocket-plaza":
+      return base * 1.9;
+    case "fountain-corner":
+      return base * 2.2;
+    case "street-stall":
+      return base * 1.5;
+    case "metro-entrance":
+      return base * 1.2;
+    default:
+      return base * 1.6;
+  }
+}
+
+function getPublicSpotVisitPayload(type) {
+  switch (type) {
+    case "pocket-plaza":
+      return {
+        floaterText: "停在广场",
+        dialogue: pickRandom([
+          "这小广场真适合停一下，街上的人一来一去全看得见。",
+          "广场这块留得真妙，站一会儿就会觉得整条街活起来了。",
+        ]),
+        emote: "heart",
+        moodId: "happy",
+        color: "#ffeab3",
+      };
+    case "fountain-corner":
+      return {
+        floaterText: "看了喷泉",
+        dialogue: pickRandom([
+          "喷泉这块挺会做气氛，路过真的会想慢一点。",
+          "水声一出来，刚才排队那点烦躁都被冲掉了。",
+        ]),
+        emote: "star",
+        moodId: "calm",
+        color: "#d9f1ff",
+      };
+    case "street-stall":
+      return {
+        floaterText: "围了小摊",
+        dialogue: pickRandom([
+          "小摊往街边一摆，整条路就有了点逛市集的味道。",
+          "这摊子真会招人，走到这里总想再多停一秒。",
+        ]),
+        emote: "note",
+        moodId: "happy",
+        color: "#ffe1ab",
+      };
+    case "metro-entrance":
+      return {
+        floaterText: "从地铁口来",
+        dialogue: pickRandom([
+          "刚出站就能看到这条街，第一眼印象就够热闹。",
+          "地铁口离商店街这么近，难怪客流接得这么顺。",
+        ]),
+        emote: "note",
+        moodId: "rushed",
+        color: "#d8ebff",
+      };
+    default:
+      return {
+        floaterText: "停留了一下",
+        dialogue: "这块公共点位留得不错，走到这就想多看一眼。",
+        emote: "note",
+        moodId: "calm",
+        color: "#fff4d4",
+      };
+  }
+}
+
+function notePublicSpotVisit(publicSpot) {
+  if (!publicSpot) {
+    return;
+  }
+  publicSpot.publicVisits = (publicSpot.publicVisits || 0) + 1;
+  const def = getStructureDef(publicSpot.type);
+  incrementQuarterCounter(state.quarterStats?.publicSpotVisits, def?.name || publicSpot.type, 1);
+  if (publicSpot.publicVisits === 3 || publicSpot.publicVisits === 6) {
+    const note = `观察记录：${def?.name || "公共点位"} 附近开始形成固定停留人流。`;
+    state.observerNotes.unshift(note);
+    state.observerNotes = state.observerNotes.slice(0, 4);
+    recordQuarterNote(note, `public:${publicSpot.id}:${publicSpot.publicVisits}`);
+    if (Math.random() < 0.56) {
+      pushMessage(note);
+    }
+  }
 }
 
 function getLandmarkErrandLabel(landmarkType, profileId) {
@@ -3893,6 +4855,14 @@ function applyShopVisitFeedback(visitor, facilityType) {
 }
 
 function getFacilityPickupSpawnPoint(facility) {
+  const entrance = getPrimaryEntranceTile(facility);
+  if (entrance) {
+    const center = getTileCenter(entrance.col, entrance.row);
+    return {
+      x: center.x + (Math.random() * 18 - 9),
+      y: center.y + (Math.random() * 16 - 8),
+    };
+  }
   const center = getTileCenter(facility.col, facility.row, facility.width, facility.height);
   return {
     x: center.x + (Math.random() * 26 - 13),
@@ -4146,6 +5116,9 @@ function isWalkableTile(col, row, allowedFacilityId = null) {
   if (col < 0 || row < 0 || col >= layout.cols || row >= layout.rows) {
     return false;
   }
+  if (!isTownWalkwayTile(col, row)) {
+    return false;
+  }
   const occupant = getFacilityAt(col, row);
   return !occupant || occupant.id === allowedFacilityId;
 }
@@ -4318,17 +5291,32 @@ function chooseWeightedFacility(facilities, profile) {
   return weights[weights.length - 1]?.facility || facilities[0];
 }
 
+function getRoadSpawnCol(kind = "center", referenceCol = Math.floor(layout.cols / 2)) {
+  const options = [
+    { kind: "left", col: 2 },
+    { kind: "center", col: 6 },
+    { kind: "right", col: 11 },
+  ];
+  if (kind === "auto") {
+    return (
+      [...options].sort(
+        (a, b) => Math.abs(a.col - referenceCol) - Math.abs(b.col - referenceCol),
+      )[0] || options[1]
+    );
+  }
+  return options.find((option) => option.kind === kind) || options[1];
+}
+
 function getRoadPoint(kind, referenceCol = Math.floor(layout.cols / 2)) {
-  const playfieldWidth = layout.sidebarX - 20;
-  const clampedCol = Math.max(0, Math.min(layout.cols - 1, referenceCol));
-  const anchorX = layout.gridX + clampedCol * layout.tile + layout.tile / 2;
+  const spawn = getRoadSpawnCol(kind === "center" ? "auto" : kind, referenceCol);
+  const anchorX = layout.gridX + spawn.col * layout.tile + layout.tile / 2;
   switch (kind) {
     case "left":
-      return { x: 18, y: layout.roadY + 28, kind };
+      return { x: anchorX - 10, y: layout.roadY + 30, kind };
     case "right":
-      return { x: playfieldWidth - 14, y: layout.roadY + 28, kind };
+      return { x: anchorX + 10, y: layout.roadY + 30, kind };
     default:
-      return { x: anchorX, y: layout.roadY + 30, kind: "center" };
+      return { x: anchorX, y: layout.roadY + 30, kind: spawn.kind };
   }
 }
 
@@ -4337,24 +5325,29 @@ function buildVisitorRoute(facility) {
   if (!bestEntrance) {
     return null;
   }
-  const roadStartTile = {
-    col: Math.max(0, Math.min(layout.cols - 1, bestEntrance.col)),
-    row: layout.rows - 1,
-  };
-  const path = buildFacilityPath(roadStartTile, facility);
-  if (!path) {
+  const entryKinds = shuffleArray(["left", "center", "right"]);
+  let selected = null;
+  for (const entryKind of entryKinds) {
+    const spawn = getRoadSpawnCol(entryKind, bestEntrance.col);
+    const roadStartTile = { col: spawn.col, row: layout.rows - 1 };
+    const path = buildFacilityPath(roadStartTile, facility);
+    if (!path) {
+      continue;
+    }
+    if (!selected || path.length < selected.path.length) {
+      selected = { entryKind: spawn.kind, roadStartTile, path };
+    }
+  }
+  if (!selected) {
     return null;
   }
-  const entryKinds = ["left", "right", "center"];
-  const entryKind = entryKinds[Math.floor(Math.random() * entryKinds.length)];
-  const exitKinds = entryKinds.filter((kind) => kind !== entryKind);
-  const exitKind =
-    exitKinds[Math.floor(Math.random() * exitKinds.length)] || "center";
+  const exitKinds = ["left", "center", "right"].filter((kind) => kind !== selected.entryKind);
+  const exitKind = exitKinds[Math.floor(Math.random() * exitKinds.length)] || "center";
   return {
-    approachTile: path[path.length - 1],
-    path,
-    roadEntry: getRoadPoint(entryKind, roadStartTile.col),
-    roadExit: getRoadPoint(exitKind, roadStartTile.col + (Math.random() > 0.5 ? 1 : -1)),
+    approachTile: selected.path[selected.path.length - 1],
+    path: selected.path,
+    roadEntry: getRoadPoint(selected.entryKind, selected.roadStartTile.col),
+    roadExit: getRoadPoint(exitKind, selected.roadStartTile.col),
   };
 }
 
@@ -4373,9 +5366,8 @@ function buildLandmarkOriginRoute(facility, profile) {
     if (!path) {
       continue;
     }
-    const exitKinds = ["left", "right", "center"];
-    const exitKind =
-      exitKinds[Math.floor(Math.random() * exitKinds.length)] || "center";
+    const exitKinds = ["left", "center", "right"];
+    const exitKind = (pickRandom(exitKinds) || "center");
     return {
       path,
       originKind: "landmark",
@@ -4448,6 +5440,7 @@ function completeLandmarkErrand(visitor) {
   noteLandmarkVisit(landmark);
   maybeActivateLandmarkSpotlight(landmark);
   const landmarkName = getStructureDef(landmark.type)?.name || "默认建筑";
+  incrementQuarterCounter(state.quarterStats?.landmarkVisits, landmarkName, 1);
   const payload = getLandmarkCompletionPayload(visitor, landmark.type);
   if ((visitor.emoteCooldown || 0) <= 0) {
     setVisitorEmote(visitor, payload.emote, 1.6 + Math.random() * 0.6);
@@ -4487,6 +5480,12 @@ function canPlaceFacility(col, row, def) {
     };
   }
   for (const tile of getFootprintTiles(col, row, w, h)) {
+    if (!isBuildLotTile(tile.col, tile.row)) {
+      return {
+        ok: false,
+        reason: "建筑只能贴着规划街区的店面地块摆放。",
+      };
+    }
     if (state.grid[tile.row][tile.col]) {
       return {
         ok: false,
@@ -5140,6 +6139,12 @@ function startVisitorLeaving(visitor) {
     visitor.targetY = visitor.exitRoadY;
     return;
   }
+  if (visitor.phase === "public-spot-going" || visitor.phase === "public-spot-staying") {
+    visitor.phase = "leaving";
+    visitor.publicSpotId = null;
+    visitor.publicSpotType = null;
+    return;
+  }
   if (visitor.phase === "entering" || visitor.phase === "inside") {
     visitor.phase = "exiting";
     setVisitorTargetToTile(visitor, visitor.path[visitor.path.length - 1]);
@@ -5151,7 +6156,8 @@ function startVisitorLeaving(visitor) {
     visitor.phase === "inside" ||
     visitor.phase === "queueing" ||
     visitor.phase === "queue-wait" ||
-    visitor.phase === "errand-going"
+    visitor.phase === "errand-going" ||
+    visitor.phase === "public-spot-going"
   ) {
     visitor.phase = "leaving";
     return;
@@ -5212,7 +6218,10 @@ function buildVisitorSpawnPlan(profile, residentProfile = null, overrides = {}) 
   }
   const route =
     overrides.route ||
-    ((Math.random() < 0.58 && buildLandmarkOriginRoute(target, profile)) || buildVisitorRoute(target));
+    ((Math.random() < getPublicSpotOriginChance(profile.id) &&
+      buildPublicSpotOriginRoute(target, profile)) ||
+      (Math.random() < 0.58 && buildLandmarkOriginRoute(target, profile)) ||
+      buildVisitorRoute(target));
   if (!route) {
     return null;
   }
@@ -5251,15 +6260,16 @@ function createVisitorFromPlan(plan, options = {}) {
   const route = cloneRoute(plan.route);
   const firstTile = route.path[0];
   const firstCenter = getTileCenter(firstTile.col, firstTile.row);
-  const nextPathIndex = route.originKind === "landmark" ? Math.min(1, route.path.length - 1) : 0;
+  const startsOnTile = route.originKind === "landmark" || route.originKind === "public-spot";
+  const nextPathIndex = startsOnTile ? Math.min(1, route.path.length - 1) : 0;
   const firstTargetTile = route.path[nextPathIndex];
   const firstTargetCenter = getTileCenter(firstTargetTile.col, firstTargetTile.row);
   const positionOffset = companionAnchor ? (state.nextVisitorId % 2 === 0 ? 10 : -10) : 0;
   const visitor = {
     id: state.nextVisitorId,
     x:
-      (route.originKind === "landmark" ? firstCenter.x : route.roadEntry.x) + positionOffset,
-    y: route.originKind === "landmark" ? firstCenter.y : route.roadEntry.y,
+      (startsOnTile ? firstCenter.x : route.roadEntry.x) + positionOffset,
+    y: startsOnTile ? firstCenter.y : route.roadEntry.y,
     speed: (52 + Math.random() * 16) * simulationTuning.visitorSpeedMultiplier,
     mood: "calm",
     emotionId: "calm",
@@ -5282,7 +6292,7 @@ function createVisitorFromPlan(plan, options = {}) {
     targetRow: plan.target.row,
     targetApproachCol: route.approachTile.col,
     targetApproachRow: route.approachTile.row,
-    phase: route.originKind === "landmark" ? "going" : "to-grid",
+    phase: startsOnTile ? "going" : "to-grid",
     wait: 0,
     appearance,
     path: route.path,
@@ -5290,16 +6300,21 @@ function createVisitorFromPlan(plan, options = {}) {
     queuePatience: 0,
     queueSlotIndex: 0,
     targetX:
-      (route.originKind === "landmark" ? firstTargetCenter.x : firstCenter.x) + positionOffset,
+      (startsOnTile ? firstTargetCenter.x : firstCenter.x) + positionOffset,
     targetY:
-      route.originKind === "landmark" ? firstTargetCenter.y : layout.roadY + 18,
+      startsOnTile ? firstTargetCenter.y : layout.roadY + 18,
     exitRoadX: route.roadExit.x,
     exitRoadY: route.roadExit.y,
     originLandmarkId: route.originLandmarkId || null,
     originLandmarkType: route.originLandmarkType || null,
+    originPublicSpotId: route.originPublicSpotId || null,
+    originPublicSpotType: route.originPublicSpotType || null,
     errandLandmarkId: plan.errandLandmark?.id || null,
     errandLandmarkType: plan.errandLandmark?.type || null,
     pendingErrandPath: null,
+    pendingPublicSpotVisit: null,
+    publicSpotId: null,
+    publicSpotType: null,
     emote: null,
     emoteCooldown: 0.6 + Math.random() * 1.8,
     incidentPause: 0,
@@ -5416,6 +6431,14 @@ function visitFacility(visitor) {
   state.rating += ratingGain;
   state.servedVisitors += 1;
   state.lifetimeIncome += income;
+  if (state.quarterStats) {
+    state.quarterStats.revenue += income;
+    state.quarterStats.visitorsServed += 1;
+    incrementQuarterCounter(state.quarterStats.facilityVisits, def.name, 1);
+    if (bonus.names.length) {
+      recordQuarterEvent(`${def.name} 这季多次触发联动，街区组合开始成形。`, `combo:${def.name}`);
+    }
+  }
   state.lastCombo = bonus.names.length
     ? `${def.name} + ${bonus.names[0]}`
     : trendIncome > 0
@@ -5512,6 +6535,16 @@ function updateVisitors(delta) {
         }
         continue;
       }
+      if (shouldPauseForTrafficSignal(visitor)) {
+        if (
+          (visitor.emoteCooldown || 0) <= 0 &&
+          Math.random() < 0.08 &&
+          state.trafficSignal.phase === "drive"
+        ) {
+          setVisitorEmote(visitor, "dots", 0.85);
+        }
+        continue;
+      }
       const dx = visitor.targetX - visitor.x;
       const dy = visitor.targetY - visitor.y;
       const dist = Math.hypot(dx, dy);
@@ -5545,6 +6578,35 @@ function updateVisitors(delta) {
             visitor.phase = "landmark-entering";
             setVisitorTargetToFacility(visitor, landmark);
           }
+        } else if (visitor.phase === "public-spot-going") {
+          if (visitor.pathIndex < visitor.path.length - 1) {
+            visitor.pathIndex += 1;
+            setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+          } else {
+            const publicSpot = getFacilityById(visitor.publicSpotId);
+            if (!publicSpot) {
+              startVisitorLeaving(visitor);
+              continue;
+            }
+            const payload = getPublicSpotVisitPayload(publicSpot.type);
+            visitor.phase = "public-spot-staying";
+            visitor.wait = getPublicSpotStayDuration(publicSpot.type);
+            setVisitorMoodBias(visitor, payload.moodId, 4.2);
+            notePublicSpotVisit(publicSpot);
+            if ((visitor.emoteCooldown || 0) <= 0) {
+              setVisitorEmote(visitor, payload.emote, 1.05 + Math.random() * 0.55);
+            }
+            state.floaters.push({
+              x: visitor.x,
+              y: visitor.y - 14,
+              text: payload.floaterText,
+              color: payload.color,
+              ttl: 1.6,
+            });
+            if (Math.random() < 0.34) {
+              speakAsVisitor(visitor, payload.dialogue, "public-spot", 3.1);
+            }
+          }
         } else if (visitor.phase === "queueing") {
           visitor.phase = "queue-wait";
         } else if (visitor.phase === "entering") {
@@ -5568,7 +6630,31 @@ function updateVisitors(delta) {
             );
           }
         } else if (visitor.phase === "exiting") {
-          if (visitor.pendingErrandPath?.length) {
+          if (visitor.pendingPublicSpotVisit?.path?.length) {
+            visitor.path = visitor.pendingPublicSpotVisit.path;
+            visitor.publicSpotId = visitor.pendingPublicSpotVisit.publicSpot.id;
+            visitor.publicSpotType = visitor.pendingPublicSpotVisit.publicSpot.type;
+            visitor.pendingPublicSpotVisit = null;
+            visitor.pathIndex = Math.min(1, visitor.path.length - 1);
+            if (visitor.path.length > 1) {
+              visitor.phase = "public-spot-going";
+              setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+            } else {
+              const publicSpot = getFacilityById(visitor.publicSpotId);
+              if (!publicSpot) {
+                startVisitorLeaving(visitor);
+                continue;
+              }
+              const payload = getPublicSpotVisitPayload(publicSpot.type);
+              visitor.phase = "public-spot-staying";
+              visitor.wait = getPublicSpotStayDuration(publicSpot.type);
+              setVisitorMoodBias(visitor, payload.moodId, 4.2);
+              notePublicSpotVisit(publicSpot);
+              if ((visitor.emoteCooldown || 0) <= 0) {
+                setVisitorEmote(visitor, payload.emote, 1.05 + Math.random() * 0.55);
+              }
+            }
+          } else if (visitor.pendingErrandPath?.length) {
             visitor.path = visitor.pendingErrandPath;
             visitor.pendingErrandPath = null;
             visitor.pathIndex = Math.min(1, visitor.path.length - 1);
@@ -5664,8 +6750,11 @@ function updateVisitors(delta) {
     } else if (visitor.phase === "inside") {
       visitor.wait -= delta;
       if (visitor.wait <= 0) {
-        const plannedErrand = planVisitorErrandAfterService(visitor);
+        const plannedPublicSpot =
+          Math.random() < 0.42 ? planVisitorPublicSpotVisit(visitor) : null;
+        const plannedErrand = plannedPublicSpot ? null : planVisitorErrandAfterService(visitor);
         visitFacility(visitor);
+        visitor.pendingPublicSpotVisit = plannedPublicSpot;
         const approachTile = visitor.path[visitor.path.length - 1];
         visitor.pendingErrandPath = plannedErrand?.path || null;
         visitor.phase = "exiting";
@@ -5684,6 +6773,43 @@ function updateVisitors(delta) {
             },
             { chance: 1, speakerId: visitor.id },
           );
+        }
+      }
+    } else if (visitor.phase === "public-spot-staying") {
+      visitor.wait -= delta;
+      if (visitor.wait <= 0) {
+        const publicSpotApproachTile = visitor.path[visitor.path.length - 1];
+        visitor.publicSpotId = null;
+        visitor.publicSpotType = null;
+        const route = visitor.errandLandmarkId
+          ? buildLandmarkErrandRoute(publicSpotApproachTile, visitor.errandLandmarkId)
+          : null;
+        if (route) {
+          visitor.path = route.path;
+          visitor.pathIndex = Math.min(1, visitor.path.length - 1);
+          if (visitor.path.length > 1) {
+            visitor.phase = "errand-going";
+            setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+          } else {
+            const landmark = getFacilityById(visitor.errandLandmarkId);
+            if (!landmark) {
+              startVisitorLeaving(visitor);
+              continue;
+            }
+            visitor.phase = "landmark-entering";
+            setVisitorTargetToFacility(visitor, landmark);
+          }
+        } else {
+          visitor.phase = "leaving";
+          visitor.pathIndex = Math.max(0, visitor.path.length - 1);
+          if (visitor.pathIndex > 0) {
+            visitor.pathIndex -= 1;
+            setVisitorTargetToTile(visitor, visitor.path[visitor.pathIndex]);
+          } else {
+            visitor.phase = "leaving-road";
+            visitor.targetX = visitor.exitRoadX;
+            visitor.targetY = visitor.exitRoadY;
+          }
         }
       }
     } else if (visitor.phase === "landmark-inside") {
@@ -5717,6 +6843,7 @@ function updateFloaters(delta) {
 
 function advanceDay() {
   const previousSeasonId = state.world.season.id;
+  const previousCalendar = { ...state.world.calendar };
   const observerSnapshot = getObserverSnapshot();
   state.day += 1;
   state.rating += 2;
@@ -5745,6 +6872,10 @@ function advanceDay() {
     `今日热潮：${state.todayTrend.name}，额外 +${state.todayTrend.incomeBonus}G / +${state.todayTrend.ratingBonus}★。`,
   );
   if (state.world.activeFestival) {
+    recordQuarterEvent(
+      `${state.world.activeFestival.name} 在 ${state.world.season.label} 把街区气氛推高了一截。`,
+      `festival:${state.world.activeFestival.id}`,
+    );
     pushMessage(
       `${state.world.activeFestival.name} 举办中：${state.world.activeFestival.description}`,
     );
@@ -5770,6 +6901,7 @@ function advanceDay() {
   }
   if (state.world.incidentQueue.length) {
     const incident = state.world.incidentQueue[0];
+    recordQuarterEvent(`${incident.title}：${incident.description}`, `incident:${incident.id}`);
     pushMessage(`${incident.title}：${incident.description}`);
     setEnvironmentNotice(`${incident.title}：${incident.description}`, incident.color, 4.6);
     triggerDialogue("incident", { incidentTitle: incident.title }, { chance: 0.28 });
@@ -5780,6 +6912,10 @@ function advanceDay() {
   triggerDialogue("trend", { trendName: state.todayTrend.name }, { chance: 0.2 });
   triggerDialogue("weather", { weatherLabel: state.world.weather.label }, { chance: 0.18 });
   if (previousSeasonId !== state.world.season.id) {
+    recordQuarterNote(observerSnapshot, `snapshot:${previousCalendar.dayOfYear}`);
+    const finishedQuarterStats = state.quarterStats || createQuarterStatsState(previousCalendar);
+    openQuarterReport(buildQuarterReport(finishedQuarterStats));
+    state.quarterStats = createQuarterStatsState(state.world.calendar);
     triggerDialogue("season", { seasonLabel: state.world.season.label }, { chance: 0.32 });
   } else {
     triggerDialogue("day", { seasonLabel: state.world.season.label }, { chance: 0.12 });
@@ -5788,14 +6924,32 @@ function advanceDay() {
   evaluateGoals();
 }
 
+function updateTrafficSignal(delta) {
+  state.trafficSignal.timer -= delta;
+  if (state.trafficSignal.timer > 0) {
+    return;
+  }
+  state.trafficSignal.phase = getNextTrafficPhase(state.trafficSignal.phase);
+  state.trafficSignal.timer = getTrafficPhaseDuration(state.trafficSignal.phase);
+}
+
 function update(delta) {
   state.cameraPulse += delta;
   updateDialogue(delta);
+  if (state.quarterReport) {
+    state.quarterReport.ttl = Math.max(0, (state.quarterReport.ttl || 0) - delta);
+    if (state.quarterReport.ttl <= 0) {
+      closeQuarterReport();
+    }
+  }
   if (state.mode !== "play") {
+    updateRoadTraffic(delta);
     updateFloaters(delta);
     return;
   }
   updateEventActors(delta);
+  updateTrafficSignal(delta);
+  updateRoadTraffic(delta);
 
   state.spawnTimer -= delta;
   state.dayTimer += delta;
@@ -5929,6 +7083,15 @@ function syncButtons() {
   restartButton.textContent = state.mode === "complete" ? "再开一轮" : "重新开档";
 }
 
+function getQuarterReportButtonRect() {
+  return {
+    x: 418,
+    y: 698,
+    w: 132,
+    h: 34,
+  };
+}
+
 function drawPixelRect(x, y, size, color) {
   ctx.fillStyle = color;
   ctx.fillRect(Math.round(x), Math.round(y), size, size);
@@ -5951,15 +7114,15 @@ function drawFittedSprite(sprite, palette, x, y, width, height) {
     2,
     Math.floor(
       Math.min(
-        (width - 18) / sprite[0].length,
-        (height - 18) / sprite.length,
+        (width - 12) / sprite[0].length,
+        (height - 12) / sprite.length,
       ),
     ),
   );
   const drawWidth = sprite[0].length * scale;
   const drawHeight = sprite.length * scale;
-  const drawX = x + Math.max(6, Math.floor((width - drawWidth) / 2));
-  const drawY = y + Math.max(4, Math.floor((height - drawHeight) / 2) - 2);
+  const drawX = x + Math.max(4, Math.floor((width - drawWidth) / 2));
+  const drawY = y + Math.max(2, Math.floor((height - drawHeight) / 2) - 2);
   drawSprite(sprite, palette, drawX, drawY, scale);
 }
 
@@ -6044,81 +7207,422 @@ function drawSkyTraffic(playfieldWidth) {
 
 function drawRoadVehicle(x, y, scale, palette, type = "car") {
   ctx.fillStyle = "rgba(0,0,0,0.2)";
-  ctx.fillRect(x + scale, y + scale * 6, scale * (type === "bus" ? 15 : 11), scale * 2);
+  ctx.fillRect(x + scale, y + scale * 7, scale * (type === "bus" ? 16 : type === "truck" ? 14 : 12), scale * 2);
   ctx.fillStyle = palette.body;
   if (type === "bus") {
-    ctx.fillRect(x, y + scale * 2, scale * 16, scale * 4);
-    ctx.fillRect(x + scale * 2, y, scale * 9, scale * 3);
+    ctx.fillRect(x, y + scale * 2, scale * 18, scale * 5);
+    ctx.fillRect(x + scale * 2, y, scale * 11, scale * 4);
   } else if (type === "truck") {
-    ctx.fillRect(x, y + scale * 2, scale * 12, scale * 4);
-    ctx.fillRect(x + scale * 8, y, scale * 4, scale * 3);
+    ctx.fillRect(x, y + scale * 3, scale * 14, scale * 4);
+    ctx.fillRect(x + scale * 9, y, scale * 5, scale * 4);
+    ctx.fillRect(x + scale * 2, y + scale * 1, scale * 5, scale * 2);
   } else {
-    ctx.fillRect(x, y + scale * 2, scale * 12, scale * 3);
-    ctx.fillRect(x + scale * 2, y, scale * 6, scale * 3);
+    ctx.fillRect(x, y + scale * 3, scale * 14, scale * 3);
+    ctx.fillRect(x + scale * 3, y, scale * 8, scale * 4);
   }
   ctx.fillStyle = palette.roof;
   if (type === "bus") {
-    ctx.fillRect(x + scale * 3, y + scale, scale * 8, scale * 2);
-    ctx.fillRect(x + scale, y + scale * 3, scale * 13, scale);
+    ctx.fillRect(x + scale * 3, y + scale, scale * 10, scale * 2);
+    ctx.fillRect(x + scale * 2, y + scale * 4, scale * 14, scale);
   } else if (type === "truck") {
-    ctx.fillRect(x + scale, y + scale * 3, scale * 6, scale);
-    ctx.fillRect(x + scale * 8, y + scale, scale * 3, scale * 2);
+    ctx.fillRect(x + scale, y + scale * 4, scale * 7, scale);
+    ctx.fillRect(x + scale * 9, y + scale, scale * 3, scale * 2);
   } else {
-    ctx.fillRect(x + scale * 2, y + scale, scale * 5, scale * 2);
+    ctx.fillRect(x + scale * 3, y + scale, scale * 6, scale * 2);
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  if (type === "bus") {
+    ctx.fillRect(x + scale * 3, y + scale * 3, scale * 2, scale);
+    ctx.fillRect(x + scale * 6, y + scale * 3, scale * 2, scale);
+    ctx.fillRect(x + scale * 9, y + scale * 3, scale * 2, scale);
+    ctx.fillRect(x + scale * 12, y + scale * 3, scale * 2, scale);
+    ctx.fillRect(x + scale * 15, y + scale * 3, scale * 2, scale);
+  } else if (type === "truck") {
+    ctx.fillRect(x + scale * 10, y + scale, scale * 2, scale);
+    ctx.fillRect(x + scale * 11, y + scale * 2, scale, scale);
+  } else {
+    ctx.fillRect(x + scale * 4, y + scale, scale * 2, scale);
+    ctx.fillRect(x + scale * 8, y + scale, scale * 2, scale);
   }
   ctx.fillStyle = palette.trim;
-  ctx.fillRect(x + scale * 2, y + scale * 6, scale * 2, scale * 2);
-  ctx.fillRect(x + scale * 8, y + scale * 6, scale * 2, scale * 2);
+  ctx.fillRect(x + scale * 2, y + scale * 7, scale * 2, scale * 2);
+  ctx.fillRect(x + scale * 10, y + scale * 7, scale * 2, scale * 2);
   if (type === "bus") {
-    ctx.fillRect(x + scale * 12, y + scale * 6, scale * 2, scale * 2);
+    ctx.fillRect(x + scale * 15, y + scale * 7, scale * 2, scale * 2);
+  } else if (type === "truck") {
+    ctx.fillRect(x + scale * 6, y + scale * 7, scale * 2, scale * 2);
+  }
+  ctx.fillStyle = "rgba(47, 34, 49, 0.26)";
+  if (type === "bus") {
+    ctx.fillRect(x + scale * 2, y + scale * 5, scale * 14, scale);
+  } else if (type === "truck") {
+    ctx.fillRect(x + scale * 2, y + scale * 5, scale * 10, scale);
+  } else {
+    ctx.fillRect(x + scale * 2, y + scale * 5, scale * 10, scale);
+  }
+}
+
+function drawCentralCrossroadProps() {
+  const signalColor =
+    state.trafficSignal.phase === "walk"
+      ? "#82dd77"
+      : state.trafficSignal.phase === "blink"
+        ? "#ffe17a"
+        : "#ff8d73";
+  const posts = [
+    tileToScreen(4, 3),
+    tileToScreen(8, 3),
+    tileToScreen(4, 5),
+    tileToScreen(8, 5),
+  ];
+  posts.forEach((pos, index) => {
+    const x = pos.x + (index % 2 === 0 ? layout.tile - 12 : 8);
+    const y = pos.y + (index < 2 ? layout.tile - 24 : 12);
+    ctx.fillStyle = "#4f474f";
+    ctx.fillRect(x, y, 4, 18);
+    ctx.fillStyle = "#2f2231";
+    ctx.fillRect(x - 3, y - 6, 10, 6);
+    ctx.fillStyle = signalColor;
+    ctx.fillRect(x, y - 4, 4, 3);
+  });
+}
+
+function drawBusStop(x, y) {
+  ctx.fillStyle = "#4f474f";
+  ctx.fillRect(x, y - 18, 4, 20);
+  ctx.fillStyle = "#6db7ff";
+  ctx.fillRect(x - 4, y - 26, 12, 8);
+  ctx.fillStyle = "#fff5d8";
+  ctx.fillRect(x - 2, y - 24, 8, 4);
+}
+
+function drawMailBox(x, y) {
+  ctx.fillStyle = "#d75f54";
+  ctx.fillRect(x, y - 12, 10, 10);
+  ctx.fillStyle = "#fff3d8";
+  ctx.fillRect(x + 2, y - 10, 6, 2);
+  ctx.fillStyle = "#6f4a44";
+  ctx.fillRect(x + 3, y - 2, 4, 6);
+}
+
+function drawRoadCone(x, y) {
+  ctx.fillStyle = "#ffb45f";
+  ctx.fillRect(x + 2, y - 10, 4, 2);
+  ctx.fillRect(x + 1, y - 8, 6, 4);
+  ctx.fillRect(x, y - 4, 8, 4);
+  ctx.fillStyle = "#fff6dc";
+  ctx.fillRect(x + 1, y - 6, 6, 1);
+}
+
+function drawStreetSign(x, y, accent = "#6db7ff") {
+  ctx.fillStyle = "#4f474f";
+  ctx.fillRect(x + 4, y - 16, 3, 18);
+  ctx.fillStyle = accent;
+  ctx.fillRect(x, y - 20, 12, 8);
+  ctx.fillStyle = "#fff8de";
+  ctx.fillRect(x + 2, y - 18, 8, 1);
+}
+
+function drawPuddle(x, y, width = 14) {
+  ctx.fillStyle = "rgba(108, 171, 229, 0.28)";
+  ctx.fillRect(x, y - 2, width, 4);
+  ctx.fillStyle = "rgba(222, 244, 255, 0.36)";
+  ctx.fillRect(x + 2, y - 1, Math.max(4, width - 6), 1);
+}
+
+function drawCanopy(x, y, width = 20, color = "#7fd7ff") {
+  ctx.fillStyle = "#4f474f";
+  ctx.fillRect(x + 2, y - 2, 2, 10);
+  ctx.fillRect(x + width - 4, y - 2, 2, 10);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y - 8, width, 6);
+  ctx.fillStyle = "#fff8de";
+  ctx.fillRect(x + 2, y - 6, width - 4, 2);
+}
+
+function drawLanternString(x, y, color = "#ff8cb1") {
+  ctx.fillStyle = "#7f675f";
+  ctx.fillRect(x, y, 28, 2);
+  ctx.fillStyle = color;
+  for (let index = 0; index < 4; index += 1) {
+    ctx.fillRect(x + 3 + index * 7, y + 2, 4, 5);
+  }
+}
+
+function drawSpeakerStand(x, y) {
+  ctx.fillStyle = "#4f474f";
+  ctx.fillRect(x + 4, y - 12, 3, 12);
+  ctx.fillStyle = "#7fd7ff";
+  ctx.fillRect(x, y - 18, 10, 7);
+  ctx.fillStyle = "#2f2231";
+  ctx.fillRect(x + 2, y - 16, 6, 3);
+}
+
+function drawSaleBoard(x, y, color = "#ff95bf") {
+  ctx.fillStyle = "#7f675f";
+  ctx.fillRect(x + 4, y - 12, 3, 12);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y - 18, 12, 8);
+  ctx.fillStyle = "#fff8de";
+  ctx.fillRect(x + 2, y - 16, 8, 2);
+}
+
+function drawBench(x, y, tint = "#a77a54") {
+  ctx.fillStyle = tint;
+  ctx.fillRect(x, y - 8, 14, 4);
+  ctx.fillRect(x + 2, y - 12, 10, 3);
+  ctx.fillRect(x + 2, y - 4, 2, 5);
+  ctx.fillRect(x + 10, y - 4, 2, 5);
+}
+
+function drawPlanter(x, y, bloom = "#f08ca6") {
+  ctx.fillStyle = "#c79d6d";
+  ctx.fillRect(x, y - 6, 10, 6);
+  ctx.fillStyle = "#8c6942";
+  ctx.fillRect(x + 1, y - 4, 8, 2);
+  ctx.fillStyle = "#61b157";
+  ctx.fillRect(x + 3, y - 12, 4, 6);
+  ctx.fillStyle = bloom;
+  ctx.fillRect(x + 1, y - 13, 2, 2);
+  ctx.fillRect(x + 7, y - 13, 2, 2);
+}
+
+function drawParcelStack(x, y) {
+  ctx.fillStyle = "#c9a071";
+  ctx.fillRect(x, y - 8, 8, 8);
+  ctx.fillRect(x + 6, y - 12, 10, 12);
+  ctx.fillStyle = "#9f7450";
+  ctx.fillRect(x + 2, y - 6, 4, 1);
+  ctx.fillRect(x + 10, y - 8, 2, 6);
+}
+
+function drawWorkshopSmoke(x, y, drift) {
+  const puff = Math.sin(drift) * 2;
+  ctx.fillStyle = "rgba(238, 242, 248, 0.82)";
+  ctx.fillRect(x, y + puff, 8, 4);
+  ctx.fillRect(x + 4, y - 4 + puff, 6, 4);
+  ctx.fillRect(x + 10, y - 8 + puff, 4, 4);
+}
+
+function drawStreetFurniture() {
+  const activeIncidentId = state.world.incidentQueue[0]?.id || null;
+  const festivalColor = state.world.activeFestival?.color || "#ff8cb1";
+  const busStop = tileToScreen(1, 8);
+  drawCanopy(
+    busStop.x + 2,
+    busStop.y + 16,
+    28,
+    state.world.weather.id === "drizzle" ? "#7fb9ff" : "#7fd7ff",
+  );
+  drawBusStop(busStop.x + 12, busStop.y + 22);
+  drawBench(busStop.x + 8, busStop.y + 28, "#8c6c52");
+  if (state.world.weather.id === "drizzle" || state.world.weather.id === "snow") {
+    drawPuddle(busStop.x + 6, busStop.y + 34, 18);
+  }
+  if (state.world.activeFestival) {
+    drawLanternString(busStop.x + 2, busStop.y + 2, festivalColor);
+  }
+  const mailbox = tileToScreen(0, 3);
+  drawMailBox(mailbox.x + 12, mailbox.y + 40);
+  const signEast = tileToScreen(9, 3);
+  drawStreetSign(signEast.x + 12, signEast.y + 18, "#7fd7ff");
+  const signSouth = tileToScreen(10, 8);
+  drawStreetSign(signSouth.x + 22, signSouth.y + 38, "#ffd06d");
+  const coneA = tileToScreen(4, 8);
+  const coneB = tileToScreen(8, 8);
+  drawRoadCone(coneA.x + 16, coneA.y + 44);
+  drawRoadCone(coneB.x + 28, coneB.y + 44);
+  if (activeIncidentId === "incident-roadwork-detour") {
+    const detour = tileToScreen(7, 5);
+    drawRoadCone(detour.x + 8, detour.y + 42);
+    drawRoadCone(detour.x + 20, detour.y + 42);
+    drawStreetSign(detour.x + 30, detour.y + 24, "#ffb45f");
+  } else if (activeIncidentId === "incident-street-performance") {
+    const stage = tileToScreen(8, 5);
+    drawSpeakerStand(stage.x + 18, stage.y + 30);
+    drawSpeakerStand(stage.x + 32, stage.y + 30);
+  } else if (activeIncidentId === "incident-flash-sale") {
+    const sale = tileToScreen(10, 3);
+    drawSaleBoard(sale.x + 10, sale.y + 34, "#ff8cb1");
+  } else if (activeIncidentId === "incident-health-inspection") {
+    const inspect = tileToScreen(9, 5);
+    drawStreetSign(inspect.x + 34, inspect.y + 22, "#efe0ff");
+  }
+}
+
+function drawCat(x, y, body = "#5b4f53", accent = "#ffe8b0") {
+  ctx.fillStyle = body;
+  ctx.fillRect(x + 2, y - 6, 8, 5);
+  ctx.fillRect(x + 4, y - 10, 5, 5);
+  ctx.fillRect(x + 2, y - 12, 2, 2);
+  ctx.fillRect(x + 7, y - 12, 2, 2);
+  ctx.fillRect(x + 3, y - 1, 2, 4);
+  ctx.fillRect(x + 7, y - 1, 2, 4);
+  ctx.fillStyle = accent;
+  ctx.fillRect(x + 5, y - 8, 1, 1);
+}
+
+function drawDog(x, y, body = "#b88b57", accent = "#fff1c7") {
+  ctx.fillStyle = body;
+  ctx.fillRect(x + 1, y - 6, 10, 6);
+  ctx.fillRect(x + 7, y - 10, 5, 5);
+  ctx.fillRect(x + 2, y, 2, 4);
+  ctx.fillRect(x + 8, y, 2, 4);
+  ctx.fillRect(x, y - 5, 2, 2);
+  ctx.fillStyle = accent;
+  ctx.fillRect(x + 8, y - 8, 1, 1);
+}
+
+function drawPigeon(x, y, tone = "#66707d") {
+  ctx.fillStyle = tone;
+  ctx.fillRect(x + 2, y - 3, 5, 3);
+  ctx.fillRect(x + 5, y - 5, 3, 3);
+  ctx.fillRect(x + 3, y, 1, 2);
+  ctx.fillRect(x + 6, y, 1, 2);
+}
+
+function drawAmbientStreetLife() {
+  const catBase = tileToScreen(2, 8);
+  const wetWeather = state.world.weather.id === "drizzle" || state.world.weather.id === "snow";
+  const catWalk = ((state.cameraPulse * 22) % 108);
+  const catY = wetWeather ? catBase.y + 28 : catBase.y + 44;
+  drawCat(catBase.x + 18 + catWalk, catY, wetWeather ? "#6b5e68" : "#63545e", "#ffeab5");
+
+  const dogBase = tileToScreen(9, 5);
+  const dogBob = Math.sin(state.cameraPulse * 1.8) * 1.5;
+  drawDog(dogBase.x + 18, dogBase.y + (wetWeather ? 28 : 36) + dogBob, "#c08b56", "#fff0c8");
+  if (wetWeather) {
+    drawPuddle(dogBase.x + 12, dogBase.y + 38, 16);
+  }
+
+  if (!wetWeather) {
+    const pigeonA = tileToScreen(5, 5);
+    const pigeonB = tileToScreen(7, 5);
+    drawPigeon(pigeonA.x + 18, pigeonA.y + 40 + Math.sin(state.cameraPulse * 2.4));
+    drawPigeon(pigeonB.x + 26, pigeonB.y + 34 + Math.cos(state.cameraPulse * 2.1));
+  }
+}
+
+function drawLandmarkOutdoorProps(facility, pos, width, height) {
+  const frontY = pos.y + height + 4;
+  const activeIncidentId = state.world.incidentQueue[0]?.id || null;
+  const festivalColor = state.world.activeFestival?.color || "#ff8cb1";
+  switch (facility.type) {
+    case "clinic":
+      if (state.world.weather.id === "drizzle" || state.world.weather.id === "snow") {
+        drawCanopy(pos.x + 8, frontY - 8, 24, "#7fb9ff");
+        drawPuddle(pos.x + 10, frontY + 6, 18);
+      }
+      drawStreetSign(pos.x + width - 18, pos.y + height - 6, "#ff8f93");
+      drawPlanter(pos.x + 10, frontY, "#f08ca6");
+      if (activeIncidentId === "incident-health-inspection") {
+        drawSaleBoard(pos.x + width - 32, frontY + 4, "#efe0ff");
+      }
+      break;
+    case "library":
+      if (state.world.activeFestival) {
+        drawLanternString(pos.x + 10, pos.y + height - 4, festivalColor);
+      }
+      drawBench(pos.x + 12, frontY, "#9c7b58");
+      drawStreetSign(pos.x + width - 16, pos.y + height - 6, "#7da7ff");
+      drawPlanter(pos.x + width - 28, frontY + 1, "#8fc8ff");
+      break;
+    case "post":
+      if (state.world.weather.id === "drizzle") {
+        drawCanopy(pos.x + width - 34, frontY - 8, 24, "#7fd7ff");
+      }
+      drawMailBox(pos.x + width - 18, frontY + 2);
+      drawParcelStack(pos.x + 8, frontY + 2);
+      if (state.world.activeFestival) {
+        drawLanternString(pos.x + 10, pos.y + height - 6, festivalColor);
+      }
+      break;
+    case "police":
+      if (activeIncidentId === "incident-roadwork-detour") {
+        drawStreetSign(pos.x + 12, frontY + 2, "#ffb45f");
+      }
+      drawRoadCone(pos.x + 8, frontY + 2);
+      drawRoadCone(pos.x + 20, frontY + 2);
+      drawStreetSign(pos.x + width - 18, pos.y + height - 4, "#6db7ff");
+      break;
+    case "workshop":
+      drawParcelStack(pos.x + 10, frontY + 2);
+      drawBench(pos.x + width - 30, frontY, "#8c6c52");
+      drawWorkshopSmoke(pos.x + width - 34, pos.y + 12, state.cameraPulse * 2.1);
+      if (state.world.weather.id === "drizzle") {
+        drawPuddle(pos.x + 8, frontY + 8, 22);
+      }
+      break;
+    default:
+      break;
   }
 }
 
 function drawRoadTraffic(playfieldWidth) {
-  const trafficScale =
-    state.timeOfDay.id === "midnight" ? 0.45 : state.timeOfDay.id === "evening" ? 0.8 : 1;
-  const vehicles = [
-    {
-      speed: 76 * trafficScale,
-      offset: 0,
-      y: layout.roadY + 10,
-      dir: 1,
-      scale: 2,
-      palette: roadTrafficPalettes[0],
-      type: "car",
-    },
-    {
-      speed: 54 * trafficScale,
-      offset: 190,
-      y: layout.roadY + 30,
-      dir: -1,
-      scale: 2,
-      palette: roadTrafficPalettes[1],
-      type: "truck",
-    },
-    {
-      speed: 34 * trafficScale,
-      offset: 420,
-      y: layout.roadY + 8,
-      dir: 1,
-      scale: 2,
-      palette: roadTrafficPalettes[3],
-      type: "bus",
-    },
-  ];
-  vehicles.forEach((vehicle, index) => {
-    const span = playfieldWidth + 220;
-    const travel = (state.cameraPulse * vehicle.speed + vehicle.offset) % span;
-    const x =
-      vehicle.dir > 0 ? Math.round(travel - 120) : Math.round(playfieldWidth + 120 - travel);
-    drawRoadVehicle(x, vehicle.y + (index % 2), vehicle.scale, vehicle.palette, vehicle.type);
+  state.roadTrafficVehicles.forEach((vehicle, index) => {
+    const x = Math.round(vehicle.x);
+    const idleBob = vehicle.stopped ? Math.sin(state.cameraPulse * 5 + vehicle.stopBounce) * 0.4 : 0;
+    drawRoadVehicle(
+      x,
+      Math.round(vehicle.y + (index % 2) + idleBob),
+      vehicle.scale,
+      vehicle.palette,
+      vehicle.type,
+    );
+    if (vehicle.stopped) {
+      ctx.fillStyle = "rgba(255, 130, 120, 0.72)";
+      const tailX = vehicle.dir > 0 ? vehicle.x + vehicle.scale : vehicle.x + getRoadVehicleLength(vehicle.type, vehicle.scale) - vehicle.scale * 2;
+      ctx.fillRect(Math.round(tailX), Math.round(vehicle.y + vehicle.scale * 6), vehicle.scale, vehicle.scale);
+      ctx.fillRect(Math.round(tailX), Math.round(vehicle.y + vehicle.scale * 7), vehicle.scale, vehicle.scale);
+    }
     if (state.timeOfDay.id === "evening" || state.timeOfDay.id === "midnight") {
       ctx.fillStyle = "#ffe39f";
-      const lightX = vehicle.dir > 0 ? x + vehicle.scale * 14 : x - vehicle.scale;
-      ctx.fillRect(lightX, vehicle.y + 8, vehicle.scale, vehicle.scale);
-      ctx.fillRect(lightX, vehicle.y + 11, vehicle.scale, vehicle.scale);
+      const headlightX =
+        vehicle.dir > 0
+          ? x + vehicle.scale * (vehicle.type === "bus" ? 18 : vehicle.type === "truck" ? 14 : 14)
+          : x - vehicle.scale;
+      ctx.fillRect(headlightX, Math.round(vehicle.y + vehicle.scale * 4), vehicle.scale, vehicle.scale);
+      ctx.fillRect(headlightX, Math.round(vehicle.y + vehicle.scale * 6), vehicle.scale, vehicle.scale);
     }
   });
+}
+
+function drawBottomCrosswalk(playfieldWidth) {
+  const bounds = getBottomCrosswalkBounds();
+  ctx.fillStyle = "#f6f1d1";
+  for (let index = 0; index < 6; index += 1) {
+    const x = bounds.x + index * 22;
+    ctx.fillRect(x, layout.roadY + 4, 12, layout.roadH - 8);
+  }
+  ctx.fillStyle = "rgba(255, 246, 212, 0.4)";
+  ctx.fillRect(bounds.x - 16, layout.roadY - 6, bounds.w + 30, 8);
+  ctx.fillRect(bounds.x - 16, layout.roadY + layout.roadH - 2, bounds.w + 30, 6);
+  ctx.fillStyle = "#6f6368";
+  ctx.fillRect(bounds.x - 20, layout.roadY - 18, bounds.w + 38, 10);
+  ctx.fillRect(bounds.x - 20, layout.roadY + layout.roadH + 6, bounds.w + 38, 6);
+  ctx.fillStyle = "#c8bd9a";
+  ctx.fillRect(bounds.x - 20, layout.roadY - 20, bounds.w + 38, 4);
+}
+
+function drawTrafficSignalPosts() {
+  const bounds = getBottomCrosswalkBounds();
+  const signalColor =
+    state.trafficSignal.phase === "walk"
+      ? "#82dd77"
+      : state.trafficSignal.phase === "blink"
+        ? "#ffe17a"
+        : "#ff8d73";
+  for (const x of [bounds.x - 28, bounds.x + bounds.w + 14]) {
+    ctx.fillStyle = "#4f474f";
+    ctx.fillRect(x, layout.roadY - 34, 6, 28);
+    ctx.fillRect(x, layout.roadY + layout.roadH + 2, 6, 20);
+    ctx.fillStyle = "#2f2231";
+    ctx.fillRect(x - 4, layout.roadY - 42, 14, 12);
+    ctx.fillRect(x - 4, layout.roadY + layout.roadH + 2, 14, 12);
+    ctx.fillStyle = signalColor;
+    ctx.fillRect(x, layout.roadY - 38, 6, 4);
+    ctx.fillRect(x, layout.roadY + layout.roadH + 6, 6, 4);
+  }
 }
 
 function drawBackground() {
@@ -6212,14 +7716,30 @@ function drawBackground() {
   ctx.fillRect(0, layout.gridY - 26, playfieldWidth, layout.rows * layout.tile + 44);
   ctx.fillStyle = grassDark;
   ctx.fillRect(0, layout.roadY - 22, playfieldWidth, 22);
+  ctx.fillStyle = "rgba(255, 244, 198, 0.68)";
+  ctx.fillRect(0, layout.gridY - 4, playfieldWidth, 6);
+  ctx.fillStyle = "rgba(145, 170, 97, 0.32)";
+  ctx.fillRect(0, layout.gridY + layout.rows * layout.tile - 10, playfieldWidth, 10);
 
   ctx.fillStyle = "#72606a";
   ctx.fillRect(0, layout.roadY, playfieldWidth, layout.roadH);
+  ctx.fillStyle = "#544954";
+  ctx.fillRect(0, layout.roadY - 6, playfieldWidth, 6);
+  ctx.fillStyle = "#85777f";
+  ctx.fillRect(0, layout.roadY + layout.roadH / 2 - 2, playfieldWidth, 4);
+  ctx.fillStyle = "#8d7f87";
+  ctx.fillRect(0, layout.roadY + 6, playfieldWidth, 2);
+  ctx.fillRect(0, layout.roadY + layout.roadH - 8, playfieldWidth, 2);
   ctx.fillStyle = "#f7f0b3";
-  for (let x = 20; x < playfieldWidth; x += 80) {
-    ctx.fillRect(x, layout.roadY + 20, 34, 6);
+  for (let x = 20; x < playfieldWidth; x += 76) {
+    if (x > getBottomCrosswalkBounds().x - 24 && x < getBottomCrosswalkBounds().x + getBottomCrosswalkBounds().w + 20) {
+      continue;
+    }
+    ctx.fillRect(x, layout.roadY + 28, 28, 4);
   }
+  drawBottomCrosswalk(playfieldWidth);
   drawRoadTraffic(playfieldWidth);
+  drawTrafficSignalPosts();
 
   const treePalette =
     state.world.season.id === "winter"
@@ -6230,12 +7750,28 @@ function drawBackground() {
           ? { top: "#79c861", trunk: "#7b5735" }
           : { top: "#9ddc86", trunk: "#7d593e" };
   for (let index = 0; index < 6; index += 1) {
-    const x = 44 + index * 112;
+    const x = 34 + index * 112;
+    ctx.fillStyle = `${treePalette.trunk}66`;
+    ctx.fillRect(x + 10, layout.gridY - 18, 34, 4);
+    ctx.fillStyle = "#d5b37d";
+    ctx.fillRect(x + 8, layout.gridY - 24, 38, 8);
+    ctx.fillStyle = "#b48a59";
+    ctx.fillRect(x + 10, layout.gridY - 22, 34, 4);
     ctx.fillStyle = treePalette.top;
-    ctx.fillRect(x, layout.gridY - 54, 34, 20);
-    ctx.fillRect(x + 6, layout.gridY - 66, 22, 14);
+    ctx.fillRect(x + 2, layout.gridY - 56, 38, 16);
+    ctx.fillRect(x + 10, layout.gridY - 68, 24, 16);
+    ctx.fillStyle =
+      state.world.season.id === "winter"
+        ? "#f5fbff"
+        : state.world.season.id === "autumn"
+          ? "#ffd28c"
+          : state.world.season.id === "summer"
+            ? "#9bdf7e"
+            : "#bbea9b";
+    ctx.fillRect(x + 6, layout.gridY - 62, 28, 8);
+    ctx.fillRect(x + 14, layout.gridY - 74, 12, 8);
     ctx.fillStyle = treePalette.trunk;
-    ctx.fillRect(x + 14, layout.gridY - 34, 6, 18);
+    ctx.fillRect(x + 16, layout.gridY - 40, 6, 18);
   }
 
   if (state.world.weather.id === "drizzle") {
@@ -6400,21 +7936,112 @@ function drawGrid() {
   for (let row = 0; row < layout.rows; row += 1) {
     for (let col = 0; col < layout.cols; col += 1) {
       const pos = tileToScreen(col, row);
+      const tileKind = getTownTileKind(col, row);
       const even = (col + row) % 2 === 0;
-      const winterTile = state.world.season.id === "winter";
-      ctx.fillStyle = winterTile
-        ? even
-          ? "#e8f5fb"
-          : "#d8eaf2"
-        : even
-          ? "#b8e27c"
-          : "#a2d36d";
+      let baseColor = "#b8e27c";
+      let accentColor = "#90c35e";
+      let trimColor = "#7aac4e";
+      switch (tileKind) {
+        case "lot":
+          baseColor = even ? "#d7eca2" : "#c8e38d";
+          accentColor = "#b7d37a";
+          trimColor = "#9fb967";
+          break;
+        case "sidewalk":
+        case "vertical-sidewalk":
+          baseColor = even ? "#d8d2c8" : "#ccc5bb";
+          accentColor = "#c0b7ab";
+          trimColor = "#a59d92";
+          break;
+        case "main-street":
+        case "vertical-street":
+          baseColor = even ? "#726773" : "#665b67";
+          accentColor = "#5a4f58";
+          trimColor = "#8d8390";
+          break;
+        case "crosswalk":
+          baseColor = even ? "#756a75" : "#6a5f69";
+          accentColor = "#5a5058";
+          trimColor = "#f4efde";
+          break;
+        case "curb":
+          baseColor = even ? "#c7c2b7" : "#bab5aa";
+          accentColor = "#a5a095";
+          trimColor = "#948f84";
+          break;
+        case "lower-promenade":
+          baseColor = even ? "#cfc9bc" : "#c3bcaf";
+          accentColor = "#b8b1a4";
+          trimColor = "#9d9588";
+          break;
+        default:
+          if (state.world.season.id === "winter") {
+            baseColor = even ? "#e8f5fb" : "#d8eaf2";
+            accentColor = "#c1dbe7";
+            trimColor = "#a7c5d3";
+          }
+          break;
+      }
+      ctx.fillStyle = baseColor;
       ctx.fillRect(pos.x, pos.y, layout.tile - 2, layout.tile - 2);
 
-      ctx.fillStyle = winterTile ? "#c1dbe7" : "#90c35e";
+      ctx.fillStyle = accentColor;
       ctx.fillRect(pos.x + 4, pos.y + layout.tile - 14, layout.tile - 10, 6);
-      ctx.fillStyle = winterTile ? "#a7c5d3" : "#7aac4e";
+      ctx.fillStyle = trimColor;
       ctx.fillRect(pos.x + 6, pos.y + layout.tile - 8, layout.tile - 14, 4);
+
+      if (tileKind === "lot") {
+        ctx.fillStyle = "rgba(255, 253, 230, 0.18)";
+        ctx.fillRect(pos.x + 6, pos.y + 8, layout.tile - 14, 4);
+        ctx.fillStyle = "rgba(126, 168, 79, 0.34)";
+        ctx.fillRect(pos.x + 8, pos.y + 18, 4, 4);
+        ctx.fillRect(pos.x + layout.tile - 16, pos.y + 28, 4, 4);
+      } else if (tileKind === "sidewalk" || tileKind === "vertical-sidewalk" || tileKind === "curb") {
+        ctx.fillStyle = "rgba(255, 250, 238, 0.28)";
+        ctx.fillRect(pos.x + 6, pos.y + 10, layout.tile - 12, 2);
+        ctx.fillStyle = "rgba(145, 138, 121, 0.22)";
+        ctx.fillRect(pos.x + 6, pos.y + 24, layout.tile - 12, 2);
+        ctx.fillRect(pos.x + 22, pos.y + 8, 2, layout.tile - 16);
+      } else if (tileKind === "crosswalk") {
+        ctx.fillStyle = "rgba(255,255,255,0.12)";
+        ctx.fillRect(pos.x + 6, pos.y + 6, layout.tile - 14, layout.tile - 14);
+        ctx.fillStyle = "#fff7dc";
+        ctx.fillRect(pos.x + 9, pos.y + 6, 12, layout.tile - 14);
+        ctx.fillRect(pos.x + 27, pos.y + 6, 12, layout.tile - 14);
+        if (row === streetLayout.mainStreetRows.promenade && col === 6) {
+          ctx.fillRect(pos.x + 6, pos.y + 9, layout.tile - 14, 12);
+          ctx.fillRect(pos.x + 6, pos.y + 27, layout.tile - 14, 12);
+        }
+        ctx.fillStyle = "rgba(255,255,255,0.14)";
+        ctx.fillRect(pos.x + 4, pos.y + 4, layout.tile - 10, 2);
+        ctx.fillRect(pos.x + 4, pos.y + layout.tile - 8, layout.tile - 10, 2);
+      } else if (tileKind === "main-street") {
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        ctx.fillRect(pos.x + 6, pos.y + 6, layout.tile - 10, layout.tile - 12);
+        if (!streetLayout.crosswalkCols.includes(col)) {
+          ctx.fillStyle = "#e7d16e";
+          ctx.fillRect(pos.x + 10, pos.y + 21, 12, 3);
+          ctx.fillRect(pos.x + 28, pos.y + 21, 12, 3);
+        }
+        ctx.fillStyle = "rgba(255,255,255,0.16)";
+        ctx.fillRect(pos.x + 6, pos.y + 7, 2, layout.tile - 14);
+        ctx.fillRect(pos.x + layout.tile - 10, pos.y + 7, 2, layout.tile - 14);
+      } else if (tileKind === "vertical-street") {
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        ctx.fillRect(pos.x + 6, pos.y + 6, layout.tile - 12, layout.tile - 10);
+        if (row !== streetLayout.mainStreetRows.promenade) {
+          ctx.fillStyle = "#e7d16e";
+          ctx.fillRect(pos.x + 21, pos.y + 10, 3, 12);
+          ctx.fillRect(pos.x + 21, pos.y + 28, 3, 12);
+        }
+        ctx.fillStyle = "rgba(255,255,255,0.16)";
+        ctx.fillRect(pos.x + 7, pos.y + 6, layout.tile - 14, 2);
+        ctx.fillRect(pos.x + 7, pos.y + layout.tile - 10, layout.tile - 14, 2);
+      } else if (tileKind === "lower-promenade") {
+        ctx.fillStyle = "rgba(255, 247, 226, 0.22)";
+        ctx.fillRect(pos.x + 8, pos.y + 12, layout.tile - 16, 3);
+        ctx.fillRect(pos.x + 8, pos.y + 28, layout.tile - 16, 3);
+      }
 
       if (
         state.hoveredTile &&
@@ -6433,6 +8060,8 @@ function drawGrid() {
       }
     }
   }
+  drawCentralCrossroadProps();
+  drawStreetFurniture();
   drawApproachMarkers();
   drawQueueLaneMarkers();
   drawPlacementPreview();
@@ -6445,14 +8074,122 @@ function drawGrid() {
   drawStreetPickups();
 }
 
+function drawLandmarkBackdrop(facility, pos, width, height) {
+  const frontY = pos.y + height - 6;
+  switch (facility.type) {
+    case "clinic":
+      ctx.fillStyle = "rgba(255, 236, 236, 0.9)";
+      ctx.fillRect(pos.x + 6, frontY, width - 12, 18);
+      ctx.fillStyle = "rgba(255, 204, 204, 0.7)";
+      ctx.fillRect(pos.x + 12, frontY + 6, width - 24, 4);
+      break;
+    case "library":
+      ctx.fillStyle = "rgba(234, 241, 252, 0.92)";
+      ctx.fillRect(pos.x + 8, frontY, width - 16, 16);
+      ctx.fillStyle = "rgba(167, 198, 245, 0.5)";
+      ctx.fillRect(pos.x + 12, frontY + 4, width - 24, 3);
+      break;
+    case "post":
+      ctx.fillStyle = "rgba(244, 231, 214, 0.92)";
+      ctx.fillRect(pos.x + 6, frontY, width - 12, 18);
+      ctx.fillStyle = "rgba(214, 171, 110, 0.42)";
+      ctx.fillRect(pos.x + 12, frontY + 5, width - 24, 2);
+      ctx.fillRect(pos.x + 12, frontY + 11, width - 24, 2);
+      break;
+    case "police":
+      ctx.fillStyle = "rgba(228, 237, 255, 0.92)";
+      ctx.fillRect(pos.x + 6, frontY, width - 12, 18);
+      ctx.fillStyle = "rgba(119, 163, 238, 0.42)";
+      ctx.fillRect(pos.x + 12, frontY + 6, width - 24, 3);
+      break;
+    case "workshop":
+      ctx.fillStyle = "rgba(226, 226, 224, 0.94)";
+      ctx.fillRect(pos.x + 8, frontY, width - 16, 18);
+      ctx.fillStyle = "rgba(255, 198, 92, 0.4)";
+      ctx.fillRect(pos.x + 12, frontY + 5, width - 24, 3);
+      ctx.fillRect(pos.x + 18, frontY + 11, width - 36, 3);
+      break;
+    default:
+      break;
+  }
+}
+
+function drawPublicSpotBackdrop(facility, pos, width, height) {
+  const frontY = pos.y + height - 4;
+  switch (facility.type) {
+    case "pocket-plaza":
+      ctx.fillStyle = "rgba(223, 240, 221, 0.96)";
+      ctx.fillRect(pos.x + 4, frontY - 10, width - 8, 22);
+      ctx.fillStyle = "rgba(186, 216, 175, 0.82)";
+      ctx.fillRect(pos.x + 8, frontY - 4, width - 16, 10);
+      break;
+    case "fountain-corner":
+      ctx.fillStyle = "rgba(228, 240, 248, 0.96)";
+      ctx.fillRect(pos.x + 8, frontY - 12, width - 16, 24);
+      ctx.fillStyle = "rgba(151, 199, 233, 0.78)";
+      ctx.fillRect(pos.x + 14, frontY - 2, width - 28, 8);
+      break;
+    case "metro-entrance":
+      ctx.fillStyle = "rgba(229, 236, 245, 0.95)";
+      ctx.fillRect(pos.x + 8, frontY - 8, width - 16, 18);
+      ctx.fillStyle = "rgba(149, 182, 217, 0.76)";
+      ctx.fillRect(pos.x + 12, frontY - 3, width - 24, 8);
+      break;
+    case "street-stall":
+      ctx.fillStyle = "rgba(251, 236, 211, 0.95)";
+      ctx.fillRect(pos.x + 6, frontY - 10, width - 12, 20);
+      ctx.fillStyle = "rgba(236, 193, 128, 0.82)";
+      ctx.fillRect(pos.x + 10, frontY - 4, width - 20, 8);
+      break;
+    default:
+      break;
+  }
+}
+
+function drawPublicSpotProps(facility, pos, width, height) {
+  const frontY = pos.y + height + 2;
+  switch (facility.type) {
+    case "pocket-plaza":
+      drawBench(pos.x + 8, frontY + 1, "#91684d");
+      drawBench(pos.x + width - 34, frontY + 1, "#91684d");
+      drawPlanter(pos.x + Math.floor(width / 2) - 9, frontY + 1, "#f08397");
+      break;
+    case "fountain-corner":
+      drawPlanter(pos.x + 6, frontY + 1, "#74b7de");
+      drawPlanter(pos.x + width - 18, frontY + 1, "#74b7de");
+      break;
+    case "metro-entrance":
+      drawStreetSign(pos.x + width - 18, pos.y + height - 10, "#6db7ff");
+      drawBench(pos.x + 8, frontY, "#718195");
+      break;
+    case "street-stall":
+      drawSaleBoard(pos.x + width - 26, frontY + 2, "#ffcf72");
+      drawParcelStack(pos.x + 8, frontY + 2);
+      break;
+    default:
+      break;
+  }
+}
+
 function drawFacility(facility) {
   const pos = tileToScreen(facility.col, facility.row);
   const def = getFacilityDef(facility.type);
   const width = facility.width * layout.tile - 6;
   const height = facility.height * layout.tile - 8;
   if (facility.kind === "tree") {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
+    ctx.fillRect(pos.x + 12, pos.y + height - 8, width - 18, 7);
+    ctx.fillStyle = "#d7ba83";
+    ctx.fillRect(pos.x + 10, pos.y + height - 16, width - 14, 10);
+    ctx.fillStyle = "#b48b59";
+    ctx.fillRect(pos.x + 12, pos.y + height - 13, width - 18, 4);
     drawFittedSprite(def.sprite, def.palette, pos.x + 2, pos.y + 2, width, height);
     return;
+  }
+  if (facility.kind === "landmark") {
+    drawLandmarkBackdrop(facility, pos, width, height);
+  } else if (facility.kind === "public-spot") {
+    drawPublicSpotBackdrop(facility, pos, width, height);
   }
   ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
   ctx.fillRect(pos.x + 8, pos.y + height - 10, width - 10, 9);
@@ -6460,22 +8197,65 @@ function drawFacility(facility) {
   ctx.fillStyle =
     facility.kind === "landmark"
       ? "rgba(230, 236, 242, 0.9)"
+      : facility.kind === "public-spot"
+        ? "rgba(246, 240, 225, 0.92)"
       : facility.width * facility.height > 1
         ? "rgba(255, 247, 214, 0.82)"
         : "rgba(255, 247, 214, 0.64)";
   ctx.fillRect(pos.x + 2, pos.y + 3, width, height);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+  ctx.fillRect(pos.x + width - 8, pos.y + 10, 6, height - 16);
+  ctx.fillRect(pos.x + 10, pos.y + height - 8, width - 16, 5);
   ctx.strokeStyle = def.color;
   ctx.lineWidth = 4;
   ctx.strokeRect(pos.x + 4, pos.y + 5, width - 4, height - 4);
+  ctx.fillStyle = `${def.color}33`;
+  ctx.fillRect(pos.x + 6, pos.y + 7, width - 8, 10);
+  ctx.fillStyle = "rgba(255, 250, 238, 0.26)";
+  ctx.fillRect(pos.x + 8, pos.y + 9, width - 14, 4);
+  if (facility.kind === "landmark") {
+    ctx.fillStyle = `${def.color}88`;
+    ctx.fillRect(pos.x + 12, pos.y + 18, width - 24, 8);
+    ctx.fillStyle = "rgba(255,255,255,0.22)";
+    ctx.fillRect(pos.x + 16, pos.y + 20, width - 32, 3);
+  } else if (facility.kind === "public-spot") {
+    ctx.fillStyle = `${def.color}66`;
+    ctx.fillRect(pos.x + 10, pos.y + 18, width - 20, 7);
+    ctx.fillStyle = "rgba(255,255,255,0.26)";
+    ctx.fillRect(pos.x + 14, pos.y + 20, Math.max(14, width - 28), 2);
+  } else {
+    ctx.fillStyle = `${def.color}aa`;
+    ctx.fillRect(pos.x + 10, pos.y + 18, width - 20, 10);
+    ctx.fillStyle = "rgba(255,255,255,0.26)";
+    ctx.fillRect(pos.x + 14, pos.y + 20, width - 28, 3);
+    ctx.fillStyle = "rgba(143, 107, 61, 0.42)";
+    ctx.fillRect(pos.x + Math.floor(width / 2) - 10, pos.y + height - 18, 20, 6);
+  }
 
   drawFittedSprite(def.sprite, def.palette, pos.x + 1, pos.y + 1, width, height);
 
   if (facility.kind === "landmark") {
+    drawLandmarkOutdoorProps(facility, pos, width, height);
     ctx.fillStyle = "rgba(47, 34, 49, 0.84)";
     ctx.fillRect(pos.x + 8, pos.y + height - 22, Math.min(96, width - 14), 14);
     ctx.fillStyle = "#fff4d6";
     ctx.font = "bold 10px Trebuchet MS";
     ctx.fillText(fitTextToWidth(def.name, Math.min(84, width - 18)), pos.x + 12, pos.y + height - 12);
+    return;
+  }
+
+  if (facility.kind === "public-spot") {
+    drawPublicSpotProps(facility, pos, width, height);
+    const labelWidth = Math.max(38, Math.min(width - 10, 68));
+    ctx.fillStyle = "rgba(47, 34, 49, 0.8)";
+    ctx.fillRect(pos.x + 6, pos.y + height - 22, labelWidth, 12);
+    ctx.fillStyle = "#fff4d6";
+    ctx.font = "bold 8px Trebuchet MS";
+    ctx.fillText(
+      fitTextToWidth(def.shortLabel || def.name, labelWidth - 8),
+      pos.x + 10,
+      pos.y + height - 13,
+    );
     return;
   }
 
@@ -6592,8 +8372,19 @@ function getVisitorDrawMetrics(visitor) {
   }
 }
 
-function drawVisitorAccessory(visitor, x, y, metrics) {
-  const look = visitor.appearance;
+function getActorFacing(actor, fallback = "down") {
+  const dx = (actor.targetX ?? actor.x ?? 0) - (actor.x ?? 0);
+  const dy = (actor.targetY ?? actor.y ?? 0) - (actor.y ?? 0);
+  if (Math.abs(dx) + Math.abs(dy) < 0.8) {
+    return fallback;
+  }
+  if (Math.abs(dx) > Math.abs(dy)) {
+    return dx > 0 ? "right" : "left";
+  }
+  return dy > 0 ? "down" : "up";
+}
+
+function drawVisitorAccessory(look, x, y, metrics, facing = "down") {
   if (!look?.accessory) {
     return;
   }
@@ -6614,9 +8405,19 @@ function drawVisitorAccessory(visitor, x, y, metrics) {
       break;
     case "briefcase":
       ctx.fillStyle = "#6b5547";
-      ctx.fillRect(x + metrics.bodyX + metrics.bodyW, y + metrics.bodyY + 5, 5, 5);
+      ctx.fillRect(
+        x + (facing === "left" ? metrics.bodyX - 5 : metrics.bodyX + metrics.bodyW),
+        y + metrics.bodyY + 5,
+        5,
+        5,
+      );
       ctx.fillStyle = look.accent || "#fff1bf";
-      ctx.fillRect(x + metrics.bodyX + metrics.bodyW + 1, y + metrics.bodyY + 4, 3, 1);
+      ctx.fillRect(
+        x + (facing === "left" ? metrics.bodyX - 4 : metrics.bodyX + metrics.bodyW + 1),
+        y + metrics.bodyY + 4,
+        3,
+        1,
+      );
       break;
     case "tie":
       ctx.fillRect(x - 1, y + metrics.bodyY + 2, 2, 6);
@@ -6627,11 +8428,227 @@ function drawVisitorAccessory(visitor, x, y, metrics) {
       ctx.fillRect(x + metrics.hairX + 1, y + metrics.hairY - 6, metrics.hairW - 2, 3);
       break;
     case "bag":
-      ctx.fillRect(x + metrics.bodyX + metrics.bodyW - 1, y + metrics.bodyY + 4, 5, 6);
-      ctx.fillRect(x + metrics.bodyX + metrics.bodyW - 2, y + metrics.bodyY + 2, 1, 4);
+      ctx.fillRect(
+        x + (facing === "left" ? metrics.bodyX - 2 : metrics.bodyX + metrics.bodyW - 1),
+        y + metrics.bodyY + 4,
+        5,
+        6,
+      );
+      ctx.fillRect(
+        x + (facing === "left" ? metrics.bodyX + metrics.bodyW - 1 : metrics.bodyX + metrics.bodyW - 2),
+        y + metrics.bodyY + 2,
+        1,
+        4,
+      );
       break;
     default:
       break;
+  }
+}
+
+function drawTownChibi(look, x, y, metrics, options = {}) {
+  const facing = options.facing || "down";
+  const stride = options.stride || 0;
+  const pose = options.pose || (Math.abs(stride) > 0.15 ? "walk" : "idle");
+  const accentBarColor = options.accentBarColor || look.accent || "#fff0ce";
+  const activeColor = options.activeColor || null;
+  const bodyShiftY =
+    pose === "walk" ? (stride > 0 ? -1 : 0) : pose === "chat" ? -1 : pose === "queue" ? 1 : 0;
+  const bodyShiftX = pose === "walk" && (facing === "left" || facing === "right") ? Math.round(stride) : 0;
+  const nearArmLift =
+    pose === "walk" ? (stride > 0 ? -1 : 1) : pose === "chat" ? -2 : pose === "queue" ? 1 : 0;
+  const farArmLift =
+    pose === "walk" ? (stride > 0 ? 1 : -1) : pose === "chat" ? 1 : pose === "queue" ? 0 : 0;
+  const leftLegOffset =
+    pose === "queue" ? 0 : pose === "walk" ? (stride > 0 ? 2 : 0) : pose === "chat" ? 1 : 0;
+  const rightLegOffset =
+    pose === "queue" ? 0 : pose === "walk" ? (stride < 0 ? 2 : 0) : pose === "chat" ? 1 : 0;
+  const shadowYOffset = pose === "walk" ? 0 : pose === "chat" ? -1 : 0;
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  ctx.fillRect(x - Math.floor(metrics.shadowW / 2), y + 8 + shadowYOffset, metrics.shadowW, 4);
+
+  ctx.fillStyle = "#4c3d37";
+  ctx.fillRect(
+    x + metrics.bodyX + 2 + (pose === "walk" ? -1 : 0),
+    y + metrics.legY + leftLegOffset,
+    3,
+    metrics.legH,
+  );
+  ctx.fillRect(
+    x + metrics.bodyX + metrics.bodyW - 5 + (pose === "walk" ? 1 : 0),
+    y + metrics.legY + rightLegOffset,
+    3,
+    metrics.legH,
+  );
+  ctx.fillStyle = look.pants || "#5f5a78";
+  ctx.fillRect(
+    x + metrics.bodyX + 1 + bodyShiftX,
+    y + metrics.bodyY + metrics.bodyH - 2 + bodyShiftY,
+    metrics.bodyW - 2,
+    3,
+  );
+
+  const armY = y + metrics.bodyY + 3 + bodyShiftY;
+  if (facing === "up") {
+    ctx.fillStyle = look.shirt;
+    ctx.fillRect(
+      x + metrics.bodyX + 1 + bodyShiftX,
+      y + metrics.bodyY + 1 + bodyShiftY,
+      metrics.bodyW - 2,
+      metrics.bodyH,
+    );
+    ctx.fillStyle = `${look.shirt}cc`;
+    ctx.fillRect(
+      x + metrics.bodyX + 2 + bodyShiftX,
+      y + metrics.bodyY + 3 + bodyShiftY,
+      metrics.bodyW - 4,
+      3,
+    );
+    ctx.fillStyle = accentBarColor;
+    ctx.fillRect(
+      x + metrics.bodyX + 2 + bodyShiftX,
+      y + metrics.bodyY + 2 + bodyShiftY,
+      3,
+      metrics.bodyH - 4,
+    );
+    ctx.fillRect(
+      x + metrics.bodyX + metrics.bodyW - 5 + bodyShiftX,
+      y + metrics.bodyY + 2 + bodyShiftY,
+      3,
+      metrics.bodyH - 4,
+    );
+    ctx.fillStyle = look.skin || "#f4d8be";
+    ctx.fillRect(x + metrics.bodyX + bodyShiftX, armY + 1 + nearArmLift, 2, 5);
+    ctx.fillRect(
+      x + metrics.bodyX + metrics.bodyW - 2 + bodyShiftX,
+      armY + 1 + farArmLift,
+      2,
+      5,
+    );
+    ctx.fillStyle = look.hair;
+    ctx.fillRect(
+      x + metrics.faceX - 1,
+      y + metrics.faceY - 1 + bodyShiftY,
+      metrics.faceW + 2,
+      metrics.faceH,
+    );
+    ctx.fillStyle = look.skin || "#f4d8be";
+    ctx.fillRect(
+      x + metrics.faceX + 2,
+      y + metrics.faceY + 5 + bodyShiftY,
+      metrics.faceW - 4,
+      3,
+    );
+  } else if (facing === "left" || facing === "right") {
+    const dir = facing === "left" ? -1 : 1;
+    ctx.fillStyle = look.shirt;
+    ctx.fillRect(
+      x + metrics.bodyX + 1 + bodyShiftX,
+      y + metrics.bodyY + 1 + bodyShiftY,
+      metrics.bodyW - 3,
+      metrics.bodyH,
+    );
+    ctx.fillStyle = accentBarColor;
+    ctx.fillRect(
+      x + (dir < 0 ? metrics.bodyX + 2 : metrics.bodyX + metrics.bodyW - 5) + bodyShiftX,
+      y + metrics.bodyY + 2 + bodyShiftY,
+      3,
+      metrics.bodyH - 4,
+    );
+    ctx.fillStyle = `${look.shirt}cc`;
+    ctx.fillRect(
+      x + metrics.bodyX + 2 + bodyShiftX,
+      y + metrics.bodyY + metrics.bodyH - 5 + bodyShiftY,
+      metrics.bodyW - 5,
+      2,
+    );
+    ctx.fillStyle = look.skin || "#f4d8be";
+    ctx.fillRect(
+      x + (dir < 0 ? metrics.bodyX - 2 : metrics.bodyX + metrics.bodyW) + bodyShiftX,
+      armY + nearArmLift,
+      2,
+      6,
+    );
+    ctx.fillRect(
+      x + (dir < 0 ? metrics.bodyX + metrics.bodyW - 1 : metrics.bodyX - 1) + bodyShiftX,
+      armY + 1 + farArmLift,
+      2,
+      5,
+    );
+    ctx.fillStyle = look.skin || "#f4d8be";
+    ctx.fillRect(
+      x + metrics.faceX + (dir < 0 ? 1 : 2),
+      y + metrics.faceY + bodyShiftY,
+      metrics.faceW - 3,
+      metrics.faceH,
+    );
+    ctx.fillStyle = look.hair;
+    ctx.fillRect(x + metrics.hairX, y + metrics.hairY + bodyShiftY, metrics.hairW, 5);
+    ctx.fillRect(
+      x + (dir < 0 ? metrics.faceX - 1 : metrics.faceX + metrics.faceW - 2),
+      y + metrics.faceY + bodyShiftY,
+      2,
+      metrics.faceH - 1,
+    );
+    ctx.fillStyle = "#2f2231";
+    ctx.fillRect(
+      x + (dir < 0 ? metrics.faceX + 2 : metrics.faceX + metrics.faceW - 4),
+      y + metrics.faceY + 4 + bodyShiftY,
+      1,
+      1,
+    );
+  } else {
+    ctx.fillStyle = look.shirt;
+    ctx.fillRect(
+      x + metrics.bodyX + bodyShiftX,
+      y + metrics.bodyY + bodyShiftY,
+      metrics.bodyW,
+      metrics.bodyH,
+    );
+    ctx.fillStyle = accentBarColor;
+    ctx.fillRect(
+      x + metrics.bodyX + 1 + bodyShiftX,
+      y + metrics.bodyY + 2 + bodyShiftY,
+      metrics.bodyW - 2,
+      2,
+    );
+    ctx.fillStyle = `${look.shirt}cc`;
+    ctx.fillRect(
+      x + metrics.bodyX + 1 + bodyShiftX,
+      y + metrics.bodyY + metrics.bodyH - 4 + bodyShiftY,
+      metrics.bodyW - 2,
+      2,
+    );
+    ctx.fillStyle = look.skin || "#f4d8be";
+    ctx.fillRect(x + metrics.bodyX - 1 + bodyShiftX, armY + 1 + nearArmLift, 2, 5);
+    ctx.fillRect(
+      x + metrics.bodyX + metrics.bodyW - 1 + bodyShiftX,
+      armY + 1 + farArmLift,
+      2,
+      5,
+    );
+    ctx.fillStyle = look.skin || "#f4d8be";
+    ctx.fillRect(x + metrics.faceX, y + metrics.faceY + bodyShiftY, metrics.faceW, metrics.faceH);
+    ctx.fillStyle = look.hair;
+    ctx.fillRect(x + metrics.hairX, y + metrics.hairY + bodyShiftY, metrics.hairW, 5);
+    ctx.fillRect(x + metrics.faceX, y + metrics.faceY - 1 + bodyShiftY, metrics.faceW, 2);
+    ctx.fillStyle = "#2f2231";
+    ctx.fillRect(x + metrics.faceX + 2, y + metrics.faceY + 3 + bodyShiftY, 1, 1);
+    ctx.fillRect(x + metrics.faceX + metrics.faceW - 4, y + metrics.faceY + 3 + bodyShiftY, 1, 1);
+    ctx.fillRect(
+      x + metrics.faceX + Math.floor(metrics.faceW / 2) - 1,
+      y + metrics.faceY + 6 + bodyShiftY,
+      2,
+      1,
+    );
+  }
+
+  drawVisitorAccessory(look, x, y, metrics, facing);
+
+  if (activeColor) {
+    ctx.strokeStyle = activeColor;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x - 11, y - 14, 22, 31);
   }
 }
 
@@ -6666,22 +8683,23 @@ function drawVisitors() {
     const metrics = getVisitorDrawMetrics(visitor);
     const x = Math.round(visitor.x);
     const y = Math.round(visitor.y);
-    ctx.fillStyle = "rgba(0,0,0,0.18)";
-    ctx.fillRect(x - Math.floor(metrics.shadowW / 2), y + 8, metrics.shadowW, 4);
-    ctx.fillStyle = look.hair;
-    ctx.fillRect(x + metrics.hairX, y + metrics.hairY, metrics.hairW, 5);
-    drawVisitorAccessory(visitor, x, y, metrics);
-    ctx.fillStyle = look.skin || "#f4d8be";
-    ctx.fillRect(x + metrics.faceX, y + metrics.faceY, metrics.faceW, metrics.faceH);
-    ctx.fillStyle = look.shirt;
-    ctx.fillRect(x + metrics.bodyX, y + metrics.bodyY, metrics.bodyW, metrics.bodyH);
-    ctx.fillStyle = look.accent || "#fff0ce";
-    ctx.fillRect(x + metrics.bodyX + 1, y + metrics.bodyY + 2, metrics.bodyW - 2, 2);
-    ctx.fillStyle = "#4c3d37";
-    ctx.fillRect(x + metrics.bodyX + 2, y + metrics.legY, 3, metrics.legH);
-    ctx.fillRect(x + metrics.bodyX + metrics.bodyW - 5, y + metrics.legY, 3, metrics.legH);
-    ctx.fillStyle = look.pants || "#5f5a78";
-    ctx.fillRect(x + metrics.bodyX + 1, y + metrics.bodyY + metrics.bodyH - 2, metrics.bodyW - 2, 2);
+    const moving =
+      Math.abs((visitor.targetX ?? visitor.x) - visitor.x) + Math.abs((visitor.targetY ?? visitor.y) - visitor.y) > 0.5;
+    const stride = moving ? Math.sin(state.cameraPulse * 14 + visitor.id * 0.7) : 0;
+    const pose =
+      moving
+        ? "walk"
+        : visitor.phase === "queueing" || visitor.phase === "queue-wait"
+          ? "queue"
+          : (visitor.localPause || 0) > 0.08 || visitor.emote
+            ? "chat"
+            : "idle";
+    drawTownChibi(look, x, y, metrics, {
+      facing: getActorFacing(visitor, visitor.phase === "leaving" ? "down" : "right"),
+      stride,
+      pose,
+      accentBarColor: look.accent || "#fff0ce",
+    });
     const emotionDef = getVisitorEmotionDefinition(visitor.emotionId);
     ctx.fillStyle = "rgba(255, 248, 214, 0.92)";
     ctx.fillRect(x - 8, y - 18, 16, 4);
@@ -6811,22 +8829,21 @@ function drawNPCs() {
     const bob = Math.sin(state.cameraPulse * 2 + npc.bobPhase) * 2;
     const x = Math.round(npc.x);
     const y = Math.round(npc.y + bob);
-    ctx.fillStyle = "rgba(0,0,0,0.18)";
-    ctx.fillRect(x - 9, y + 10, 18, 4);
-    ctx.fillStyle = npc.hair;
-    ctx.fillRect(x - 5, y - 11, 10, 5);
-    ctx.fillStyle = "#f4d8be";
-    ctx.fillRect(x - 6, y - 6, 12, 10);
-    ctx.fillStyle = npc.shirt;
-    ctx.fillRect(x - 7, y + 4, 14, 12);
-    ctx.fillStyle = "#4c3d37";
-    ctx.fillRect(x - 4, y + 16, 3, 9);
-    ctx.fillRect(x + 1, y + 16, 3, 9);
-    if (active) {
-      ctx.strokeStyle = npc.accent;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x - 11, y - 14, 22, 31);
-    }
+    const look = {
+      shirt: npc.shirt,
+      hair: npc.hair,
+      accent: npc.accent,
+      pants: "#5e5d7e",
+      skin: "#f4d8be",
+      accessory: npc.id === "mika" ? "ribbon" : npc.id === "taichi" ? "cap" : "scarf",
+    };
+    const metrics = getVisitorDrawMetrics({ appearance: { frame: npc.id === "taichi" ? "broad" : "standard" } });
+    drawTownChibi(look, x, y, metrics, {
+      facing: npc.id === "taichi" ? "left" : npc.id === "yuzu" ? "right" : "down",
+      stride: Math.sin(state.cameraPulse * 4 + npc.bobPhase),
+      pose: active ? "chat" : "idle",
+      activeColor: active ? npc.accent : null,
+    });
   }
   for (const actor of state.eventActors) {
     const active =
@@ -6836,17 +8853,26 @@ function drawNPCs() {
     const bob = Math.sin(state.cameraPulse * 2.8 + actor.bobPhase) * 2;
     const x = Math.round(actor.x);
     const y = Math.round(actor.y + bob);
-    ctx.fillStyle = "rgba(0,0,0,0.2)";
-    ctx.fillRect(x - 9, y + 8, 18, 4);
-    ctx.fillStyle = actor.hair;
-    ctx.fillRect(x - 5, y - 11, 10, 5);
-    ctx.fillStyle = "#f4d8be";
-    ctx.fillRect(x - 6, y - 6, 12, 10);
-    ctx.fillStyle = actor.shirt;
-    ctx.fillRect(x - 7, y + 4, 14, 12);
-    ctx.fillStyle = "#4c3d37";
-    ctx.fillRect(x - 4, y + 16, 3, 9);
-    ctx.fillRect(x + 1, y + 16, 3, 9);
+    const look = {
+      shirt: actor.shirt,
+      hair: actor.hair,
+      accent: actor.accent,
+      pants: "#5e617f",
+      skin: "#f4d8be",
+      accessory:
+        actor.incidentId === "incident-health-inspection"
+          ? "briefcase"
+          : actor.incidentId === "incident-street-performance"
+            ? "scarf"
+            : "cap",
+    };
+    const metrics = getVisitorDrawMetrics({ appearance: { frame: actor.incidentId === "incident-roadwork-detour" ? "broad" : "standard" } });
+    drawTownChibi(look, x, y, metrics, {
+      facing: getActorFacing(actor, "left"),
+      stride: Math.sin(state.cameraPulse * 8 + actor.bobPhase),
+      pose: active || (actor.focusTtl || 0) > 0 ? "chat" : "idle",
+      activeColor: active ? actor.accent : null,
+    });
     ctx.fillStyle = actor.accent;
     ctx.fillRect(x - 8, y - 18, 16, 4);
     ctx.fillRect(x - 2, y - 22, 4, 4);
@@ -6854,11 +8880,6 @@ function drawNPCs() {
     if ((actor.focusTtl || 0) > 0) {
       ctx.fillStyle = `${actor.accent}aa`;
       ctx.fillRect(x - 10, y - 28, 20, 3);
-    }
-    if (active) {
-      ctx.strokeStyle = actor.accent;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x - 11, y - 14, 22, 31);
     }
   }
 }
@@ -7284,6 +9305,84 @@ function drawCompleteOverlay() {
   );
 }
 
+function drawQuarterReportOverlay() {
+  const report = state.quarterReport;
+  if (!report) {
+    return;
+  }
+  const panelX = 48;
+  const panelY = 516;
+  const panelW = 520;
+  const panelH = 250;
+  ctx.fillStyle = "rgba(47, 34, 49, 0.2)";
+  ctx.fillRect(panelX + 8, panelY + 10, panelW, panelH);
+  ctx.fillStyle = "rgba(255, 240, 206, 0.96)";
+  ctx.fillRect(panelX, panelY, panelW, panelH);
+  ctx.strokeStyle = "#3d2b35";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(panelX + 2, panelY + 2, panelW - 4, panelH - 4);
+
+  ctx.fillStyle = "#2f2231";
+  ctx.font = "bold 22px Trebuchet MS";
+  ctx.fillText(fitTextToWidth(report.title, 300, "…"), panelX + 24, panelY + 36);
+  ctx.font = "13px Trebuchet MS";
+  ctx.fillStyle = "#6f5a62";
+  ctx.fillText("季报不会暂停小镇运行，20 秒后会自动收起。", panelX + 24, panelY + 58);
+
+  const metrics = [
+    { label: "本季营收", value: `${report.metrics.revenue}G`, color: "#ffb17d" },
+    { label: "接待顾客", value: `${report.metrics.visitorsServed} 人`, color: "#8fd3ff" },
+    { label: "最热店铺", value: report.metrics.topFacility, color: "#ffd97a" },
+    { label: "街角焦点", value: report.metrics.topPublicSpot !== "暂无" ? report.metrics.topPublicSpot : report.metrics.topLandmark, color: "#9fe09a" },
+  ];
+  metrics.forEach((item, index) => {
+    const x = panelX + 24 + (index % 2) * 238;
+    const y = panelY + 78 + Math.floor(index / 2) * 64;
+    ctx.fillStyle = `${item.color}30`;
+    ctx.fillRect(x, y, 214, 50);
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1.5, y + 1.5, 211, 47);
+    ctx.fillStyle = "#6f5a62";
+    ctx.font = "bold 11px Trebuchet MS";
+    ctx.fillText(item.label, x + 10, y + 16);
+    ctx.fillStyle = "#2f2231";
+    ctx.font = "bold 18px Trebuchet MS";
+    ctx.fillText(fitTextToWidth(item.value, 188, "…"), x + 10, y + 38);
+  });
+
+  ctx.fillStyle = "#f8ecd1";
+  ctx.fillRect(panelX + 24, panelY + 212, panelW - 48, 74);
+  ctx.strokeStyle = "#b5976d";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(panelX + 25.5, panelY + 213.5, panelW - 51, 71);
+  ctx.fillStyle = "#2f2231";
+  ctx.font = "bold 15px Trebuchet MS";
+  ctx.fillText(report.highlights[0]?.title || "本季大事", panelX + 38, panelY + 234);
+  ctx.fillStyle = "#6f5a62";
+  ctx.font = "14px Trebuchet MS";
+  wrapText(
+    report.highlights[0]?.text || report.storyLine,
+    panelX + 38,
+    panelY + 258,
+    panelW - 76,
+    18,
+    2,
+  );
+
+  const button = getQuarterReportButtonRect();
+  ctx.fillStyle = "#ffe18a";
+  ctx.fillRect(button.x, button.y, button.w, button.h);
+  ctx.strokeStyle = "#c48731";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(button.x + 2, button.y + 2, button.w - 4, button.h - 4);
+  ctx.fillStyle = "#2f2231";
+  ctx.font = "bold 14px Trebuchet MS";
+  ctx.fillText("提前收起", button.x + 26, button.y + 22);
+  ctx.font = "11px Trebuchet MS";
+  ctx.fillText(`${Math.ceil(report.ttl || 0)}s`, button.x + 92, button.y + 22);
+}
+
 function render() {
   syncButtons();
   syncShellTheme();
@@ -7291,6 +9390,7 @@ function render() {
   drawBackground();
   drawHeader();
   drawGrid();
+  drawAmbientStreetLife();
   drawNPCs();
   drawVisitors();
   drawSidebar();
@@ -7302,10 +9402,21 @@ function render() {
   } else if (state.mode === "complete") {
     drawCompleteOverlay();
   }
+  if (state.quarterReport) {
+    drawQuarterReportOverlay();
+  }
 }
 
 function handleCanvasClick(event) {
   const { x, y } = getCanvasPointer(event);
+  if (state.quarterReport) {
+    const button = getQuarterReportButtonRect();
+    if (x >= button.x && x <= button.x + button.w && y >= button.y && y <= button.y + button.h) {
+      closeQuarterReport();
+      render();
+    }
+    return;
+  }
   if (hitObserveCard(x, y)) {
     state.selectedType = null;
     render();
@@ -7389,6 +9500,11 @@ restartButton.addEventListener("click", () => {
 });
 
 window.addEventListener("keydown", (event) => {
+  if (state.quarterReport && (event.key === "Enter" || event.key === " ")) {
+    closeQuarterReport();
+    render();
+    return;
+  }
   if (event.key >= "1" && event.key <= "5") {
     const index = Number(event.key) - 1;
     if (facilityTypes[index]) {
@@ -7459,9 +9575,11 @@ window.render_game_to_text = () =>
       money: state.money,
       rating: state.rating,
       day: state.day,
+      quarterId: state.quarterStats?.id || null,
       selectedType: state.selectedType,
       lastCombo: state.lastCombo,
       debugIncidentId: state.debug?.forcedIncidentId || null,
+      debugTrafficMode: state.debug?.trafficMode || null,
       todayTrend: state.todayTrend,
       servedVisitors: state.servedVisitors,
       lifetimeIncome: state.lifetimeIncome,
@@ -7469,6 +9587,18 @@ window.render_game_to_text = () =>
     world: {
       calendar: state.world.calendar,
       timeOfDay: state.timeOfDay,
+      trafficSignal: {
+        phase: state.trafficSignal.phase,
+        timer: Number(state.trafficSignal.timer.toFixed(2)),
+      },
+      roadTraffic: state.roadTrafficVehicles.map((vehicle) => ({
+        id: vehicle.id,
+        type: vehicle.type,
+        x: Math.round(vehicle.x),
+        y: Math.round(vehicle.y),
+        dir: vehicle.dir,
+        stopped: vehicle.stopped,
+      })),
       season: {
         id: state.world.season.id,
         name: state.world.season.name,
@@ -7509,6 +9639,19 @@ window.render_game_to_text = () =>
       visits: item.visits,
     })),
     observerNotes: [...state.observerNotes],
+    quarterReport: state.quarterReport
+      ? {
+          id: state.quarterReport.id,
+          title: state.quarterReport.title,
+          ttl: Number(state.quarterReport.ttl?.toFixed?.(2) || 0),
+          metrics: state.quarterReport.metrics,
+          highlights: state.quarterReport.highlights.map((item) => ({
+            title: item.title,
+            text: item.text,
+          })),
+          storyLine: state.quarterReport.storyLine,
+        }
+      : null,
     structures: state.facilities.map((facility) => ({
       id: facility.id,
       type: facility.type,
@@ -7519,6 +9662,8 @@ window.render_game_to_text = () =>
       width: facility.width,
       height: facility.height,
       landmarkVisits: facility.landmarkVisits || 0,
+      publicVisits: facility.publicVisits || 0,
+      ambientRole: facility.ambientRole || null,
     })),
     streetPickups: state.streetPickups.map((pickup) => ({
       id: pickup.id,
@@ -7565,7 +9710,9 @@ window.render_game_to_text = () =>
       companionPartnerId: visitor.companionPartnerId || null,
       companionWalkTtl: Number(visitor.companionWalkTtl?.toFixed?.(2) || 0),
       originLandmarkType: visitor.originLandmarkType || null,
+      originPublicSpotType: visitor.originPublicSpotType || null,
       errandLandmarkType: visitor.errandLandmarkType || null,
+      publicSpotType: visitor.publicSpotType || null,
       target: { col: visitor.targetCol, row: visitor.targetRow },
     })),
     npcs: state.npcs.map((npc) => ({
