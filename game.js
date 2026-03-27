@@ -28,6 +28,16 @@ const initialDebugTrafficMode = (() => {
     return null;
   }
 })();
+const initialDebugQuarterMode = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const raw = params.get("quarter") || params.get("debugQuarter") || "";
+    const normalized = String(raw || "").trim().toLowerCase();
+    return normalized === "next" || normalized === "report" ? normalized : null;
+  } catch {
+    return null;
+  }
+})();
 
 const simulationTuning = automationDriven
   ? {
@@ -2816,6 +2826,11 @@ function getUpcomingFestival(dayOfYear) {
   return ordered[0];
 }
 
+function getQuarterDebugBoundaryDay(day = 1) {
+  const calendar = buildCalendar(day);
+  return day + (calendarTuning.seasonLength - calendar.seasonDay);
+}
+
 function getActiveFestival(calendar) {
   return (
     annualFestivalDefinitions.find((festival) =>
@@ -3309,7 +3324,8 @@ function syncShellTheme() {
 
 function createInitialState() {
   const initialRating = 12;
-  const initialDay = 1;
+  const initialDay =
+    initialDebugQuarterMode === "next" ? getQuarterDebugBoundaryDay(1) : 1;
   const initialHour = 8;
   const initialGrid = createGrid();
   const seededMap = seedStartingStructures(initialGrid);
@@ -3340,7 +3356,10 @@ function createInitialState() {
     nextPickupId: 1,
     spawnTimer: simulationTuning.initialSpawnDelay,
     pickupSpawnTimer: 4.6,
-    dayTimer: 0,
+    dayTimer:
+      initialDebugQuarterMode === "next"
+        ? Math.max(0, simulationTuning.dayLength - 0.35)
+        : 0,
     lastCombo: "暂无",
     hoveredTile: null,
     cameraPulse: 0,
@@ -3354,7 +3373,13 @@ function createInitialState() {
     dailyLandmarkSpotlightIds: {},
     observerNotes: ["观察记录：先盯住默认建筑的人来人往，再看整条街怎么被带动。"],
     quarterStats: initialQuarterStats,
-    quarterReport: null,
+    quarterReport:
+      initialDebugQuarterMode === "report"
+        ? {
+            ...buildQuarterReport(initialQuarterStats),
+            ttl: 20,
+          }
+        : null,
     goals: goalDefinitions.map((goal) => ({
       ...goal,
       completed: false,
@@ -3375,13 +3400,19 @@ function createInitialState() {
     environmentVisual: initialEnvironmentVisual,
     environmentTransition: null,
     environmentNotice: {
-      text: "白天营业开始，街区人流最旺。",
+      text:
+        initialDebugQuarterMode === "report"
+          ? "调试模式：季度报表已直接展开。"
+          : initialDebugQuarterMode === "next"
+            ? "调试模式：已把时间推到季末，跨季很快就会发生。"
+            : "白天营业开始，街区人流最旺。",
       color: "#ffe7a3",
       ttl: 3.2,
     },
     debug: {
       forcedIncidentId: initialDebugIncidentId,
       trafficMode: initialDebugTrafficMode,
+      quarterMode: initialDebugQuarterMode,
     },
     announcedUnlocks: facilityTypes
       .filter((def) => def.unlockAt <= 0)
@@ -3391,9 +3422,18 @@ function createInitialState() {
 
 function resetGame() {
   const preservedForcedIncidentId = state.debug?.forcedIncidentId || null;
+  const preservedQuarterMode = state.debug?.quarterMode || null;
   const preservedPlaySpeedId = state.playSpeedId || "standard";
   const fresh = createInitialState();
   fresh.debug.forcedIncidentId = preservedForcedIncidentId || initialDebugIncidentId;
+  fresh.debug.quarterMode = preservedQuarterMode || initialDebugQuarterMode;
+  if (fresh.debug.quarterMode === "next") {
+    fresh.day = getQuarterDebugBoundaryDay(1);
+    fresh.dayTimer = Math.max(0, simulationTuning.dayLength - 0.35);
+  } else if (fresh.debug.quarterMode !== "report") {
+    fresh.day = 1;
+    fresh.dayTimer = 0;
+  }
   fresh.playSpeedId = preservedPlaySpeedId;
   fresh.world = buildWorld(
     fresh.day,
@@ -3401,6 +3441,14 @@ function resetGame() {
     fresh.facilities,
     fresh.debug.forcedIncidentId,
   );
+  fresh.quarterStats = createQuarterStatsState(fresh.world.calendar);
+  fresh.quarterReport =
+    fresh.debug.quarterMode === "report"
+      ? {
+          ...buildQuarterReport(fresh.quarterStats),
+          ttl: 20,
+        }
+      : null;
   fresh.eventActors = createIncidentActors(fresh.world.incidentQueue, fresh.facilities);
   Object.assign(state, fresh);
   render();
@@ -3438,6 +3486,37 @@ function applyDebugIncident(incidentId = null) {
   syncShellTheme();
   render();
   return state.world.incidentQueue[0]?.id || null;
+}
+
+function applyDebugQuarter(mode = null) {
+  const normalized = mode ? String(mode).trim().toLowerCase() : null;
+  if (mode && normalized !== "next" && normalized !== "report") {
+    return null;
+  }
+  state.debug.quarterMode = normalized;
+  if (normalized === "report") {
+    if (!state.quarterStats || state.quarterStats.id !== getQuarterId(state.world.calendar)) {
+      state.quarterStats = createQuarterStatsState(state.world.calendar);
+    }
+    openQuarterReport(buildQuarterReport(state.quarterStats));
+    pushMessage("调试季报已展开，可直接检查季度卡片。");
+    setEnvironmentNotice("调试模式：季度报表已直接展开。", "#ffe39f", 4.2);
+  } else if (normalized === "next") {
+    state.day = getQuarterDebugBoundaryDay(state.day);
+    state.dayTimer = Math.max(0, simulationTuning.dayLength - 0.35);
+    state.quarterReport = null;
+    rebuildWorldForCurrentDay();
+    state.quarterStats = createQuarterStatsState(state.world.calendar);
+    pushMessage("调试季末已就位，下一次日切很快就会触发跨季。");
+    setEnvironmentNotice("调试模式：已推到季末，下一次日切将生成季报。", "#ffe39f", 4.2);
+  } else {
+    closeQuarterReport();
+    pushMessage("季度调试模式已关闭。");
+    setEnvironmentNotice("季度调试已恢复默认流程。", "#ffe7a3", 3.4);
+  }
+  syncShellTheme();
+  render();
+  return state.debug.quarterMode;
 }
 
 function refreshIncidentQueueForCurrentFacilities() {
@@ -7744,8 +7823,20 @@ function drawPigeon(x, y, tone = "#66707d") {
 function drawAmbientStreetLife() {
   const catBase = tileToScreen(2, 8);
   const wetWeather = state.world.weather.id === "drizzle" || state.world.weather.id === "snow";
-  const catWalk = ((state.cameraPulse * 22) % 108);
-  const catY = wetWeather ? catBase.y + 28 : catBase.y + 44;
+  const catCycle = 9.2;
+  const catPhase = (state.cameraPulse % catCycle) / catCycle;
+  let catTravel = 0;
+  if (catPhase < 0.16) {
+    catTravel = 0;
+  } else if (catPhase < 0.5) {
+    catTravel = smoothstep((catPhase - 0.16) / 0.34);
+  } else if (catPhase < 0.7) {
+    catTravel = 1;
+  } else {
+    catTravel = 1 - smoothstep((catPhase - 0.7) / 0.3);
+  }
+  const catWalk = catTravel * 108;
+  const catY = (wetWeather ? catBase.y + 28 : catBase.y + 44) + Math.sin(state.cameraPulse * 2.1) * 0.8;
   drawCat(catBase.x + 18 + catWalk, catY, wetWeather ? "#6b5e68" : "#63545e", "#ffeab5");
 
   const dogBase = tileToScreen(9, 5);
@@ -9808,6 +9899,7 @@ window.advanceTime = (ms) => {
 };
 
 window.setDebugIncident = (incidentId = null) => applyDebugIncident(incidentId);
+window.setDebugQuarter = (mode = null) => applyDebugQuarter(mode);
 window.listDebugIncidents = () =>
   lightweightIncidentDefinitions.map((incident) => ({
     id: incident.id,
@@ -9834,6 +9926,7 @@ window.render_game_to_text = () =>
       lastCombo: state.lastCombo,
       debugIncidentId: state.debug?.forcedIncidentId || null,
       debugTrafficMode: state.debug?.trafficMode || null,
+      debugQuarterMode: state.debug?.quarterMode || null,
       todayTrend: state.todayTrend,
       servedVisitors: state.servedVisitors,
       lifetimeIncome: state.lifetimeIncome,
