@@ -7976,6 +7976,114 @@ function drawTrafficSignalPosts() {
   }
 }
 
+function drawTopBorderTree(x, y, scale, environment, variant = 0) {
+  const trunkColor = environment.treeTrunk;
+  const canopyColor = environment.treeTop;
+  const highlightColor = environment.treeHighlight;
+  const width = scale * 10;
+  const crownOffset = variant % 2 === 0 ? 0 : scale;
+
+  ctx.fillStyle = "rgba(0,0,0,0.14)";
+  ctx.fillRect(x + scale * 2, y + scale * 11, width - scale * 2, scale);
+  ctx.fillStyle = trunkColor;
+  ctx.fillRect(x + scale * 4, y + scale * 6, scale * 2, scale * 5);
+  ctx.fillStyle = mixColor(canopyColor, environment.grassDark, 0.18);
+  ctx.fillRect(x + scale + crownOffset, y + scale * 3, scale * 8, scale * 3);
+  ctx.fillRect(x, y + scale * 5, scale * 10, scale * 3);
+  ctx.fillStyle = canopyColor;
+  ctx.fillRect(x + scale * 2, y + scale * 2, scale * 6, scale * 3);
+  ctx.fillRect(x + scale, y + scale * 4, scale * 8, scale * 3);
+  ctx.fillStyle = highlightColor;
+  ctx.fillRect(x + scale * 3, y + scale * 3, scale * 3, scale);
+  ctx.fillRect(x + scale * 2, y + scale * 5, scale * 4, scale);
+}
+
+function drawMirroredRoadVehicle(x, y, scale, palette, type = "bus") {
+  const length = getRoadVehicleLength(type, scale);
+  ctx.save();
+  ctx.translate(x + length, y);
+  ctx.scale(-1, 1);
+  drawRoadVehicle(0, 0, scale, palette, type);
+  ctx.restore();
+}
+
+function getTopPromenadeBusX(startX, stopX, endX, cycleTime) {
+  const travelIn = 6;
+  const hold = 2.8;
+  const travelOut = 6;
+  const total = travelIn + hold + travelOut + cycleTime;
+  const phase = state.cameraPulse % total;
+  if (phase < travelIn) {
+    return startX + ((stopX - startX) * phase) / travelIn;
+  }
+  if (phase < travelIn + hold) {
+    return stopX;
+  }
+  if (phase < travelIn + hold + travelOut) {
+    const t = (phase - travelIn - hold) / travelOut;
+    return stopX + (endX - stopX) * t;
+  }
+  return endX;
+}
+
+function drawTopPromenadeDecor(environment, playfieldWidth) {
+  const bandY = layout.gridY - 44;
+  const innerY = bandY + 5;
+
+  const treeClusters = [
+    { x: 0, y: bandY + 0, scale: 4, variant: 0 },
+    { x: 92, y: bandY + 4, scale: 4, variant: 1 },
+    { x: 188, y: bandY - 1, scale: 4, variant: 0 },
+    { x: 286, y: bandY + 3, scale: 4, variant: 1 },
+    { x: 394, y: bandY + 0, scale: 4, variant: 0 },
+    { x: 504, y: bandY + 4, scale: 4, variant: 1 },
+    { x: 614, y: bandY + 0, scale: 4, variant: 0 },
+    { x: 716, y: bandY + 3, scale: 4, variant: 1 },
+  ];
+
+  const benches = [
+    { x: 124, y: innerY + 23, tint: "#9f744f" },
+    { x: 382, y: innerY + 23, tint: "#8f6c4b" },
+  ];
+  benches
+    .filter((item) => item.x < playfieldWidth - 36)
+    .forEach((item) => drawBench(item.x, item.y, item.tint));
+
+  const busScale = 3;
+  const busLength = getRoadVehicleLength("bus", busScale);
+  const leftBusX = getTopPromenadeBusX(
+    -busLength - 12,
+    Math.round(playfieldWidth / 2) - busLength - 8,
+    playfieldWidth + 18,
+    1.8,
+  );
+  const rightBusX = getTopPromenadeBusX(
+    playfieldWidth + 16,
+    Math.round(playfieldWidth / 2) + 8,
+    -busLength - 18,
+    1.8,
+  );
+  const leftBusY = innerY - 1;
+  const rightBusY = innerY + 11;
+  drawRoadVehicle(
+    Math.round(leftBusX),
+    leftBusY,
+    busScale,
+    { body: "#f0b55f", roof: "#fff5de", trim: "#694f40" },
+    "bus",
+  );
+  treeClusters
+    .filter((tree) => tree.x < playfieldWidth - 24)
+    .forEach((tree) => drawTopBorderTree(tree.x, tree.y, tree.scale, environment, tree.variant));
+  drawMirroredRoadVehicle(
+    Math.round(rightBusX),
+    rightBusY,
+    busScale,
+    { body: "#6fb4ea", roof: "#edf8ff", trim: "#3f546a" },
+    "bus",
+  );
+}
+
 function drawBackground() {
   const playfieldWidth = layout.sidebarX - 18;
   const environment =
@@ -8052,6 +8160,8 @@ function drawBackground() {
   ctx.fillStyle = environment.grassShadow;
   ctx.fillRect(0, layout.gridY + layout.rows * layout.tile - 10, playfieldWidth, 10);
 
+  drawTopPromenadeDecor(environment, playfieldWidth);
+
   ctx.fillStyle = "#72606a";
   ctx.fillRect(0, layout.roadY, playfieldWidth, layout.roadH);
   ctx.fillStyle = "#544954";
@@ -8071,24 +8181,6 @@ function drawBackground() {
   drawBottomCrosswalk(playfieldWidth);
   drawRoadTraffic(playfieldWidth);
   drawTrafficSignalPosts();
-
-  for (let index = 0; index < 6; index += 1) {
-    const x = 34 + index * 112;
-    ctx.fillStyle = mixColor("rgba(0, 0, 0, 0)", environment.treeTrunk, 0.4);
-    ctx.fillRect(x + 10, layout.gridY - 18, 34, 4);
-    ctx.fillStyle = "#d5b37d";
-    ctx.fillRect(x + 8, layout.gridY - 24, 38, 8);
-    ctx.fillStyle = "#b48a59";
-    ctx.fillRect(x + 10, layout.gridY - 22, 34, 4);
-    ctx.fillStyle = environment.treeTop;
-    ctx.fillRect(x + 2, layout.gridY - 56, 38, 16);
-    ctx.fillRect(x + 10, layout.gridY - 68, 24, 16);
-    ctx.fillStyle = environment.treeHighlight;
-    ctx.fillRect(x + 6, layout.gridY - 62, 28, 8);
-    ctx.fillRect(x + 14, layout.gridY - 74, 12, 8);
-    ctx.fillStyle = environment.treeTrunk;
-    ctx.fillRect(x + 16, layout.gridY - 40, 6, 18);
-  }
 
   if (environment.rainAlpha > 0.02) {
     for (let i = 0; i < 54; i += 1) {
@@ -8118,25 +8210,6 @@ function drawBackground() {
     for (let i = 0; i < 10; i += 1) {
       ctx.fillStyle = mixColor("rgba(255, 255, 255, 0)", leafColors[i % leafColors.length], environment.autumnLeafAlpha);
       ctx.fillRect(70 + i * 44, 162 + ((i + 1) % 3) * 18, 5, 3);
-    }
-  }
-
-  ctx.fillStyle = "rgba(255, 248, 215, 0.74)";
-  ctx.fillRect(playfieldWidth - 166, 100, 144, 42);
-  ctx.strokeStyle = state.world.season.color;
-  ctx.lineWidth = 3;
-  ctx.strokeRect(playfieldWidth - 164, 102, 140, 38);
-  ctx.fillStyle = "#2f2231";
-  ctx.font = "bold 14px Trebuchet MS";
-  ctx.fillText(`${state.world.season.label} / ${state.world.weather.label}`, playfieldWidth - 152, 118);
-  ctx.font = "12px Trebuchet MS";
-  ctx.fillText(`${state.timeOfDay.label} 气氛`, playfieldWidth - 152, 134);
-
-  if (state.world.activeFestival) {
-    ctx.fillStyle = state.world.activeFestival.color;
-    for (let x = 34; x < playfieldWidth - 40; x += 44) {
-      ctx.fillRect(x, 104, 18, 5);
-      ctx.fillRect(x + 6, 108, 6, 18);
     }
   }
 
