@@ -81,6 +81,13 @@ npm install
 npm test
 ```
 
+如果默认端口 `4173` 已被占用，可以临时改用别的端口：
+
+```powershell
+$env:SMOKE_PORT='4274'
+npm test
+```
+
 测试脚本会输出：
 
 - `output/web-game/shot-0.png`

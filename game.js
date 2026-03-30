@@ -2955,7 +2955,7 @@ function getRoadVehicleStopLineX(vehicle) {
 }
 
 function canPedestriansCrossRoad() {
-  return state.trafficSignal.phase === "walk" || state.trafficSignal.phase === "blink";
+  return state.trafficSignal.phase === "walk";
 }
 
 function getBottomCrosswalkBounds() {
@@ -2989,17 +2989,26 @@ function updateRoadTraffic(delta) {
   const roadRight = layout.sidebarX + 220;
   const carRedLight = state.trafficSignal.phase === "walk" || state.trafficSignal.phase === "blink";
   const trafficScale = getRoadTrafficScale();
+  const stopBuffer = 6;
   for (const vehicle of state.roadTrafficVehicles) {
     vehicle.y = roadTrafficConfigs.find((config) => config.id === vehicle.id)?.y?.() ?? vehicle.y;
     const step = vehicle.speed * trafficScale * delta;
     const stopLine = getRoadVehicleStopLineX(vehicle);
     if (carRedLight) {
-      if (vehicle.dir > 0 && vehicle.x < stopLine && vehicle.x + step >= stopLine) {
+      if (
+        vehicle.dir > 0 &&
+        vehicle.x < stopLine + stopBuffer &&
+        vehicle.x + step >= stopLine - stopBuffer
+      ) {
         vehicle.x = stopLine;
         vehicle.stopped = true;
         continue;
       }
-      if (vehicle.dir < 0 && vehicle.x > stopLine && vehicle.x - step <= stopLine) {
+      if (
+        vehicle.dir < 0 &&
+        vehicle.x > stopLine - stopBuffer &&
+        vehicle.x - step <= stopLine + stopBuffer
+      ) {
         vehicle.x = stopLine;
         vehicle.stopped = true;
         continue;

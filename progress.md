@@ -1,5 +1,32 @@
 Original prompt: 你写一个小demo，美术风格和你整理描述的差不多就可以
 
+## 当前收尾状态（2026-03-30）
+
+### 已完成
+
+- 已收口红绿灯边界逻辑：`canPedestriansCrossRoad()` 现仅在 `walk` 阶段允许行人过街，`blink` 改为纯过渡阶段，避免行人与车辆在闪烁阶段规则打架。
+- 已补强车辆停车判定：`updateRoadTraffic()` 新增 `stopBuffer`，降低车辆因单帧位移过大而越过停车线的概率。
+- 已整理 smoke 脚本：`scripts/smoke.mjs` 不再写死 `4173` 端口，现可通过 `SMOKE_PORT` 覆盖，便于在本机已有服务占用默认端口时继续跑专项验证。
+- 已清理未引用的临时文件 `temp_img.png`，当前工作区只剩 `game.js` 与 `scripts/smoke.mjs` 两处有效改动。
+
+### 未完成
+
+- `npm run test:traffic` 尚未重新拿到通过结果。
+- `npm test` 尚未重新拿到通过结果。
+- 交通专项脚本 `scripts/traffic-signal-check.mjs` 的 `stop` 场景目前仍接受 `walk / blink` 两种相位；如果后续确认新规则就是“仅 `walk` 允许行人过街”，建议把专项验收口径也一并收紧，避免文档和测试口径落在旧语义上。
+
+### 当前阻塞
+
+- 沙箱内跑 Playwright 会遇到 `spawn EPERM`，无法直接完成浏览器自动化回归。
+- 默认端口 `4173` 之前曾出现 `EADDRINUSE`；脚本侧已支持 `SMOKE_PORT` 绕开，但本轮提权回归未拿到最终通过结果，因此不能标记为已验证完成。
+
+### 下一步建议
+
+- 在可启动浏览器的环境下优先复跑：
+  - `SMOKE_PORT=4273 npm run test:traffic`
+  - `SMOKE_PORT=4274 npm test`
+- 若交通专项通过，再决定是否把 `scripts/traffic-signal-check.mjs` 的 `stop` 场景校验从 `walk / blink` 收紧为仅 `walk`。
+
 - 2026-03-18: 仓库当前几乎为空，计划从零构建一个开罗风像素经营 demo。
 - 目标: 零依赖静态网页，可直接本地打开或经本地服务运行。
 - 玩法草案: 选择设施并放置到像素地块上，访客自动游走消费，设施组合产生加成，天数推进带来收入与评价增长。

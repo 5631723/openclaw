@@ -7,8 +7,10 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
-const port = 4173;
 const host = "127.0.0.1";
+const defaultPort = 4173;
+const envPort = Number.parseInt(process.env.SMOKE_PORT || "", 10);
+const port = Number.isInteger(envPort) && envPort > 0 ? envPort : defaultPort;
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
