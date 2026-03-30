@@ -38,6 +38,16 @@ const initialDebugQuarterMode = (() => {
     return null;
   }
 })();
+const initialDebugPublicSpotMode = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const raw = params.get("publicSpot") || params.get("debugPublicSpot") || "";
+    const normalized = String(raw || "").trim().toLowerCase();
+    return normalized === "visit" ? normalized : null;
+  } catch {
+    return null;
+  }
+})();
 
 const simulationTuning = automationDriven
   ? {
@@ -1047,6 +1057,37 @@ const landmarkRhythmDefinitions = {
   },
 };
 
+const landmarkPublicSpotAffinityMap = {
+  library: {
+    "pocket-plaza": 2.1,
+    "fountain-corner": 1.3,
+  },
+  clinic: {
+    "fountain-corner": 1.9,
+    "pocket-plaza": 1.1,
+  },
+  post: {
+    "street-stall": 2.2,
+    "metro-entrance": 0.8,
+  },
+  police: {
+    "metro-entrance": 1.8,
+    "pocket-plaza": 1.2,
+  },
+  workshop: {
+    "street-stall": 2,
+    "metro-entrance": 1.4,
+  },
+};
+
+const debugPublicSpotProfileByLandmark = {
+  library: "student",
+  clinic: "family",
+  post: "traveler",
+  police: "worker",
+  workshop: "worker",
+};
+
 const landmarkResultSprites = {
   library: {
     sprite: [
@@ -2023,6 +2064,7 @@ const dialogueTemplates = {
 };
 
 const state = createInitialState();
+applyInitialDebugScenarios();
 
 function createGrid() {
   return Array.from({ length: layout.rows }, () =>
@@ -2088,8 +2130,33 @@ function createStructureEntity(type, col, row, id, overrides = {}) {
     landmarkVisits: 0,
     publicVisits: 0,
     ambientRole: def.ambientRole || null,
+    linkedLandmarkId: null,
+    linkedLandmarkType: null,
     ...overrides,
   };
+}
+
+function getStructureCenter(structure) {
+  return getTileCenter(structure.col, structure.row, structure.width, structure.height);
+}
+
+function linkSeededPublicSpotsToLandmarks(structures) {
+  const landmarks = structures.filter((structure) => structure.kind === "landmark");
+  const publicSpots = structures.filter((structure) => structure.kind === "public-spot");
+  for (const publicSpot of publicSpots) {
+    const center = getStructureCenter(publicSpot);
+    const linkedLandmark =
+      [...landmarks].sort((left, right) => {
+        const leftCenter = getStructureCenter(left);
+        const rightCenter = getStructureCenter(right);
+        return (
+          Math.hypot(leftCenter.x - center.x, leftCenter.y - center.y) -
+          Math.hypot(rightCenter.x - center.x, rightCenter.y - center.y)
+        );
+      })[0] || null;
+    publicSpot.linkedLandmarkId = linkedLandmark?.id || null;
+    publicSpot.linkedLandmarkType = linkedLandmark?.type || null;
+  }
 }
 
 function canOccupyTiles(grid, col, row, width, height) {
@@ -2247,6 +2314,7 @@ function seedStartingStructures(grid) {
     occupyStructureOnGrid(grid, tree);
     structures.push(tree);
   }
+  linkSeededPublicSpotsToLandmarks(structures);
   return { structures, nextId };
 }
 
@@ -2461,6 +2529,7 @@ function createQuarterStatsState(calendar) {
     facilityVisits: {},
     landmarkVisits: {},
     publicSpotVisits: {},
+    routineLinks: {},
     notableEvents: [],
     notableEventKeys: {},
     notes: [],
@@ -2512,9 +2581,12 @@ function buildQuarterReport(stats) {
   const topFacility = getTopQuarterEntry(stats.facilityVisits);
   const topLandmark = getTopQuarterEntry(stats.landmarkVisits);
   const topPublicSpot = getTopQuarterEntry(stats.publicSpotVisits);
+  const topRoutineLink = getTopQuarterEntry(stats.routineLinks);
   const storyLine =
     stats.notes[0] ||
-    (topPublicSpot
+    (topRoutineLink
+      ? `${topRoutineLink.name} 这条来往路线开始稳定下来，街区日常终于接上了。`
+      : topPublicSpot
       ? `${topPublicSpot.name} 附近开始形成固定停留人流。`
       : topLandmark
         ? `${topLandmark.name} 成了这季最常被观察到的默认建筑。`
@@ -2538,7 +2610,9 @@ function buildQuarterReport(stats) {
     },
     {
       title: "观察趣闻",
-      text: topPublicSpot
+      text: topRoutineLink
+        ? `${topRoutineLink.name} 本季出现 ${topRoutineLink.value} 次，默认建筑和公共点位已经开始一起带动街区。`
+        : topPublicSpot
         ? `${topPublicSpot.name} 一带出现了 ${topPublicSpot.value} 次驻足停留，路人会在那里多看两眼。`
         : topLandmark
           ? `${topLandmark.name} 本季被居民光顾 ${topLandmark.value} 次，默认建筑终于开始带动街区日常。`
@@ -2556,6 +2630,7 @@ function buildQuarterReport(stats) {
       topFacility: topFacility?.name || "暂无",
       topLandmark: topLandmark?.name || "暂无",
       topPublicSpot: topPublicSpot?.name || "暂无",
+      topRoutineLink: topRoutineLink?.name || "暂无",
     },
     highlights,
     storyLine,
@@ -2971,6 +3046,26 @@ function getBottomCrosswalkBounds() {
   };
 }
 
+function getTrafficWaitingVisitors() {
+  return state.visitors.filter((visitor) => shouldPauseForTrafficSignal(visitor));
+}
+
+function getTrafficObservationSummary() {
+  const waitingVisitors = getTrafficWaitingVisitors();
+  const crossingVisitors = state.visitors.filter(
+    (visitor) =>
+      (visitor.phase === "to-grid" || visitor.phase === "leaving-road") &&
+      Math.abs(visitor.y - (layout.roadY + layout.roadH / 2)) <= layout.roadH / 2 + 12,
+  );
+  const stoppedVehicles = state.roadTrafficVehicles.filter((vehicle) => vehicle.stopped);
+  return {
+    phase: state.trafficSignal.phase,
+    waitingPedestrians: waitingVisitors.length,
+    crossingPedestrians: crossingVisitors.length,
+    stoppedVehicles: stoppedVehicles.length,
+  };
+}
+
 function shouldPauseForTrafficSignal(visitor) {
   if (canPedestriansCrossRoad()) {
     return false;
@@ -3378,10 +3473,12 @@ function createInitialState() {
     lifetimeIncome: 0,
     todayTrend: buildTrend(initialRating, initialDay),
     dailyLandmarkStats: {},
+    dailyPublicSpotLinks: {},
     landmarkSpotlights: [],
     dailyLandmarkSpotlightIds: {},
     observerNotes: ["观察记录：先盯住默认建筑的人来人往，再看整条街怎么被带动。"],
     quarterStats: initialQuarterStats,
+    lastQuarterReport: null,
     quarterReport:
       initialDebugQuarterMode === "report"
         ? {
@@ -3400,6 +3497,7 @@ function createInitialState() {
     eventActors: createIncidentActors(initialWorld.incidentQueue, seededMap.structures),
     trafficSignal: createTrafficSignalState(initialDebugTrafficMode === "drive" ? "drive" : "walk"),
     roadTrafficVehicles: createRoadTrafficVehicles(initialDebugTrafficMode),
+    trafficPulse: null,
     activeDialogue: null,
     dialogueFeed: [],
     dialoguePointer: 0,
@@ -3414,6 +3512,8 @@ function createInitialState() {
           ? "调试模式：季度报表已直接展开。"
           : initialDebugQuarterMode === "next"
             ? "调试模式：已把时间推到季末，跨季很快就会发生。"
+            : initialDebugPublicSpotMode === "visit"
+              ? "调试模式：公共点位联动路线已预布置，开始后会直接演示。"
             : "白天营业开始，街区人流最旺。",
       color: "#ffe7a3",
       ttl: 3.2,
@@ -3422,6 +3522,8 @@ function createInitialState() {
       forcedIncidentId: initialDebugIncidentId,
       trafficMode: initialDebugTrafficMode,
       quarterMode: initialDebugQuarterMode,
+      publicSpotMode: initialDebugPublicSpotMode,
+      publicSpotScenario: null,
     },
     announcedUnlocks: facilityTypes
       .filter((def) => def.unlockAt <= 0)
@@ -3432,10 +3534,12 @@ function createInitialState() {
 function resetGame() {
   const preservedForcedIncidentId = state.debug?.forcedIncidentId || null;
   const preservedQuarterMode = state.debug?.quarterMode || null;
+  const preservedPublicSpotMode = state.debug?.publicSpotMode || null;
   const preservedPlaySpeedId = state.playSpeedId || "standard";
   const fresh = createInitialState();
   fresh.debug.forcedIncidentId = preservedForcedIncidentId || initialDebugIncidentId;
   fresh.debug.quarterMode = preservedQuarterMode || initialDebugQuarterMode;
+  fresh.debug.publicSpotMode = preservedPublicSpotMode || initialDebugPublicSpotMode;
   if (fresh.debug.quarterMode === "next") {
     fresh.day = getQuarterDebugBoundaryDay(1);
     fresh.dayTimer = Math.max(0, simulationTuning.dayLength - 0.35);
@@ -3460,7 +3564,180 @@ function resetGame() {
       : null;
   fresh.eventActors = createIncidentActors(fresh.world.incidentQueue, fresh.facilities);
   Object.assign(state, fresh);
+  applyInitialDebugScenarios();
   render();
+}
+
+function getLandmarkPublicSpotAffinity(landmarkType, publicSpotType) {
+  return landmarkPublicSpotAffinityMap[landmarkType]?.[publicSpotType] || 0;
+}
+
+function buildSpecificPublicSpotOriginRoute(facility, originSpot) {
+  const originTile = getPrimaryEntranceTile(originSpot);
+  if (!originTile) {
+    return null;
+  }
+  const path = buildFacilityPath(originTile, facility);
+  if (!path) {
+    return null;
+  }
+  return {
+    path,
+    originKind: "public-spot",
+    originPublicSpotId: originSpot.id,
+    originPublicSpotType: originSpot.type,
+    spawnTile: path[0],
+    approachTile: path[path.length - 1],
+    roadExit: getRoadPoint("center", originTile.col),
+  };
+}
+
+function findPublicSpotDebugScenario() {
+  const shopDef = getFacilityDef("snack");
+  const metroSpots = listPublicSpots().filter((spot) => spot.type === "metro-entrance");
+  const lingerSpots = listPublicSpots().filter((spot) => spot.type !== "metro-entrance");
+  const lotCandidates = getTownLotPlacementCandidates(shopDef.footprint.w, shopDef.footprint.h).filter(
+    (candidate) => canPlaceFacility(candidate.col, candidate.row, shopDef).ok,
+  );
+  let best = null;
+
+  for (const originSpot of metroSpots) {
+    for (const publicSpot of lingerSpots) {
+      const landmark = getFacilityById(publicSpot.linkedLandmarkId);
+      if (!landmark) {
+        continue;
+      }
+      for (const candidate of lotCandidates) {
+        const probe = {
+          col: candidate.col,
+          row: candidate.row,
+          width: shopDef.footprint.w,
+          height: shopDef.footprint.h,
+        };
+        const route = buildSpecificPublicSpotOriginRoute(probe, originSpot);
+        if (!route) {
+          continue;
+        }
+        const toPublicSpot = buildFacilityPath(route.approachTile, publicSpot);
+        if (!toPublicSpot) {
+          continue;
+        }
+        const toLandmark = buildFacilityPath(
+          toPublicSpot[toPublicSpot.length - 1],
+          landmark,
+        );
+        if (!toLandmark) {
+          continue;
+        }
+        const score =
+          getLandmarkPublicSpotAffinity(landmark.type, publicSpot.type) * 8 -
+          route.path.length * 1.1 -
+          toPublicSpot.length * 1.35 -
+          toLandmark.length * 1.15;
+        if (!best || score > best.score) {
+          best = {
+            score,
+            shopCol: candidate.col,
+            shopRow: candidate.row,
+            originSpot,
+            publicSpot,
+            landmark,
+          };
+        }
+      }
+    }
+  }
+  return best;
+}
+
+function setupPublicSpotDebugScenario() {
+  const scenario = findPublicSpotDebugScenario();
+  if (!scenario) {
+    state.debug.publicSpotScenario = null;
+    return;
+  }
+  const shop = createStructureEntity("snack", scenario.shopCol, scenario.shopRow, state.nextFacilityId, {
+    visits: 2,
+    level: 1,
+  });
+  state.nextFacilityId += 1;
+  state.facilities.push(shop);
+  occupyFacility(shop);
+  state.selectedType = null;
+  state.spawnTimer = simulationTuning.dayLength * 6;
+  state.world.incidentQueue = [];
+  state.world.activeIncidents = [];
+  state.eventActors = [];
+  const profileId =
+    debugPublicSpotProfileByLandmark[scenario.landmark.type] || "traveler";
+  const shopName = getFacilityDef(shop.type)?.name || "Snack Bar";
+  const originName = getStructureDef(scenario.originSpot.type)?.name || "Metro Entrance";
+  const publicSpotName = getStructureDef(scenario.publicSpot.type)?.name || "公共点位";
+  const landmarkName = getStructureDef(scenario.landmark.type)?.name || "默认建筑";
+  const debugNote = `调试路线：${originName} -> ${shopName} -> ${publicSpotName} -> ${landmarkName}`;
+  state.observerNotes.unshift(debugNote);
+  state.observerNotes = state.observerNotes.slice(0, 4);
+  state.debug.publicSpotScenario = {
+    status: "ready",
+    chainCompleted: false,
+    spawnedVisitorId: null,
+    profileId,
+    shopId: shop.id,
+    shopType: shop.type,
+    originPublicSpotId: scenario.originSpot.id,
+    originPublicSpotType: scenario.originSpot.type,
+    publicSpotId: scenario.publicSpot.id,
+    publicSpotType: scenario.publicSpot.type,
+    landmarkId: scenario.landmark.id,
+    landmarkType: scenario.landmark.type,
+  };
+}
+
+function primePublicSpotDebugVisitor() {
+  const scenario = state.debug?.publicSpotScenario;
+  if (!scenario || scenario.spawnedVisitorId) {
+    return null;
+  }
+  const facility = getFacilityById(scenario.shopId);
+  const originSpot = getFacilityById(scenario.originPublicSpotId);
+  const landmark = getFacilityById(scenario.landmarkId);
+  if (!facility || !originSpot || !landmark) {
+    return null;
+  }
+  const route = buildSpecificPublicSpotOriginRoute(facility, originSpot);
+  if (!route) {
+    return null;
+  }
+  const profile =
+    visitorArchetypes.find((item) => item.id === scenario.profileId) || visitorArchetypes[0];
+  const plan = buildVisitorSpawnPlan(profile, null, {
+    targetFacilityId: facility.id,
+    route,
+    errandLandmark: landmark,
+  });
+  if (!plan) {
+    return null;
+  }
+  const visitor = createVisitorFromPlan(plan);
+  visitor.forcePublicSpotVisit = true;
+  visitor.preferredPublicSpotId = scenario.publicSpotId;
+  visitor.debugPublicSpotChain = {
+    active: true,
+    visitedPublicSpot: false,
+    completed: false,
+  };
+  visitor.speed = Math.max(visitor.speed, 160 * simulationTuning.visitorSpeedMultiplier);
+  visitor.emoteCooldown = 0.12;
+  scenario.spawnedVisitorId = visitor.id;
+  scenario.status = "spawned";
+  return visitor;
+}
+
+function applyInitialDebugScenarios() {
+  state.debug.publicSpotScenario = null;
+  if (state.debug?.publicSpotMode === "visit") {
+    setupPublicSpotDebugScenario();
+  }
 }
 
 function rebuildWorldForCurrentDay() {
@@ -3507,7 +3784,9 @@ function applyDebugQuarter(mode = null) {
     if (!state.quarterStats || state.quarterStats.id !== getQuarterId(state.world.calendar)) {
       state.quarterStats = createQuarterStatsState(state.world.calendar);
     }
-    openQuarterReport(buildQuarterReport(state.quarterStats));
+    const report = buildQuarterReport(state.quarterStats);
+    state.lastQuarterReport = { ...report };
+    openQuarterReport(report, { reopened: true });
     pushMessage("调试季报已展开，可直接检查季度卡片。");
     setEnvironmentNotice("调试模式：季度报表已直接展开。", "#ffe39f", 4.2);
   } else if (normalized === "next") {
@@ -3578,21 +3857,37 @@ function pushMessage(text) {
   state.messages = state.messages.slice(0, 5);
 }
 
-function openQuarterReport(report) {
+function openQuarterReport(report, options = {}) {
+  const { reopened = false } = options;
   state.quarterReport = {
     ...report,
     ttl: 20,
   };
   state.selectedType = null;
   state.activeDialogue = null;
-  setEnvironmentNotice(`${report.seasonLabel} 季报出炉，先看看这季街区发生了什么。`, "#ffe39f", 5);
+  setEnvironmentNotice(
+    reopened
+      ? `重新翻看 ${report.seasonLabel} 季报，补一下这季街区总结。`
+      : `${report.seasonLabel} 季报出炉，先看看这季街区发生了什么。`,
+    "#ffe39f",
+    5,
+  );
 }
 
 function closeQuarterReport() {
   state.quarterReport = null;
 }
 
-function noteLandmarkVisit(landmark) {
+function reopenLastQuarterReport() {
+  if (!state.lastQuarterReport) {
+    return false;
+  }
+  openQuarterReport({ ...state.lastQuarterReport }, { reopened: true });
+  pushMessage(`${state.lastQuarterReport.seasonLabel} 季报已重新展开。`);
+  return true;
+}
+
+function noteLandmarkVisit(landmark, visitor = null) {
   if (!landmark) {
     return;
   }
@@ -3604,6 +3899,16 @@ function noteLandmarkVisit(landmark) {
   };
   current.visits += 1;
   state.dailyLandmarkStats[landmark.id] = current;
+
+  // 反向统计路线：如果游客刚访问过公共点位，现在又访问默认建筑，记录这条反向路线
+  if (visitor?.lastPublicSpotId) {
+    const publicSpot = getFacilityById(visitor.lastPublicSpotId);
+    if (publicSpot) {
+      noteLandmarkPublicSpotLink(publicSpot, visitor);
+    }
+    // 清除记录，避免错误统计到后续的默认建筑访问
+    visitor.lastPublicSpotId = null;
+  }
 }
 
 function getLandmarkRoutineScale(landmarkType) {
@@ -3641,6 +3946,95 @@ function maybeActivateLandmarkSpotlight(landmark) {
   }
 }
 
+function noteLandmarkPublicSpotLink(publicSpot, visitor = null) {
+  const landmark =
+    getFacilityById(visitor?.errandLandmarkId || -1) ||
+    getFacilityById(visitor?.originLandmarkId || -1) ||
+    getFacilityById(publicSpot?.linkedLandmarkId || -1);
+  if (!landmark || !publicSpot) {
+    return;
+  }
+  const publicSpotName = getStructureDef(publicSpot.type)?.name || "公共点位";
+  const landmarkName = getStructureDef(landmark.type)?.name || "默认建筑";
+  const key = `${landmark.id}:${publicSpot.id}`;
+  const current = state.dailyPublicSpotLinks[key] || {
+    id: key,
+    landmarkId: landmark.id,
+    landmarkType: landmark.type,
+    landmarkName,
+    publicSpotId: publicSpot.id,
+    publicSpotType: publicSpot.type,
+    publicSpotName,
+    visits: 0,
+  };
+  current.visits += 1;
+  state.dailyPublicSpotLinks[key] = current;
+  incrementQuarterCounter(
+    state.quarterStats?.routineLinks,
+    `${landmarkName} -> ${publicSpotName}`,
+    1,
+  );
+  if (current.visits === 2 || current.visits === 4) {
+    const note = getRoutineLinkNote(landmark.type, publicSpot.type, landmarkName, publicSpotName, current.visits);
+    state.observerNotes.unshift(note);
+    state.observerNotes = state.observerNotes.slice(0, 4);
+    recordQuarterNote(note, `routine:${key}:${current.visits}`);
+    if (Math.random() < 0.6) {
+      pushMessage(note);
+    }
+  }
+}
+
+function getRoutineLinkNote(landmarkType, publicSpotType, landmarkName, publicSpotName, visits) {
+  const intensity = visits === 4 ? "已经稳定下来" : "开始形成";
+  const templates = {
+    "library:pocket-plaza": [
+      `观察记录：${landmarkName} 和 ${publicSpotName} ${intensity}固定绕行，借书的人都会到广场歇一歇。`,
+      `观察记录：学生常在 ${landmarkName} 和 ${publicSpotName} 之间来回，书借到了就找个舒服角落。`,
+    ],
+    "library:fountain-corner": [
+      `观察记录：${landmarkName} 借完书的人总去 ${publicSpotName}，边看公告板边听水声。`,
+    ],
+    "clinic:fountain-corner": [
+      `观察记录：${landmarkName} 和 ${publicSpotName} ${intensity}固定绕行，问诊后就到喷泉散散心。`,
+      `观察记录：看病的人和 ${publicSpotName} 之间${intensity}习惯，等药的时候都会去那边转转。`,
+    ],
+    "clinic:pocket-plaza": [
+      `观察记录：${landmarkName} 的访客偶尔会去 ${publicSpotName}，在广场上走走缓解一下。`,
+    ],
+    "post:street-stall": [
+      `观察记录：${landmarkName} 寄信的人常顺路去 ${publicSpotName}，寄完顺手买点小吃。`,
+      `观察记录：${landmarkName} 和 ${publicSpotName} ${intensity}固定绕行，寄信和买东西已经连成一套。`,
+    ],
+    "police:metro-entrance": [
+      `观察记录：${landmarkName} 办完事的人常去 ${publicSpotName}，正好搭下一趟车离开。`,
+    ],
+    "workshop:street-stall": [
+      `观察记录：${landmarkName} 交班的人总去 ${publicSpotName}，下班顺手买点东西回家。`,
+      `观察记录：工人常在 ${landmarkName} 和 ${publicSpotName} 之间绕行，干活和买东西已经成固定流程。`,
+    ],
+  };
+  const key = `${landmarkType}:${publicSpotType}`;
+  const options = templates[key] || [
+    `观察记录：${landmarkName} 和 ${publicSpotName} ${intensity}固定绕行，街区日常的来往开始成形。`,
+    `观察记录：${landmarkName} ↔ ${publicSpotName} 的路线${intensity}，路人已经习惯走这条路了。`,
+  ];
+  return pickRandom(options);
+}
+
+function getTopDailyPublicSpotLink() {
+  return (
+    Object.values(state.dailyPublicSpotLinks || {}).sort((left, right) => {
+      if (right.visits !== left.visits) {
+        return right.visits - left.visits;
+      }
+      const leftName = left.publicSpotName || "";
+      const rightName = right.publicSpotName || "";
+      return leftName.localeCompare(rightName, "zh-Hans-CN");
+    })[0] || null
+  );
+}
+
 function getLandmarkActivityRows(limit = 3) {
   const rows = Object.values(state.dailyLandmarkStats || {})
     .sort((left, right) => {
@@ -3656,6 +4050,10 @@ function getLandmarkActivityRows(limit = 3) {
       const total = getFacilityById(item.facilityId)?.landmarkVisits || item.visits;
       return `${item.name} 今日 ${item.visits} / 累计 ${total}`;
     });
+  const topLink = getTopDailyPublicSpotLink();
+  if (topLink) {
+    rows.push(`${topLink.landmarkName} -> ${topLink.publicSpotName} 今日 ${topLink.visits}`);
+  }
   return rows.length ? rows : ["今天默认建筑还没接到明显办事人流。"];
 }
 
@@ -3663,7 +4061,17 @@ function getObserverSnapshot() {
   const activeRoutine = Object.values(state.dailyLandmarkStats || {}).sort(
     (left, right) => right.visits - left.visits,
   )[0];
+  const topLink = getTopDailyPublicSpotLink();
   const busiestFacility = getBusiestFacility();
+  if (topLink && busiestFacility) {
+    const facilityName = getFacilityDef(busiestFacility.type).name;
+    const routineNote = getDailyRoutineSnapshot(topLink, facilityName);
+    return `观察记录：${routineNote}`;
+  }
+  if (topLink) {
+    const routineNote = getDailyRoutineSnapshot(topLink);
+    return `观察记录：${routineNote}`;
+  }
   if (activeRoutine && busiestFacility) {
     return `观察记录：${activeRoutine.name} 今天最忙，${getFacilityDef(busiestFacility.type).name} 也在跟着吃人流。`;
   }
@@ -3674,6 +4082,35 @@ function getObserverSnapshot() {
     return `观察记录：${getFacilityDef(busiestFacility.type).name} 是当前街区热点，小镇还在缓慢长出自己的习惯。`;
   }
   return "观察记录：今天街区还在热身，更多变化会在建筑和人流里慢慢出现。";
+}
+
+function getDailyRoutineSnapshot(topLink, facilityName = null) {
+  const landmarkType = topLink.landmarkType;
+  const publicSpotType = topLink.publicSpotType;
+  const templates = {
+    "library:pocket-plaza": [
+      `${topLink.landmarkName} -> ${topLink.publicSpotName} 这条路线最活跃，学生借完书都去广场歇着${facilityName ? `，顺便还会逛 ${facilityName}` : ""}。`,
+      `${topLink.landmarkName} ↔ ${topLink.publicSpotName} 的来往已经变成固定节奏${facilityName ? `，${facilityName} 也跟着热闹起来` : ""}。`,
+    ],
+    "library:fountain-corner": [
+      `${topLink.landmarkName} 和 ${topLink.publicSpotName} 之间人流最多${facilityName ? `，${facilityName} 也分到了不少客流` : ""}，公告板和喷泉都成了常驻点。`,
+    ],
+    "clinic:fountain-corner": [
+      `${topLink.landmarkName} -> ${topLink.publicSpotName} 这条路线最活跃${facilityName ? `，看完病的人还会去 ${facilityName}` : ""}，问诊和散心已经连成一套。`,
+    ],
+    "post:street-stall": [
+      `${topLink.landmarkName} 和 ${topLink.publicSpotName} 之间的来往最频繁${facilityName ? `，寄信的人顺路逛 ${facilityName}` : ""}，办事和买东西成了固定搭配。`,
+    ],
+    "workshop:street-stall": [
+      `${topLink.landmarkName} ↔ ${topLink.publicSpotName} 已经变成下班路线${facilityName ? `，交班的人也会去 ${facilityName}` : ""}，工作和小吃固定在一起。`,
+    ],
+  };
+  const key = `${landmarkType}:${publicSpotType}`;
+  const options = templates[key] || [
+    `${topLink.landmarkName} -> ${topLink.publicSpotName} 这条路线最活跃${facilityName ? `，${facilityName} 也在跟着吃人流` : ""}。`,
+    `${topLink.landmarkName} 和 ${topLink.publicSpotName} 之间的来往已经变成固定节奏${facilityName ? `，${facilityName} 也热闹起来` : ""}。`,
+  ];
+  return pickRandom(options);
 }
 
 function getFacilityDef(type) {
@@ -4882,6 +5319,23 @@ function buildPublicSpotOriginRoute(facility, profile) {
   return null;
 }
 
+function getVisitorPublicSpotAffinity(visitor, publicSpot) {
+  let weight = 0;
+  if (visitor.preferredPublicSpotId && visitor.preferredPublicSpotId === publicSpot.id) {
+    weight += 5.4;
+  }
+  for (const landmarkType of [visitor.errandLandmarkType, visitor.originLandmarkType]) {
+    if (!landmarkType) {
+      continue;
+    }
+    weight += getLandmarkPublicSpotAffinity(landmarkType, publicSpot.type);
+    if (publicSpot.linkedLandmarkType === landmarkType) {
+      weight += 1.2;
+    }
+  }
+  return weight;
+}
+
 function getPublicSpotDetourWeight(visitor, publicSpot) {
   let weight = 1.1;
   switch (publicSpot.type) {
@@ -4900,6 +5354,7 @@ function getPublicSpotDetourWeight(visitor, publicSpot) {
     default:
       break;
   }
+  weight += getVisitorPublicSpotAffinity(visitor, publicSpot);
   return weight;
 }
 
@@ -4922,6 +5377,16 @@ function planVisitorPublicSpotVisit(visitor) {
       };
     })
     .filter(Boolean);
+  if (visitor.forcePublicSpotVisit && visitor.preferredPublicSpotId) {
+    const forced = candidates.find((item) => item.publicSpot.id === visitor.preferredPublicSpotId);
+    if (forced) {
+      return {
+        publicSpot: forced.publicSpot,
+        path: forced.path,
+        approachTile: forced.path[forced.path.length - 1],
+      };
+    }
+  }
   const picked = pickWeightedByWeight(candidates);
   if (!picked) {
     return null;
@@ -5006,13 +5471,24 @@ function getPublicSpotVisitPayload(type) {
   }
 }
 
-function notePublicSpotVisit(publicSpot) {
+function notePublicSpotVisit(publicSpot, visitor = null) {
   if (!publicSpot) {
     return;
   }
   publicSpot.publicVisits = (publicSpot.publicVisits || 0) + 1;
   const def = getStructureDef(publicSpot.type);
   incrementQuarterCounter(state.quarterStats?.publicSpotVisits, def?.name || publicSpot.type, 1);
+  noteLandmarkPublicSpotLink(publicSpot, visitor);
+  // 记录游客最近访问的公共点位，用于反向统计路线
+  if (visitor) {
+    visitor.lastPublicSpotId = publicSpot.id;
+  }
+  if (visitor?.debugPublicSpotChain?.active) {
+    visitor.debugPublicSpotChain.visitedPublicSpot = true;
+    if (state.debug?.publicSpotScenario) {
+      state.debug.publicSpotScenario.status = "public-spot-visited";
+    }
+  }
   if (publicSpot.publicVisits === 3 || publicSpot.publicVisits === 6) {
     const note = `观察记录：${def?.name || "公共点位"} 附近开始形成固定停留人流。`;
     state.observerNotes.unshift(note);
@@ -5448,20 +5924,29 @@ function isWalkableTile(col, row, allowedFacilityId = null) {
 function getFacilityEntranceTiles(facility, options = {}) {
   const { includeFallback = false } = options;
   const entrances = [];
+  const edgeCols = [];
+  if (facility.width === 1) {
+    edgeCols.push(facility.col);
+  } else if (facility.width === 2) {
+    edgeCols.push(facility.col, facility.col + 1);
+  } else {
+    edgeCols.push(facility.col + Math.floor((facility.width - 1) / 2));
+    edgeCols.push(facility.col + Math.ceil((facility.width - 1) / 2));
+  }
+  const uniqueEdgeCols = [...new Set(edgeCols)];
   const frontRow = facility.row + facility.height;
   if (frontRow < layout.rows) {
-    const frontCols = [];
-    if (facility.width === 1) {
-      frontCols.push(facility.col);
-    } else if (facility.width === 2) {
-      frontCols.push(facility.col, facility.col + 1);
-    } else {
-      frontCols.push(facility.col + Math.floor((facility.width - 1) / 2));
-      frontCols.push(facility.col + Math.ceil((facility.width - 1) / 2));
-    }
-    for (const col of [...new Set(frontCols)]) {
+    for (const col of uniqueEdgeCols) {
       if (isWalkableTile(col, frontRow)) {
         entrances.push({ col, row: frontRow, side: "front" });
+      }
+    }
+  }
+  const backRow = facility.row - 1;
+  if (backRow >= 0) {
+    for (const col of uniqueEdgeCols) {
+      if (isWalkableTile(col, backRow)) {
+        entrances.push({ col, row: backRow, side: "back" });
       }
     }
   }
@@ -5500,7 +5985,7 @@ function getPrimaryEntranceTile(facility) {
   }
   const facilityCenterCol = facility.col + (facility.width - 1) / 2;
   const facilityCenterRow = facility.row + (facility.height - 1) / 2;
-  const sidePriority = { front: 0, left: 1, right: 1 };
+  const sidePriority = { front: 0, back: 0, left: 1, right: 1 };
   return (
     [...entrances].sort((a, b) => {
       const sideDelta =
@@ -5527,6 +6012,8 @@ function getFacilityQueueLaneTiles(facility, maxSlots = getFacilityQueueCapacity
       ? { dc: -1, dr: 0 }
       : entrance.side === "right"
         ? { dc: 1, dr: 0 }
+        : entrance.side === "back"
+          ? { dc: 0, dr: -1 }
         : { dc: 0, dr: 1 };
   const lane = [];
   for (let offset = 0; offset < maxSlots; offset += 1) {
@@ -5759,7 +6246,7 @@ function completeLandmarkErrand(visitor) {
     return;
   }
   landmark.landmarkVisits = (landmark.landmarkVisits || 0) + 1;
-  noteLandmarkVisit(landmark);
+  noteLandmarkVisit(landmark, visitor);
   maybeActivateLandmarkSpotlight(landmark);
   const landmarkName = getStructureDef(landmark.type)?.name || "默认建筑";
   incrementQuarterCounter(state.quarterStats?.landmarkVisits, landmarkName, 1);
@@ -5790,6 +6277,13 @@ function completeLandmarkErrand(visitor) {
       "landmark-finish",
       3.2,
     );
+  }
+  if (visitor.debugPublicSpotChain?.active && visitor.debugPublicSpotChain.visitedPublicSpot) {
+    visitor.debugPublicSpotChain.completed = true;
+    if (state.debug?.publicSpotScenario) {
+      state.debug.publicSpotScenario.chainCompleted = true;
+      state.debug.publicSpotScenario.status = "completed";
+    }
   }
 }
 
@@ -5910,7 +6404,7 @@ function getSidebarUILayout() {
     x: layout.sidebarX + 18,
     y: layout.sidebarY + 18,
     w: layout.sidebarW - 36,
-    h: 146,
+    h: 176,
   };
   const facilitiesTitleY = header.y + header.h + 22;
   const observeRect = {
@@ -5943,6 +6437,16 @@ function getSidebarUILayout() {
 
 function getObserveCardRect() {
   return getSidebarUILayout().observeRect;
+}
+
+function getQuarterReviewButtonRect() {
+  const { header } = getSidebarUILayout();
+  return {
+    x: header.x + 14,
+    y: header.y + header.h - 36,
+    w: header.w - 28,
+    h: 24,
+  };
 }
 
 function getFacilityCardRect(index) {
@@ -6547,10 +7051,14 @@ function buildVisitorSpawnPlan(profile, residentProfile = null, overrides = {}) 
   if (!route) {
     return null;
   }
+  const preferredLandmarkId =
+    route.originLandmarkId ||
+    getFacilityById(route.originPublicSpotId || -1)?.linkedLandmarkId ||
+    null;
   const errandLandmark =
     overrides.errandLandmark === undefined
       ? Math.random() < 0.66
-        ? chooseErrandLandmark(profile, route.originLandmarkId || null)
+        ? chooseErrandLandmark(profile, preferredLandmarkId)
         : null
       : overrides.errandLandmark;
   return {
@@ -6637,6 +7145,9 @@ function createVisitorFromPlan(plan, options = {}) {
     pendingPublicSpotVisit: null,
     publicSpotId: null,
     publicSpotType: null,
+    preferredPublicSpotId: null,
+    forcePublicSpotVisit: false,
+    debugPublicSpotChain: null,
     emote: null,
     emoteCooldown: 0.6 + Math.random() * 1.8,
     incidentPause: 0,
@@ -6912,9 +7423,11 @@ function updateVisitors(delta) {
             }
             const payload = getPublicSpotVisitPayload(publicSpot.type);
             visitor.phase = "public-spot-staying";
-            visitor.wait = getPublicSpotStayDuration(publicSpot.type);
+            visitor.wait =
+              getPublicSpotStayDuration(publicSpot.type) *
+              (visitor.debugPublicSpotChain?.active ? 0.4 : 1);
             setVisitorMoodBias(visitor, payload.moodId, 4.2);
-            notePublicSpotVisit(publicSpot);
+            notePublicSpotVisit(publicSpot, visitor);
             if ((visitor.emoteCooldown || 0) <= 0) {
               setVisitorEmote(visitor, payload.emote, 1.05 + Math.random() * 0.55);
             }
@@ -6936,11 +7449,14 @@ function updateVisitors(delta) {
           visitor.phase = "inside";
           setVisitorMoodBias(visitor, "happy", 4.2);
           visitor.wait = facility
-            ? getFacilityServiceDuration(facility)
+            ? getFacilityServiceDuration(facility) *
+              (visitor.debugPublicSpotChain?.active ? 0.35 : 1)
             : simulationTuning.visitorWait;
         } else if (visitor.phase === "landmark-entering") {
           visitor.phase = "landmark-inside";
-          visitor.wait = getLandmarkStayDuration(visitor.errandLandmarkType);
+          visitor.wait =
+            getLandmarkStayDuration(visitor.errandLandmarkType) *
+            (visitor.debugPublicSpotChain?.active ? 0.45 : 1);
           if (Math.random() < 0.24) {
             const landmarkName =
               getStructureDef(visitor.errandLandmarkType)?.name || "默认建筑";
@@ -6969,9 +7485,11 @@ function updateVisitors(delta) {
               }
               const payload = getPublicSpotVisitPayload(publicSpot.type);
               visitor.phase = "public-spot-staying";
-              visitor.wait = getPublicSpotStayDuration(publicSpot.type);
+              visitor.wait =
+                getPublicSpotStayDuration(publicSpot.type) *
+                (visitor.debugPublicSpotChain?.active ? 0.4 : 1);
               setVisitorMoodBias(visitor, payload.moodId, 4.2);
-              notePublicSpotVisit(publicSpot);
+              notePublicSpotVisit(publicSpot, visitor);
               if ((visitor.emoteCooldown || 0) <= 0) {
                 setVisitorEmote(visitor, payload.emote, 1.05 + Math.random() * 0.55);
               }
@@ -7073,7 +7591,11 @@ function updateVisitors(delta) {
       visitor.wait -= delta;
       if (visitor.wait <= 0) {
         const plannedPublicSpot =
-          Math.random() < 0.42 ? planVisitorPublicSpotVisit(visitor) : null;
+          visitor.forcePublicSpotVisit
+            ? planVisitorPublicSpotVisit(visitor)
+            : Math.random() < 0.42
+              ? planVisitorPublicSpotVisit(visitor)
+              : null;
         const plannedErrand = plannedPublicSpot ? null : planVisitorErrandAfterService(visitor);
         visitFacility(visitor);
         visitor.pendingPublicSpotVisit = plannedPublicSpot;
@@ -7170,6 +7692,7 @@ function advanceDay() {
   state.day += 1;
   state.rating += 2;
   state.dailyLandmarkStats = {};
+  state.dailyPublicSpotLinks = {};
   state.dailyLandmarkSpotlightIds = {};
   state.landmarkSpotlights = [];
   state.observerNotes.unshift(observerSnapshot);
@@ -7236,7 +7759,9 @@ function advanceDay() {
   if (previousSeasonId !== state.world.season.id) {
     recordQuarterNote(observerSnapshot, `snapshot:${previousCalendar.dayOfYear}`);
     const finishedQuarterStats = state.quarterStats || createQuarterStatsState(previousCalendar);
-    openQuarterReport(buildQuarterReport(finishedQuarterStats));
+    const finishedQuarterReport = buildQuarterReport(finishedQuarterStats);
+    state.lastQuarterReport = { ...finishedQuarterReport };
+    openQuarterReport(finishedQuarterReport);
     state.quarterStats = createQuarterStatsState(state.world.calendar);
     triggerDialogue("season", { seasonLabel: state.world.season.label }, { chance: 0.32 });
   } else {
@@ -7251,14 +7776,57 @@ function updateTrafficSignal(delta) {
   if (state.trafficSignal.timer > 0) {
     return;
   }
+  const waitingVisitors = getTrafficWaitingVisitors();
+  const summary = getTrafficObservationSummary();
   state.trafficSignal.phase = getNextTrafficPhase(state.trafficSignal.phase);
   state.trafficSignal.timer = getTrafficPhaseDuration(state.trafficSignal.phase);
+  if (state.trafficSignal.phase === "walk" && summary.waitingPedestrians > 0) {
+    for (const visitor of waitingVisitors.slice(0, 3)) {
+      setVisitorMoodBias(visitor, "happy", 1.5);
+      if ((visitor.emoteCooldown || 0) <= 0) {
+        setVisitorEmote(visitor, "note", 0.9);
+      }
+    }
+    const text = `斑马线放行，${summary.waitingPedestrians} 位行人开始过街。`;
+    state.trafficPulse = {
+      phase: "walk",
+      text,
+      color: "#8fdf7d",
+      ttl: 2.8,
+    };
+    setEnvironmentNotice(text, "#8fdf7d", 2.8);
+    if (summary.waitingPedestrians >= 2) {
+      pushMessage(text);
+    }
+  } else if (state.trafficSignal.phase === "drive" && summary.stoppedVehicles > 0) {
+    const text = `车辆放行，${summary.stoppedVehicles} 辆车重新穿过主路。`;
+    state.trafficPulse = {
+      phase: "drive",
+      text,
+      color: "#ff9a7b",
+      ttl: 2.6,
+    };
+    setEnvironmentNotice(text, "#ff9a7b", 2.6);
+  } else if (state.trafficSignal.phase === "blink" && summary.waitingPedestrians > 0) {
+    state.trafficPulse = {
+      phase: "blink",
+      text: `路口即将切到车行，${summary.waitingPedestrians} 位行人还在等灯。`,
+      color: "#ffe07d",
+      ttl: 2.1,
+    };
+  }
 }
 
 function update(delta) {
   state.cameraPulse += delta;
   updateDialogue(delta);
   updateEnvironmentTransition(delta);
+  if (state.trafficPulse) {
+    state.trafficPulse.ttl = Math.max(0, (state.trafficPulse.ttl || 0) - delta);
+    if (state.trafficPulse.ttl <= 0) {
+      state.trafficPulse = null;
+    }
+  }
   if (state.quarterReport) {
     state.quarterReport.ttl = Math.max(0, (state.quarterReport.ttl || 0) - delta);
     if (state.quarterReport.ttl <= 0) {
@@ -8282,6 +8850,12 @@ function drawApproachMarkers() {
         ctx.fillRect(pos.x + 4, pos.y + 20, 4, 14);
         continue;
       }
+      if (tile.side === "back") {
+        ctx.fillRect(pos.x + 18, pos.y + layout.tile - 12, 18, 8);
+        ctx.fillStyle = "rgba(124, 92, 68, 0.38)";
+        ctx.fillRect(pos.x + 20, pos.y + layout.tile - 10, 14, 4);
+        continue;
+      }
       ctx.fillRect(pos.x + 18, pos.y + 4, 18, 8);
       ctx.fillStyle = "rgba(124, 92, 68, 0.38)";
       ctx.fillRect(pos.x + 20, pos.y + 6, 14, 4);
@@ -9292,6 +9866,8 @@ function drawSidebar() {
   const headerY = header.y;
   const headerW = header.w;
   const headerH = header.h;
+  const quarterReviewButton = getQuarterReviewButtonRect();
+  const hasLastQuarterReport = Boolean(state.lastQuarterReport);
   ctx.fillStyle = "#2f2231";
   ctx.fillRect(layout.sidebarX, layout.sidebarY, layout.sidebarW, layout.sidebarH);
   ctx.fillStyle = "#fff0ce";
@@ -9351,6 +9927,32 @@ function drawSidebar() {
     ctx.font = "bold 13px Trebuchet MS";
     wrapText(row.value, layout.sidebarX + 236, rowY, headerW - 250, 12, 1);
   });
+
+  ctx.fillStyle = hasLastQuarterReport ? "#ffe4a0" : "#d4c7b7";
+  ctx.fillRect(
+    quarterReviewButton.x,
+    quarterReviewButton.y,
+    quarterReviewButton.w,
+    quarterReviewButton.h,
+  );
+  ctx.strokeStyle = hasLastQuarterReport ? "#c48731" : "#998579";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(
+    quarterReviewButton.x + 1.5,
+    quarterReviewButton.y + 1.5,
+    quarterReviewButton.w - 3,
+    quarterReviewButton.h - 3,
+  );
+  ctx.fillStyle = hasLastQuarterReport ? "#2f2231" : "#75655f";
+  ctx.font = "bold 12px Trebuchet MS";
+  const quarterReviewLabel = hasLastQuarterReport
+    ? `补看上季：${state.lastQuarterReport.seasonLabel}`
+    : "上季季报尚未生成";
+  ctx.fillText(
+    fitTextToWidth(quarterReviewLabel, quarterReviewButton.w - 16, "…"),
+    quarterReviewButton.x + 8,
+    quarterReviewButton.y + 16,
+  );
 
   ctx.fillStyle = "#3d2b35";
   ctx.font = "bold 15px Trebuchet MS";
@@ -9819,6 +10421,18 @@ function handleCanvasClick(event) {
     }
     return;
   }
+  const quarterReviewButton = getQuarterReviewButtonRect();
+  if (
+    x >= quarterReviewButton.x &&
+    x <= quarterReviewButton.x + quarterReviewButton.w &&
+    y >= quarterReviewButton.y &&
+    y <= quarterReviewButton.y + quarterReviewButton.h
+  ) {
+    if (reopenLastQuarterReport()) {
+      render();
+    }
+    return;
+  }
   if (hitObserveCard(x, y)) {
     state.selectedType = null;
     render();
@@ -9961,7 +10575,8 @@ let manualControlUntil = 0;
 function frame(now) {
   const delta = Math.min(0.05, (now - lastFrame) / 1000);
   lastFrame = now;
-  if (!automationDriven && now >= manualControlUntil) {
+  // 正常模式：始终更新；自动化模式：仅在 manualControlUntil 之外更新
+  if (!automationDriven || now >= manualControlUntil) {
     update(delta);
   }
   render();
@@ -10068,6 +10683,15 @@ window.render_game_to_text = () =>
       visits: item.visits,
     })),
     observerNotes: [...state.observerNotes],
+    lastQuarterReport: state.lastQuarterReport
+      ? {
+          id: state.lastQuarterReport.id,
+          title: state.lastQuarterReport.title,
+          seasonLabel: state.lastQuarterReport.seasonLabel,
+          metrics: state.lastQuarterReport.metrics,
+          storyLine: state.lastQuarterReport.storyLine,
+        }
+      : null,
     quarterReport: state.quarterReport
       ? {
           id: state.quarterReport.id,
