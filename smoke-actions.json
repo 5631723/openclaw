@@ -3,12 +3,12 @@
     { "buttons": ["left_mouse_button"], "frames": 3, "mouse_x": 840, "mouse_y": 285 },
     { "buttons": [], "frames": 4 },
     { "buttons": ["left_mouse_button"], "frames": 3, "mouse_x": 138, "mouse_y": 450 },
-    { "buttons": [], "frames": 20 },
+    { "buttons": [], "frames": 10 },
     { "buttons": ["left_mouse_button"], "frames": 3, "mouse_x": 840, "mouse_y": 323 },
     { "buttons": [], "frames": 4 },
     { "buttons": ["left_mouse_button"], "frames": 3, "mouse_x": 182, "mouse_y": 450 },
-    { "buttons": [], "frames": 60 },
+    { "buttons": [], "frames": 24 },
     { "buttons": ["right_mouse_button"], "frames": 2, "mouse_x": 182, "mouse_y": 450 },
-    { "buttons": [], "frames": 12 }
+    { "buttons": [], "frames": 6 }
   ]
 }

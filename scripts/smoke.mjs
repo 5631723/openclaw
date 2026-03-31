@@ -74,7 +74,10 @@ function runSmoke() {
     ? path.resolve(rootDir, process.env.SMOKE_OUTPUT_DIR)
     : path.join(rootDir, "output", "web-game");
   const smokeQuery = String(process.env.SMOKE_QUERY || "").trim();
-  const pauseMs = String(process.env.SMOKE_PAUSE_MS || "400");
+  const pauseMs = String(process.env.SMOKE_PAUSE_MS || "150");
+  const timeoutMs = Number.parseInt(process.env.SMOKE_TIMEOUT_MS || "", 10);
+  const smokeTimeoutMs = Number.isInteger(timeoutMs) && timeoutMs > 0 ? timeoutMs : 90000;
+  const artifactPollMs = 250;
   const targetUrl = `http://${host}:${port}/index.html${
     smokeQuery ? (smokeQuery.startsWith("?") ? smokeQuery : `?${smokeQuery}`) : ""
   }`;
@@ -83,6 +86,17 @@ function runSmoke() {
 
   return new Promise((resolve, reject) => {
     let settled = false;
+    const shotPath = path.join(screenshotDir, "shot-0.png");
+    const statePath = path.join(screenshotDir, "state-0.json");
+    const settle = (handler) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeout);
+      clearInterval(poll);
+      handler();
+    };
     const child = spawn(
       process.execPath,
       [
@@ -106,43 +120,42 @@ function runSmoke() {
       },
     );
 
-    const timeout = setTimeout(() => {
-      if (settled) {
+    const poll = setInterval(() => {
+      if (!fs.existsSync(shotPath) || !fs.existsSync(statePath)) {
         return;
       }
-      const hasArtifacts =
-        fs.existsSync(path.join(screenshotDir, "shot-0.png")) &&
-        fs.existsSync(path.join(screenshotDir, "state-0.json"));
-      if (hasArtifacts) {
-        settled = true;
+      settle(() => {
         child.kill();
         resolve();
-        return;
-      }
-      settled = true;
-      child.kill();
-      reject(new Error("Smoke test timed out before producing artifacts"));
-    }, 240000);
+      });
+    }, artifactPollMs);
+    poll.unref?.();
+
+    const timeout = setTimeout(() => {
+      const hasArtifacts = fs.existsSync(shotPath) && fs.existsSync(statePath);
+      settle(() => {
+        child.kill();
+        if (hasArtifacts) {
+          resolve();
+          return;
+        }
+        reject(new Error("Smoke test timed out before producing artifacts"));
+      });
+    }, smokeTimeoutMs);
 
     child.on("error", (error) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      clearTimeout(timeout);
-      reject(error);
+      settle(() => {
+        reject(error);
+      });
     });
     child.on("exit", (code) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      clearTimeout(timeout);
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Smoke test exited with code ${code}`));
-      }
+      settle(() => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`Smoke test exited with code ${code}`));
+        }
+      });
     });
   });
 }

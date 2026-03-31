@@ -48,6 +48,16 @@ const initialDebugPublicSpotMode = (() => {
     return null;
   }
 })();
+const initialDebugSidebarMode = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    const raw = params.get("sidebar") || params.get("debugSidebar") || "";
+    const normalized = String(raw || "").trim().toLowerCase();
+    return normalized === "stress" ? normalized : null;
+  } catch {
+    return null;
+  }
+})();
 
 const simulationTuning = automationDriven
   ? {
@@ -360,6 +370,7 @@ const facilityTypes = [
     footprint: { w: 1, h: 1 },
     serviceScale: 2.6,
     bonusText: "靠近 Park 时人气更高",
+    sidebarHint: "1x1 | 靠近 Park 更旺",
     synergy: { park: { income: 2, rating: 2, pop: 4 } },
     sprite: [
       ".....yyyyy......",
@@ -403,6 +414,7 @@ const facilityTypes = [
     footprint: { w: 1, h: 1 },
     serviceScale: 1.8,
     bonusText: "和 Snack / Bath 形成休闲区",
+    sidebarHint: "1x1 | 提升 Snack/Bath",
     synergy: {
       snack: { income: 2, rating: 2, pop: 3 },
       bath: { income: 3, rating: 3, pop: 3 },
@@ -446,6 +458,7 @@ const facilityTypes = [
     footprint: { w: 2, h: 1 },
     serviceScale: 3.2,
     bonusText: "挨着 Snack 时更会赚钱",
+    sidebarHint: "2x1 | 挨着 Snack 更赚",
     synergy: { snack: { income: 4, rating: 2, pop: 3 } },
     sprite: [
       ".....yyyyy......",
@@ -489,6 +502,7 @@ const facilityTypes = [
     footprint: { w: 2, h: 2 },
     serviceScale: 3.8,
     bonusText: "靠近 Park 时评价涨得快",
+    sidebarHint: "2x2 | 靠近 Park 更舒服",
     synergy: { park: { income: 3, rating: 5, pop: 2 } },
     sprite: [
       "....ssssssss....",
@@ -534,6 +548,7 @@ const facilityTypes = [
     footprint: { w: 3, h: 2 },
     serviceScale: 4.4,
     bonusText: "和 Arcade 配套会爆红",
+    sidebarHint: "3x2 | 配 Arcade 更热",
     synergy: { arcade: { income: 5, rating: 6, pop: 5 } },
     sprite: [
       "......yy........",
@@ -686,6 +701,81 @@ const visitorArchetypes = [
     likedTimes: ["daytime", "evening"],
     likedWeathers: ["sunny", "festival-breeze"],
     festivalBias: ["flower", "summer-fair"],
+  },
+];
+
+const facilityProfileSpotlightDefs = {
+  student: {
+    id: "student-hotspot",
+    label: "学生热门",
+    shortLabel: "学生热门",
+    color: "#78a6ff",
+    accent: "#dbe8ff",
+    describe: (facility, count) =>
+      `${getFacilityDef(facility.type).name} 今天已经接住 ${count} 位学生客。`,
+  },
+  family: {
+    id: "family-pick",
+    label: "亲子常去",
+    shortLabel: "亲子常去",
+    color: "#7fc86b",
+    accent: "#e7f9cf",
+    describe: (facility, count) =>
+      `${getFacilityDef(facility.type).name} 今天最受家庭客欢迎，已经来了 ${count} 组。`,
+  },
+  worker: {
+    id: "worker-pick",
+    label: "通勤补给",
+    shortLabel: "通勤补给",
+    color: "#7e8baa",
+    accent: "#e1e7f4",
+    describe: (facility, count) =>
+      `${getFacilityDef(facility.type).name} 成了上班族的顺路补给点，今天已有 ${count} 人光顾。`,
+  },
+  traveler: {
+    id: "traveler-pick",
+    label: "游客打卡",
+    shortLabel: "游客打卡",
+    color: "#b27dff",
+    accent: "#efe2ff",
+    describe: (facility, count) =>
+      `${getFacilityDef(facility.type).name} 今天很像打卡点，已经吸来 ${count} 位游客。`,
+  },
+};
+
+const dailyFacilityAwardDefs = [
+  {
+    id: "daily-popular",
+    label: "今日人气王",
+    shortLabel: "人气王",
+    color: "#ffaf52",
+    accent: "#fff1c8",
+    qualifies: (facility) => (facility.todayVisits || 0) >= 3,
+    metric: (facility) => facility.todayVisits || 0,
+    describe: (facility) =>
+      `${getFacilityDef(facility.type).name} 今天接待 ${facility.todayVisits || 0} 人，拿下今日人气王。`,
+  },
+  {
+    id: "daily-cash",
+    label: "吸金招牌",
+    shortLabel: "吸金牌",
+    color: "#ffd85b",
+    accent: "#fff6cd",
+    qualifies: (facility) => (facility.todayRevenue || 0) >= 18,
+    metric: (facility) => facility.todayRevenue || 0,
+    describe: (facility) =>
+      `${getFacilityDef(facility.type).name} 今天进账 ${facility.todayRevenue || 0}G，是街区最会赚钱的门面。`,
+  },
+  {
+    id: "daily-queue",
+    label: "排队焦点",
+    shortLabel: "排队王",
+    color: "#ff7f7f",
+    accent: "#ffe0e0",
+    qualifies: (facility) => (facility.todayPeakQueue || 0) >= 2,
+    metric: (facility) => facility.todayPeakQueue || 0,
+    describe: (facility) =>
+      `${getFacilityDef(facility.type).name} 今天门口排到 ${facility.todayPeakQueue || 0} 人，成了排队焦点。`,
   },
 ];
 
@@ -2127,6 +2217,10 @@ function createStructureEntity(type, col, row, id, overrides = {}) {
     turnaways: 0,
     patienceLeaves: 0,
     crowdHeat: 0,
+    todayRevenue: 0,
+    todayVisits: 0,
+    todayPeakQueue: 0,
+    todayProfileVisits: {},
     landmarkVisits: 0,
     publicVisits: 0,
     ambientRole: def.ambientRole || null,
@@ -2134,6 +2228,16 @@ function createStructureEntity(type, col, row, id, overrides = {}) {
     linkedLandmarkType: null,
     ...overrides,
   };
+}
+
+function resetFacilityDailyStats(facility) {
+  if (!facility || facility.kind !== "shop") {
+    return;
+  }
+  facility.todayRevenue = 0;
+  facility.todayVisits = 0;
+  facility.todayPeakQueue = 0;
+  facility.todayProfileVisits = {};
 }
 
 function getStructureCenter(structure) {
@@ -3514,6 +3618,8 @@ function createInitialState() {
             ? "调试模式：已把时间推到季末，跨季很快就会发生。"
             : initialDebugPublicSpotMode === "visit"
               ? "调试模式：公共点位联动路线已预布置，开始后会直接演示。"
+            : initialDebugSidebarMode === "stress"
+              ? "调试模式：侧栏布局压测已启用。"
             : "白天营业开始，街区人流最旺。",
       color: "#ffe7a3",
       ttl: 3.2,
@@ -3523,6 +3629,7 @@ function createInitialState() {
       trafficMode: initialDebugTrafficMode,
       quarterMode: initialDebugQuarterMode,
       publicSpotMode: initialDebugPublicSpotMode,
+      sidebarMode: initialDebugSidebarMode,
       publicSpotScenario: null,
     },
     announcedUnlocks: facilityTypes
@@ -3535,11 +3642,13 @@ function resetGame() {
   const preservedForcedIncidentId = state.debug?.forcedIncidentId || null;
   const preservedQuarterMode = state.debug?.quarterMode || null;
   const preservedPublicSpotMode = state.debug?.publicSpotMode || null;
+  const preservedSidebarMode = state.debug?.sidebarMode || null;
   const preservedPlaySpeedId = state.playSpeedId || "standard";
   const fresh = createInitialState();
   fresh.debug.forcedIncidentId = preservedForcedIncidentId || initialDebugIncidentId;
   fresh.debug.quarterMode = preservedQuarterMode || initialDebugQuarterMode;
   fresh.debug.publicSpotMode = preservedPublicSpotMode || initialDebugPublicSpotMode;
+  fresh.debug.sidebarMode = preservedSidebarMode || initialDebugSidebarMode;
   if (fresh.debug.quarterMode === "next") {
     fresh.day = getQuarterDebugBoundaryDay(1);
     fresh.dayTimer = Math.max(0, simulationTuning.dayLength - 0.35);
@@ -6335,6 +6444,242 @@ function listFacilities() {
   return state.facilities.filter((facility) => facility.kind === "shop");
 }
 
+function compareAwardCandidates(left, right, awardDef) {
+  const metricDiff = awardDef.metric(right) - awardDef.metric(left);
+  if (metricDiff !== 0) {
+    return metricDiff;
+  }
+  const visitDiff = (right.todayVisits || 0) - (left.todayVisits || 0);
+  if (visitDiff !== 0) {
+    return visitDiff;
+  }
+  const revenueDiff = (right.todayRevenue || 0) - (left.todayRevenue || 0);
+  if (revenueDiff !== 0) {
+    return revenueDiff;
+  }
+  return left.id - right.id;
+}
+
+function getDominantFacilityProfileAward(facility) {
+  const entries = Object.entries(facility.todayProfileVisits || {});
+  if (!entries.length || (facility.todayVisits || 0) < 2) {
+    return null;
+  }
+  entries.sort((left, right) => {
+    if (right[1] !== left[1]) {
+      return right[1] - left[1];
+    }
+    return left[0].localeCompare(right[0], "en");
+  });
+  const [profileId, count] = entries[0];
+  if (count < 2 || count / Math.max(1, facility.todayVisits || 0) < 0.45) {
+    return null;
+  }
+  const def = facilityProfileSpotlightDefs[profileId];
+  if (!def) {
+    return null;
+  }
+  return {
+    id: def.id,
+    label: def.label,
+    shortLabel: def.shortLabel,
+    color: def.color,
+    accent: def.accent,
+    tier: "profile",
+    description: def.describe(facility, count),
+    metricValue: count,
+    metricText: `${count} 位`,
+  };
+}
+
+function getFacilityAwardAssignments() {
+  const shops = listFacilities();
+  const assignments = new Map();
+  const claimedFacilityIds = new Set();
+  for (const awardDef of dailyFacilityAwardDefs) {
+    const candidates = shops
+      .filter((facility) => awardDef.qualifies(facility))
+      .sort((left, right) => compareAwardCandidates(left, right, awardDef));
+    const winner = candidates.find((facility) => !claimedFacilityIds.has(facility.id)) || null;
+    if (!winner) {
+      continue;
+    }
+    assignments.set(winner.id, {
+      id: awardDef.id,
+      label: awardDef.label,
+      shortLabel: awardDef.shortLabel,
+      color: awardDef.color,
+      accent: awardDef.accent,
+      tier: "global",
+      description: awardDef.describe(winner),
+      metricValue: awardDef.metric(winner),
+      metricText:
+        awardDef.id === "daily-cash"
+          ? `${awardDef.metric(winner)}G`
+          : `${awardDef.metric(winner)} 人`,
+    });
+    claimedFacilityIds.add(winner.id);
+  }
+  for (const facility of shops) {
+    if (assignments.has(facility.id)) {
+      continue;
+    }
+    const profileAward = getDominantFacilityProfileAward(facility);
+    if (profileAward) {
+      assignments.set(facility.id, profileAward);
+    }
+  }
+  return assignments;
+}
+
+function getFacilityAward(facility, assignments = null) {
+  if (!facility || facility.kind !== "shop") {
+    return null;
+  }
+  const resolvedAssignments = assignments || getFacilityAwardAssignments();
+  return resolvedAssignments.get(facility.id) || null;
+}
+
+function getDailyFacilityAwardRows(limit = 3) {
+  const assignments = getFacilityAwardAssignments();
+  return listFacilities()
+    .map((facility) => ({
+      facility,
+      award: assignments.get(facility.id) || null,
+    }))
+    .filter((item) => item.award)
+    .sort((left, right) => {
+      const tierDiff =
+        (right.award.tier === "global" ? 1 : 0) - (left.award.tier === "global" ? 1 : 0);
+      if (tierDiff !== 0) {
+        return tierDiff;
+      }
+      if (right.award.metricValue !== left.award.metricValue) {
+        return right.award.metricValue - left.award.metricValue;
+      }
+      return left.facility.id - right.facility.id;
+    })
+    .slice(0, limit)
+    .map(({ facility, award }) => ({
+      facilityId: facility.id,
+      facilityName: getFacilityDef(facility.type).name,
+      awardId: award.id,
+      label: award.label,
+      shortLabel: award.shortLabel,
+      description: award.description,
+      metricText: award.metricText,
+      color: award.color,
+      accent: award.accent,
+      tier: award.tier,
+    }));
+}
+
+function getSidebarDebugPreview() {
+  if (state?.debug?.sidebarMode !== "stress") {
+    return null;
+  }
+  return {
+    facilityAwardRows: [
+      {
+        facilityId: -101,
+        facilityName: "Snack Bar",
+        awardId: "daily-popular",
+        label: "今日人气王",
+        shortLabel: "人气王",
+        description: "Snack Bar 今天接待 6 人，拿下今日人气王。",
+        metricText: "6 人",
+        color: "#ffaf52",
+        accent: "#fff1c8",
+        tier: "global",
+      },
+      {
+        facilityId: -102,
+        facilityName: "Sunny Park",
+        awardId: "student-hotspot",
+        label: "学生热门",
+        shortLabel: "学生热门",
+        description: "Sunny Park 今天已经接住 4 位学生客。",
+        metricText: "4 位",
+        color: "#78a6ff",
+        accent: "#dbe8ff",
+        tier: "profile",
+      },
+    ],
+    activeSpotlight: {
+      id: "debug-routine-spotlight",
+      landmarkType: "library",
+      title: "图书角挤起来了",
+      description: "借书和歇脚的人流都在往这里堆。",
+      color: "#7f98ff",
+      threshold: 4,
+    },
+    routineRows: [
+      "Town Library 今日 5 / 累计 8",
+      "Post House -> Street Stall 来往最频繁",
+    ],
+    observerText:
+      "观察记录：先逛 Snack Bar，再去 Town Library，这趟路线已经快成今天的固定节目了。",
+    pulseText: "Snack Bar 门口已经排起人潮，排队 2 人。",
+  };
+}
+
+function getSidebarAwardRows(limit = 3) {
+  const preview = getSidebarDebugPreview();
+  if (preview?.facilityAwardRows?.length) {
+    return preview.facilityAwardRows.slice(0, limit);
+  }
+  return getDailyFacilityAwardRows(limit);
+}
+
+function getActiveRoutineSpotlight() {
+  return getSidebarDebugPreview()?.activeSpotlight || state.landmarkSpotlights[0] || null;
+}
+
+function getRoutineSummaryRows(limit = 3) {
+  const preview = getSidebarDebugPreview();
+  if (preview?.routineRows?.length) {
+    return preview.routineRows.slice(0, limit);
+  }
+  return getLandmarkActivityRows(limit);
+}
+
+function getSidebarObserverText() {
+  return (
+    getSidebarDebugPreview()?.observerText ||
+    state.activeDialogue?.text ||
+    state.observerNotes[0] ||
+    state.dialogueFeed[0]?.text ||
+    state.messages[0] ||
+    "暂无消息"
+  );
+}
+
+function getStreetPulseSummary() {
+  const preview = getSidebarDebugPreview();
+  if (preview?.pulseText) {
+    return preview.pulseText;
+  }
+  const busiestFacility = getBusiestFacility();
+  return busiestFacility
+    ? (() => {
+        const crowdState = getFacilityCrowdState(busiestFacility);
+        if (crowdState.id === "overflow") {
+          return crowdState.pulseText;
+        }
+        if (crowdState.id === "packed") {
+          return crowdState.pulseText;
+        }
+        if (crowdState.id === "busy") {
+          return `${crowdState.pulseText} 已有 ${busiestFacility.patienceLeaves || 0} 人嫌久离开。`;
+        }
+        if (busiestFacility.activeServiceId) {
+          return crowdState.pulseText;
+        }
+        return "目前街区还比较从容，适合继续观察人流。";
+      })()
+    : "先摆出第一家店，再观察哪一类顾客最先被吸引。";
+}
+
 function getSidebarPanelHeights(totalContentHeight, specs) {
   const minTotal = specs.reduce((sum, spec) => sum + spec.minHeight, 0);
   if (totalContentHeight <= minTotal) {
@@ -6370,10 +6715,20 @@ function getSidebarPanelHeights(totalContentHeight, specs) {
 }
 
 function getSidebarPanelLayout(startY, endY) {
+  const hasFacilityAwards = getSidebarAwardRows(2).length > 0;
+  const hasRoutineSpotlight = Boolean(getActiveRoutineSpotlight());
   const specs = [
     { id: "goal", minHeight: 34, weight: 0.7 },
-    { id: "pulse", minHeight: 42, weight: 1 },
-    { id: "routines", minHeight: 44, weight: 0.9 },
+    {
+      id: "pulse",
+      minHeight: hasFacilityAwards ? 56 : 42,
+      weight: hasFacilityAwards ? 1.35 : 1,
+    },
+    {
+      id: "routines",
+      minHeight: hasRoutineSpotlight ? 58 : 44,
+      weight: hasRoutineSpotlight ? 1.2 : 0.9,
+    },
     { id: "notes", minHeight: 60, weight: 1.5 },
   ];
   const titleHeight = 16;
@@ -6415,9 +6770,9 @@ function getSidebarUILayout() {
   };
   const facilityCards = facilityTypes.map((_, index) => ({
     x: cardX,
-    y: observeRect.y + observeRect.h + 8 + index * 42,
+    y: observeRect.y + observeRect.h + 8 + index * 46,
     w: cardW,
-    h: 40,
+    h: 44,
   }));
   const facilityBottom =
     facilityCards.length > 0
@@ -6451,6 +6806,15 @@ function getQuarterReviewButtonRect() {
 
 function getFacilityCardRect(index) {
   return getSidebarUILayout().facilityCards[index];
+}
+
+const uiCanvasFontStack = '"Microsoft YaHei", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
+const displayCanvasFontStack = `"Trebuchet MS", ${uiCanvasFontStack}`;
+
+function setCanvasFont(size, options = {}) {
+  const weight = options.weight || "normal";
+  const family = options.family || uiCanvasFontStack;
+  ctx.font = `${weight} ${size}px ${family}`;
 }
 
 function getAdjacentFacilities(facilityLike) {
@@ -6676,6 +7040,7 @@ function noteFacilityCrowd(facility, heatBoost = 0.6) {
     return;
   }
   facility.peakQueue = Math.max(facility.peakQueue || 0, facility.queue.length);
+  facility.todayPeakQueue = Math.max(facility.todayPeakQueue || 0, facility.queue.length);
   facility.crowdHeat = Math.min(6, (facility.crowdHeat || 0) + heatBoost);
 }
 
@@ -6689,6 +7054,7 @@ function updateFacilityCrowding(delta) {
     facility.crowdHeat += (targetHeat - facility.crowdHeat) * Math.min(1, delta * 1.8);
     facility.crowdHeat = Math.max(0, Math.min(6, facility.crowdHeat));
     facility.peakQueue = Math.max(facility.peakQueue || 0, facility.queue.length);
+    facility.todayPeakQueue = Math.max(facility.todayPeakQueue || 0, facility.queue.length);
   }
 }
 
@@ -7254,6 +7620,11 @@ function visitFacility(visitor) {
   const ratingGain =
     1 + bonus.rating + trendRating + worldBonus.rating;
   facility.visits += 1;
+  facility.todayVisits = (facility.todayVisits || 0) + 1;
+  facility.todayRevenue = (facility.todayRevenue || 0) + income;
+  const profileId = visitor.profileId || "guest";
+  facility.todayProfileVisits = facility.todayProfileVisits || {};
+  facility.todayProfileVisits[profileId] = (facility.todayProfileVisits[profileId] || 0) + 1;
   if (facility.visits % 5 === 0) {
     facility.level += 1;
     pushMessage(`${def.name} 升到 Lv.${facility.level}，更能吸金了。`);
@@ -7689,6 +8060,7 @@ function advanceDay() {
   const previousSeasonId = state.world.season.id;
   const previousCalendar = { ...state.world.calendar };
   const observerSnapshot = getObserverSnapshot();
+  const awardRows = getDailyFacilityAwardRows(2);
   state.day += 1;
   state.rating += 2;
   state.dailyLandmarkStats = {};
@@ -7697,6 +8069,15 @@ function advanceDay() {
   state.landmarkSpotlights = [];
   state.observerNotes.unshift(observerSnapshot);
   state.observerNotes = state.observerNotes.slice(0, 4);
+  if (awardRows.length) {
+    const awardNote = `今日店铺奖牌：${awardRows
+      .map((row) => `${row.facilityName} ${row.label}`)
+      .join("；")}`;
+    state.observerNotes.unshift(awardNote);
+    state.observerNotes = state.observerNotes.slice(0, 4);
+    pushMessage(awardNote);
+  }
+  listFacilities().forEach((facility) => resetFacilityDailyStats(facility));
   rebuildWorldForCurrentDay();
   const upkeep = Math.max(0, listFacilities().length - 4) * 3;
   if (upkeep > 0) {
@@ -9251,6 +9632,23 @@ function drawFacility(facility) {
   const queueCount = facility.queue.length;
   const crowdState = getFacilityCrowdState(facility);
   const serviceBusy = Boolean(facility.activeServiceId);
+  const facilityAward = getFacilityAward(facility);
+  if (facilityAward) {
+    const ribbonWidth = Math.max(54, Math.min(width - 8, facilityAward.shortLabel.length * 11 + 16));
+    const ribbonX = pos.x + Math.max(4, Math.floor((width - ribbonWidth) / 2));
+    const ribbonY = pos.y - 12;
+    ctx.fillStyle = `${facilityAward.color}ee`;
+    ctx.fillRect(ribbonX, ribbonY, ribbonWidth, 12);
+    ctx.fillStyle = facilityAward.accent;
+    ctx.fillRect(ribbonX + 4, ribbonY + 3, ribbonWidth - 8, 2);
+    ctx.fillStyle = "#2f2231";
+    ctx.font = "bold 9px Trebuchet MS";
+    ctx.fillText(
+      fitTextToWidth(facilityAward.shortLabel, ribbonWidth - 10, "…"),
+      ribbonX + 5,
+      ribbonY + 9,
+    );
+  }
   if (crowdState.id !== "calm" || serviceBusy) {
     const badgeW = crowdState.shortLabel.length > 10 ? 74 : 60;
     ctx.fillStyle = crowdState.badgeColor;
@@ -9890,7 +10288,7 @@ function drawSidebar() {
   ctx.fillStyle = "#362734";
   ctx.fillRect(headerX, headerY, headerW, headerH);
   ctx.fillStyle = "#ffefbd";
-  ctx.font = "bold 22px Trebuchet MS";
+  setCanvasFont(22, { weight: "bold", family: displayCanvasFontStack });
   ctx.fillText(`Day ${state.day}`, layout.sidebarX + 32, layout.sidebarY + 48);
   ctx.fillText(`${state.money} G`, layout.sidebarX + 32, layout.sidebarY + 80);
   ctx.fillText(`${state.rating} ★`, layout.sidebarX + 32, layout.sidebarY + 112);
@@ -9921,10 +10319,10 @@ function drawSidebar() {
   infoRows.forEach((row, index) => {
     const rowY = layout.sidebarY + 42 + index * 18;
     ctx.fillStyle = "#9e8898";
-    ctx.font = "bold 11px Trebuchet MS";
+    setCanvasFont(11, { weight: "bold" });
     ctx.fillText(row.label, layout.sidebarX + 170, rowY);
     ctx.fillStyle = row.color;
-    ctx.font = "bold 13px Trebuchet MS";
+    setCanvasFont(12, { weight: "bold" });
     wrapText(row.value, layout.sidebarX + 236, rowY, headerW - 250, 12, 1);
   });
 
@@ -9944,7 +10342,7 @@ function drawSidebar() {
     quarterReviewButton.h - 3,
   );
   ctx.fillStyle = hasLastQuarterReport ? "#2f2231" : "#75655f";
-  ctx.font = "bold 12px Trebuchet MS";
+  setCanvasFont(11, { weight: "bold" });
   const quarterReviewLabel = hasLastQuarterReport
     ? `补看上季：${state.lastQuarterReport.seasonLabel}`
     : "上季季报尚未生成";
@@ -9955,7 +10353,7 @@ function drawSidebar() {
   );
 
   ctx.fillStyle = "#3d2b35";
-  ctx.font = "bold 15px Trebuchet MS";
+  setCanvasFont(15, { weight: "bold", family: displayCanvasFontStack });
   ctx.fillText("Facilities", layout.sidebarX + 24, facilitiesTitleY);
 
   const observing = !state.selectedType;
@@ -9965,9 +10363,9 @@ function drawSidebar() {
   ctx.lineWidth = 3;
   ctx.strokeRect(observeRect.x + 1.5, observeRect.y + 1.5, observeRect.w - 3, observeRect.h - 3);
   ctx.fillStyle = "#2f2231";
-  ctx.font = "bold 13px Trebuchet MS";
+  setCanvasFont(13, { weight: "bold", family: displayCanvasFontStack });
   ctx.fillText("Observe Mode", observeRect.x + 12, observeRect.y + 15);
-  ctx.font = "11px Trebuchet MS";
+  setCanvasFont(11);
   ctx.fillText(
     fitTextToWidth(
       observing ? "当前不会放置商店，左键只观察地图。" : "点击这里取消当前商店选中。",
@@ -9993,29 +10391,24 @@ function drawSidebar() {
     drawSprite(def.sprite, def.palette, cardX + 10, cardY + 7, 2);
 
     ctx.fillStyle = "#2f2231";
-    ctx.font = "bold 12px Trebuchet MS";
+    setCanvasFont(12, { weight: "bold" });
     ctx.fillText(fitTextToWidth(def.name, cardW - 92, "…"), cardX + 46, cardY + 17);
-    ctx.font = "11px Trebuchet MS";
+    setCanvasFont(10);
     ctx.fillStyle = unlocked ? "#5d4951" : "#6d5860";
     const summary = unlocked
-      ? `${def.cost}G | ${def.footprint.w}x${def.footprint.h} | ${def.bonusText}`
-      : `${def.unlockAt}★解锁 | ${def.bonusText}`;
+      ? `${def.cost}G | ${def.sidebarHint || `${def.footprint.w}x${def.footprint.h}`}`
+      : `${def.unlockAt}★解锁 | ${def.sidebarHint || def.bonusText}`;
     ctx.fillText(fitTextToWidth(summary, cardW - 104, "…"), cardX + 46, cardY + 31);
   });
 
   const activeGoal = getActiveGoal();
-  const busiestFacility = getBusiestFacility();
-  const activeSpotlight = state.landmarkSpotlights[0] || null;
-  const routineRows = getLandmarkActivityRows(activeSpotlight ? 1 : 2);
-  const observerText =
-    state.activeDialogue?.text ||
-    state.observerNotes[0] ||
-    state.dialogueFeed[0]?.text ||
-    state.messages[0] ||
-    "暂无消息";
+  const facilityAwardRows = getSidebarAwardRows(2);
+  const activeSpotlight = getActiveRoutineSpotlight();
+  const routineRows = getRoutineSummaryRows(3);
+  const observerText = getSidebarObserverText();
 
   ctx.fillStyle = "#3d2b35";
-  ctx.font = "bold 15px Trebuchet MS";
+  setCanvasFont(15, { weight: "bold", family: displayCanvasFontStack });
   ctx.fillText("Goal", layout.sidebarX + 24, panels.goal.titleY);
   ctx.fillStyle = "#f8ecd1";
   ctx.fillRect(layout.sidebarX + 22, panels.goal.boxY, layout.sidebarW - 44, panels.goal.boxH);
@@ -10045,26 +10438,19 @@ function drawSidebar() {
       panels.goal.boxH >= 42 ? 2 : 1,
     );
   }
-  const pulseText = busiestFacility
-    ? (() => {
-        const crowdState = getFacilityCrowdState(busiestFacility);
-        if (crowdState.id === "overflow") {
-          return `Street Pulse：${crowdState.pulseText}`;
-        }
-        if (crowdState.id === "packed") {
-          return `Street Pulse：${crowdState.pulseText}`;
-        }
-        if (crowdState.id === "busy") {
-          return `Street Pulse：${crowdState.pulseText} 已有 ${busiestFacility.patienceLeaves || 0} 人嫌久离开。`;
-        }
-        if (busiestFacility.activeServiceId) {
-          return `Street Pulse：${crowdState.pulseText}`;
-        }
-        return "Street Pulse：目前街区还比较从容，适合继续观察人流。";
-      })()
-    : "Street Pulse：先摆出第一家店，再观察哪一类顾客最先被吸引。";
+  const pulseText = getStreetPulseSummary();
+  const pulseLineCapacity = getSidebarBodyLineCapacity(panels.pulse.boxH);
+  const pulseAwardSlotCount = facilityAwardRows.length
+    ? pulseLineCapacity >= 4
+      ? Math.min(2, facilityAwardRows.length)
+      : pulseLineCapacity >= 3
+        ? 1
+        : 0
+    : 0;
+  const pulseAwardRows = facilityAwardRows.slice(0, pulseAwardSlotCount);
+  const pulseTextLineCount = Math.max(1, pulseLineCapacity - pulseAwardRows.length);
   ctx.fillStyle = "#3d2b35";
-  ctx.font = "bold 15px Trebuchet MS";
+  setCanvasFont(15, { weight: "bold", family: displayCanvasFontStack });
   ctx.fillText("Street Pulse", layout.sidebarX + 24, panels.pulse.titleY);
   ctx.fillStyle = "#f8ecd1";
   ctx.fillRect(layout.sidebarX + 22, panels.pulse.boxY, layout.sidebarW - 44, panels.pulse.boxH);
@@ -10072,16 +10458,30 @@ function drawSidebar() {
   ctx.lineWidth = 2;
   ctx.strokeRect(layout.sidebarX + 23.5, panels.pulse.boxY + 1.5, layout.sidebarW - 47, panels.pulse.boxH - 3);
   ctx.fillStyle = "#8b6d61";
-  wrapText(
+  const pulseLinesUsed = wrapText(
     pulseText,
     layout.sidebarX + 32,
     panels.pulse.boxY + 18,
     layout.sidebarW - 64,
     14,
-    panels.pulse.boxH >= 52 ? 3 : 2,
+    pulseTextLineCount,
   );
+  if (pulseAwardRows.length) {
+    pulseAwardRows.forEach((row, index) => {
+      const rowY = panels.pulse.boxY + 22 + pulseLinesUsed * 14 + index * 14;
+      ctx.fillStyle = row.color;
+      ctx.fillRect(layout.sidebarX + 32, rowY - 8, 10, 10);
+      ctx.fillStyle = "#6f5a62";
+      setCanvasFont(11, { weight: "bold" });
+      ctx.fillText(
+        fitTextToWidth(`${row.label}：${row.facilityName}`, layout.sidebarW - 88, "…"),
+        layout.sidebarX + 48,
+        rowY,
+      );
+    });
+  }
   ctx.fillStyle = "#3d2b35";
-  ctx.font = "bold 15px Trebuchet MS";
+  setCanvasFont(15, { weight: "bold", family: displayCanvasFontStack });
   ctx.fillText("Town Routines", layout.sidebarX + 24, panels.routines.titleY);
   ctx.fillStyle = "#f8ecd1";
   ctx.fillRect(layout.sidebarX + 22, panels.routines.boxY, layout.sidebarW - 44, panels.routines.boxH);
@@ -10094,29 +10494,38 @@ function drawSidebar() {
     panels.routines.boxH - 3,
   );
   ctx.fillStyle = "#6f5a62";
-  const routineLineLimit = activeSpotlight ? 1 : panels.routines.boxH >= 56 ? 2 : 1;
-  routineRows.slice(0, routineLineLimit).forEach((row, index) => {
+  const routinesLineCapacity = getSidebarBodyLineCapacity(panels.routines.boxH);
+  const showRoutineSpotlight = Boolean(activeSpotlight);
+  const routineTextRows = showRoutineSpotlight
+    ? routinesLineCapacity <= 1
+      ? []
+      : routineRows.slice(0, Math.max(0, routinesLineCapacity - 1))
+    : routineRows.slice(0, routinesLineCapacity);
+  let routineCursorY = panels.routines.boxY + 18;
+  routineTextRows.forEach((row) => {
     wrapText(
       row,
       layout.sidebarX + 32,
-      panels.routines.boxY + 18 + index * 14,
+      routineCursorY,
       layout.sidebarW - 64,
       13,
       1,
     );
+    routineCursorY += 14;
   });
-  if (activeSpotlight) {
+  if (showRoutineSpotlight) {
+    ctx.fillStyle = activeSpotlight.color || "#6f5a62";
     wrapText(
       `今日焦点：${activeSpotlight.title}`,
       layout.sidebarX + 32,
-      panels.routines.boxY + panels.routines.boxH - 10,
+      routineCursorY,
       layout.sidebarW - 64,
       13,
       1,
     );
   }
   ctx.fillStyle = "#3d2b35";
-  ctx.font = "bold 15px Trebuchet MS";
+  setCanvasFont(15, { weight: "bold", family: displayCanvasFontStack });
   ctx.fillText("Town Talk & Notes", layout.sidebarX + 24, panels.notes.titleY);
   ctx.fillStyle = "#f8ecd1";
   ctx.fillRect(layout.sidebarX + 22, panels.notes.boxY, layout.sidebarW - 44, panels.notes.boxH);
@@ -10130,7 +10539,7 @@ function drawSidebar() {
     panels.notes.boxY + 22,
     layout.sidebarW - 64,
     14,
-    panels.notes.boxH >= 84 ? 4 : 3,
+    getSidebarBodyLineCapacity(panels.notes.boxH, 22, 10, 14),
   );
   ctx.restore();
 }
@@ -10185,6 +10594,15 @@ function wrapText(
     ctx.fillText(line, x, y + index * lineHeight);
   });
   return lines.length;
+}
+
+function getSidebarBodyLineCapacity(
+  boxHeight,
+  topPadding = 18,
+  bottomPadding = 10,
+  lineHeight = 14,
+) {
+  return Math.max(1, Math.floor((boxHeight - topPadding - bottomPadding + 2) / lineHeight));
 }
 
 function drawHeader() {
@@ -10597,6 +11015,13 @@ window.advanceTime = (ms) => {
 
 window.setDebugIncident = (incidentId = null) => applyDebugIncident(incidentId);
 window.setDebugQuarter = (mode = null) => applyDebugQuarter(mode);
+window.setDebugSidebar = (mode = null) => {
+  const normalized = String(mode || "")
+    .trim()
+    .toLowerCase();
+  state.debug.sidebarMode = normalized === "stress" ? "stress" : null;
+  render();
+};
 window.listDebugIncidents = () =>
   lightweightIncidentDefinitions.map((incident) => ({
     id: incident.id,
@@ -10624,6 +11049,7 @@ window.render_game_to_text = () =>
       debugIncidentId: state.debug?.forcedIncidentId || null,
       debugTrafficMode: state.debug?.trafficMode || null,
       debugQuarterMode: state.debug?.quarterMode || null,
+      debugSidebarMode: state.debug?.sidebarMode || null,
       todayTrend: state.todayTrend,
       servedVisitors: state.servedVisitors,
       lifetimeIncome: state.lifetimeIncome,
@@ -10683,6 +11109,14 @@ window.render_game_to_text = () =>
       visits: item.visits,
     })),
     observerNotes: [...state.observerNotes],
+    dailyFacilityAwards: getDailyFacilityAwardRows(4).map((row) => ({
+      facilityId: row.facilityId,
+      facilityName: row.facilityName,
+      awardId: row.awardId,
+      label: row.label,
+      tier: row.tier,
+      metricText: row.metricText,
+    })),
     lastQuarterReport: state.lastQuarterReport
       ? {
           id: state.lastQuarterReport.id,
@@ -10734,6 +11168,10 @@ window.render_game_to_text = () =>
       height: facility.height,
       level: facility.level,
       visits: facility.visits,
+      todayVisits: facility.todayVisits || 0,
+      todayRevenue: facility.todayRevenue || 0,
+      todayPeakQueue: facility.todayPeakQueue || 0,
+      todayProfileVisits: { ...(facility.todayProfileVisits || {}) },
       queueLength: facility.queue.length,
       queueCapacity: getFacilityQueueCapacity(facility),
       activeServiceId: facility.activeServiceId,
@@ -10742,6 +11180,16 @@ window.render_game_to_text = () =>
       patienceLeaves: facility.patienceLeaves || 0,
       crowdHeat: Number(facility.crowdHeat?.toFixed?.(2) || 0),
       crowdState: getFacilityCrowdState(facility).id,
+      award: (() => {
+        const award = getFacilityAward(facility);
+        return award
+          ? {
+              id: award.id,
+              label: award.label,
+              tier: award.tier,
+            }
+          : null;
+      })(),
     })),
     visitors: state.visitors.map((visitor) => ({
       id: visitor.id,
