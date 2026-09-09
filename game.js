@@ -8394,6 +8394,121 @@ function drawPixelRect(x, y, size, color) {
   ctx.fillRect(Math.round(x), Math.round(y), size, size);
 }
 
+// ---- 3D pixel (voxel) rendering helpers ----
+function shadeColor(color, factor) {
+  const c = parseColor(color);
+  return formatColor({
+    r: Math.min(255, Math.max(0, Math.round(c.r * factor))),
+    g: Math.min(255, Math.max(0, Math.round(c.g * factor))),
+    b: Math.min(255, Math.max(0, Math.round(c.b * factor))),
+    a: c.a,
+  });
+}
+
+// 一个立体体块：底影 + 左/下暗边 + 顶面 + 高光，光源固定左上。
+function drawBlockRect(x, y, w, h, color, opts = {}) {
+  const sideFactor = opts.sideFactor ?? 0.74;
+  const bottomFactor = opts.bottomFactor ?? 0.58;
+  const shadow = opts.shadow !== false;
+  const highlight = opts.highlight !== false;
+  const bx = Math.round(x);
+  const by = Math.round(y);
+  const bw = Math.round(w);
+  const bh = Math.round(h);
+  if (shadow) {
+    ctx.fillStyle = "rgba(0,0,0,0.16)";
+    ctx.fillRect(bx + 2, by + bh + 1, bw, 2);
+  }
+  ctx.fillStyle = shadeColor(color, bottomFactor);
+  ctx.fillRect(bx, by + bh - 1, bw, 1);
+  ctx.fillRect(bx + bw - 1, by + 1, 1, bh - 1);
+  ctx.fillStyle = shadeColor(color, sideFactor);
+  ctx.fillRect(bx, by + 1, 1, bh - 1);
+  ctx.fillStyle = color;
+  ctx.fillRect(bx + 1, by, bw - 2, bh - 1);
+  if (highlight) {
+    ctx.fillStyle = "rgba(255,255,255,0.24)";
+    ctx.fillRect(bx + 1, by, bw - 2, 1);
+  }
+}
+
+// 挤出渲染：顶面贴 sprite 图案，每列底部向下挤出侧墙，形成开罗式立体建筑。
+function drawExtrudedSprite(sprite, palette, x, y, scale = 3, opts = {}) {
+  const depth = Math.max(0, Math.round(opts.depth ?? 0));
+  const wallColor = opts.wallColor || null;
+  const wallDarken = opts.wallDarken ?? 0.64;
+  const wallTop = Math.max(1, Math.round(opts.wallTop ?? scale * 0.5));
+  const highlight = opts.highlight !== false;
+  const spriteW = sprite[0].length * scale;
+  const spriteH = sprite.length * scale;
+  if (opts.shadow !== false) {
+    ctx.fillStyle = "rgba(0,0,0,0.2)";
+    ctx.fillRect(Math.round(x) + 3, Math.round(y) + spriteH + depth, spriteW - 2, 4);
+  }
+  if (depth > 0) {
+    for (let col = 0; col < sprite[0].length; col += 1) {
+      let bottom = -1;
+      for (let row = sprite.length - 1; row >= 0; row -= 1) {
+        const key = sprite[row][col];
+        if (key !== ".") {
+          bottom = row;
+          break;
+        }
+      }
+      if (bottom < 0) {
+        continue;
+      }
+      const wall = wallColor || shadeColor(palette[sprite[bottom][col]], wallDarken);
+      ctx.fillStyle = wall;
+      ctx.fillRect(Math.round(x) + col * scale, Math.round(y) + bottom * scale + wallTop, scale, depth);
+    }
+  }
+  for (let row = 0; row < sprite.length; row += 1) {
+    for (let col = 0; col < sprite[row].length; col += 1) {
+      const key = sprite[row][col];
+      if (key === ".") {
+        continue;
+      }
+      ctx.fillStyle = palette[key];
+      ctx.fillRect(Math.round(x) + col * scale, Math.round(y) + row * scale, scale, scale);
+    }
+  }
+  if (highlight) {
+    ctx.fillStyle = "rgba(255,255,255,0.16)";
+    ctx.fillRect(Math.round(x), Math.round(y), spriteW, 1);
+    ctx.fillRect(Math.round(x), Math.round(y), 1, spriteH);
+  }
+}
+
+// 微体块渲染：每个 sprite 像素画成带明暗面的小方块，用于小件与掉落物。
+function drawVoxelSprite(sprite, palette, x, y, scale = 3, opts = {}) {
+  const lift = Math.round(opts.lift ?? 0);
+  const sx = Math.round(x);
+  const sy = Math.round(y);
+  if (opts.shadow !== false) {
+    ctx.fillStyle = "rgba(0,0,0,0.16)";
+    ctx.fillRect(sx + 2, sy + sprite.length * scale + 1 - lift, sprite[0].length * scale - 4, 2);
+  }
+  for (let row = 0; row < sprite.length; row += 1) {
+    for (let col = 0; col < sprite[row].length; col += 1) {
+      const key = sprite[row][col];
+      if (key === ".") {
+        continue;
+      }
+      const c = palette[key];
+      const px = sx + col * scale;
+      const py = sy + row * scale - lift;
+      ctx.fillStyle = shadeColor(c, 0.62);
+      ctx.fillRect(px, py + scale - 1, scale, 1);
+      ctx.fillRect(px + scale - 1, py + 1, 1, scale - 1);
+      ctx.fillStyle = shadeColor(c, 0.8);
+      ctx.fillRect(px, py + 1, 1, scale - 1);
+      ctx.fillStyle = c;
+      ctx.fillRect(px + 1, py, scale - 2, scale - 1);
+    }
+  }
+}
+
 function drawSprite(sprite, palette, x, y, scale = 3) {
   for (let row = 0; row < sprite.length; row += 1) {
     for (let col = 0; col < sprite[row].length; col += 1) {
@@ -8503,8 +8618,8 @@ function drawSkyTraffic(playfieldWidth) {
 }
 
 function drawRoadVehicle(x, y, scale, palette, type = "car") {
-  ctx.fillStyle = "rgba(0,0,0,0.2)";
-  ctx.fillRect(x + scale, y + scale * 7, scale * (type === "bus" ? 16 : type === "truck" ? 14 : 12), scale * 2);
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.fillRect(x + scale, y + scale * 8, scale * (type === "bus" ? 16 : type === "truck" ? 14 : 12), scale);
   ctx.fillStyle = palette.body;
   if (type === "bus") {
     ctx.fillRect(x, y + scale * 2, scale * 18, scale * 5);
@@ -8517,6 +8632,15 @@ function drawRoadVehicle(x, y, scale, palette, type = "car") {
     ctx.fillRect(x, y + scale * 3, scale * 14, scale * 3);
     ctx.fillRect(x + scale * 3, y, scale * 8, scale * 4);
   }
+  // 车身下缘暗裙边（立体感）
+  ctx.fillStyle = shadeColor(palette.body, 0.6);
+  if (type === "bus") {
+    ctx.fillRect(x + 1, y + scale * 6, scale * 17, scale);
+  } else if (type === "truck") {
+    ctx.fillRect(x + 1, y + scale * 6, scale * 13, scale);
+  } else {
+    ctx.fillRect(x + 1, y + scale * 5, scale * 13, scale);
+  }
   ctx.fillStyle = palette.roof;
   if (type === "bus") {
     ctx.fillRect(x + scale * 3, y + scale, scale * 10, scale * 2);
@@ -8526,6 +8650,15 @@ function drawRoadVehicle(x, y, scale, palette, type = "car") {
     ctx.fillRect(x + scale * 9, y + scale, scale * 3, scale * 2);
   } else {
     ctx.fillRect(x + scale * 3, y + scale, scale * 6, scale * 2);
+  }
+  // 车顶高光
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  if (type === "bus") {
+    ctx.fillRect(x + scale * 3, y + scale + 1, scale * 9, 2);
+  } else if (type === "truck") {
+    ctx.fillRect(x + scale * 10, y + scale + 1, scale * 2, 2);
+  } else {
+    ctx.fillRect(x + scale * 4, y + scale + 1, scale * 4, 2);
   }
   ctx.fillStyle = "rgba(255,255,255,0.55)";
   if (type === "bus") {
@@ -8559,6 +8692,7 @@ function drawRoadVehicle(x, y, scale, palette, type = "car") {
   }
 }
 
+
 function drawCentralCrossroadProps() {
   const signalColor =
     state.trafficSignal.phase === "walk"
@@ -8575,50 +8709,68 @@ function drawCentralCrossroadProps() {
   posts.forEach((pos, index) => {
     const x = pos.x + (index % 2 === 0 ? layout.tile - 12 : 8);
     const y = pos.y + (index < 2 ? layout.tile - 24 : 12);
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(x - 2, y + 16, 10, 3);
+    drawBlockRect(x - 3, y - 6, 10, 6, "#2f2231", { shadow: false });
     ctx.fillStyle = "#4f474f";
-    ctx.fillRect(x, y, 4, 18);
-    ctx.fillStyle = "#2f2231";
-    ctx.fillRect(x - 3, y - 6, 10, 6);
-    ctx.fillStyle = signalColor;
-    ctx.fillRect(x, y - 4, 4, 3);
+    ctx.fillRect(x + 1, y - 1, 4, 18);
+    ctx.fillStyle = shadeColor("#4f474f", 0.6);
+    ctx.fillRect(x, y - 1, 1, 18);
+    drawBlockRect(x + 1, y - 4, 4, 3, signalColor, { shadow: false, highlight: false });
   });
 }
 
+
 function drawBusStop(x, y) {
-  ctx.fillStyle = "#4f474f";
-  ctx.fillRect(x, y - 18, 4, 20);
-  ctx.fillStyle = "#6db7ff";
-  ctx.fillRect(x - 4, y - 26, 12, 8);
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.fillRect(x - 4, y + 2, 14, 3);
+  drawBlockRect(x - 4, y - 26, 12, 8, "#6db7ff", { shadow: false });
   ctx.fillStyle = "#fff5d8";
   ctx.fillRect(x - 2, y - 24, 8, 4);
+  ctx.fillStyle = "#4f474f";
+  ctx.fillRect(x, y - 18, 4, 20);
+  ctx.fillStyle = shadeColor("#4f474f", 0.6);
+  ctx.fillRect(x, y - 18, 1, 20);
 }
+
 
 function drawMailBox(x, y) {
-  ctx.fillStyle = "#d75f54";
-  ctx.fillRect(x, y - 12, 10, 10);
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.fillRect(x + 1, y + 4, 11, 3);
+  drawBlockRect(x, y - 12, 10, 10, "#d75f54", { shadow: false });
   ctx.fillStyle = "#fff3d8";
   ctx.fillRect(x + 2, y - 10, 6, 2);
-  ctx.fillStyle = "#6f4a44";
-  ctx.fillRect(x + 3, y - 2, 4, 6);
+  drawBlockRect(x + 3, y - 2, 4, 6, "#6f4a44", { shadow: false, highlight: false });
 }
+
 
 function drawRoadCone(x, y) {
-  ctx.fillStyle = "#ffb45f";
-  ctx.fillRect(x + 2, y - 10, 4, 2);
-  ctx.fillRect(x + 1, y - 8, 6, 4);
-  ctx.fillRect(x, y - 4, 8, 4);
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.fillRect(x + 1, y + 4, 8, 3);
+  ctx.fillStyle = "#e8a04e";
+  ctx.fillRect(x + 3, y - 12, 4, 3);
+  ctx.fillRect(x + 2, y - 9, 6, 4);
+  ctx.fillRect(x + 1, y - 5, 8, 5);
   ctx.fillStyle = "#fff6dc";
-  ctx.fillRect(x + 1, y - 6, 6, 1);
+  ctx.fillRect(x + 2, y - 8, 6, 2);
+  ctx.fillStyle = shadeColor("#e8a04e", 0.7);
+  ctx.fillRect(x + 1, y - 5, 1, 5);
+  ctx.fillRect(x + 8, y - 5, 1, 5);
 }
 
+
 function drawStreetSign(x, y, accent = "#6db7ff") {
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.fillRect(x + 2, y + 2, 12, 3);
   ctx.fillStyle = "#4f474f";
-  ctx.fillRect(x + 4, y - 16, 3, 18);
-  ctx.fillStyle = accent;
-  ctx.fillRect(x, y - 20, 12, 8);
+  ctx.fillRect(x + 6, y - 16, 3, 18);
+  ctx.fillStyle = shadeColor("#4f474f", 0.6);
+  ctx.fillRect(x + 6, y - 16, 1, 18);
+  drawBlockRect(x, y - 20, 12, 8, accent, { shadow: false });
   ctx.fillStyle = "#fff8de";
   ctx.fillRect(x + 2, y - 18, 8, 1);
 }
+
 
 function drawPuddle(x, y, width = 14) {
   ctx.fillStyle = "rgba(108, 171, 229, 0.28)";
@@ -8631,11 +8783,13 @@ function drawCanopy(x, y, width = 20, color = "#7fd7ff") {
   ctx.fillStyle = "#4f474f";
   ctx.fillRect(x + 2, y - 2, 2, 10);
   ctx.fillRect(x + width - 4, y - 2, 2, 10);
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y - 8, width, 6);
+  drawBlockRect(x, y - 8, width, 6, color, { shadow: false });
   ctx.fillStyle = "#fff8de";
   ctx.fillRect(x + 2, y - 6, width - 4, 2);
+  ctx.fillStyle = "rgba(255,255,255,0.3)";
+  ctx.fillRect(x + 2, y - 8, width - 4, 1);
 }
+
 
 function drawLanternString(x, y, color = "#ff8cb1") {
   ctx.fillStyle = "#7f675f";
@@ -8647,51 +8801,69 @@ function drawLanternString(x, y, color = "#ff8cb1") {
 }
 
 function drawSpeakerStand(x, y) {
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.fillRect(x + 2, y + 2, 11, 3);
   ctx.fillStyle = "#4f474f";
   ctx.fillRect(x + 4, y - 12, 3, 12);
-  ctx.fillStyle = "#7fd7ff";
-  ctx.fillRect(x, y - 18, 10, 7);
+  drawBlockRect(x, y - 18, 10, 7, "#7fd7ff", { shadow: false });
   ctx.fillStyle = "#2f2231";
   ctx.fillRect(x + 2, y - 16, 6, 3);
+  ctx.fillStyle = "#c2ecff";
+  ctx.fillRect(x + 3, y - 15, 4, 1);
 }
+
 
 function drawSaleBoard(x, y, color = "#ff95bf") {
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.fillRect(x + 2, y + 2, 12, 3);
   ctx.fillStyle = "#7f675f";
   ctx.fillRect(x + 4, y - 12, 3, 12);
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y - 18, 12, 8);
+  drawBlockRect(x, y - 18, 12, 8, color, { shadow: false });
   ctx.fillStyle = "#fff8de";
   ctx.fillRect(x + 2, y - 16, 8, 2);
+  ctx.fillStyle = "rgba(255,255,255,0.3)";
+  ctx.fillRect(x + 1, y - 18, 10, 1);
 }
 
+
 function drawBench(x, y, tint = "#a77a54") {
-  ctx.fillStyle = tint;
-  ctx.fillRect(x, y - 8, 14, 4);
-  ctx.fillRect(x + 2, y - 12, 10, 3);
+  ctx.fillStyle = "rgba(0,0,0,0.14)";
+  ctx.fillRect(x + 1, y + 3, 14, 2);
+  ctx.fillStyle = shadeColor(tint, 0.68);
+  ctx.fillRect(x, y - 1, 14, 3);
+  drawBlockRect(x, y - 8, 14, 4, tint, { shadow: false });
+  drawBlockRect(x + 2, y - 12, 10, 3, shadeColor(tint, 0.9), { shadow: false });
+  ctx.fillStyle = shadeColor(tint, 0.62);
   ctx.fillRect(x + 2, y - 4, 2, 5);
   ctx.fillRect(x + 10, y - 4, 2, 5);
 }
 
+
 function drawPlanter(x, y, bloom = "#f08ca6") {
-  ctx.fillStyle = "#c79d6d";
-  ctx.fillRect(x, y - 6, 10, 6);
+  ctx.fillStyle = "rgba(0,0,0,0.14)";
+  ctx.fillRect(x + 1, y + 2, 10, 2);
+  drawBlockRect(x, y - 6, 10, 6, "#c79d6d", { shadow: false });
   ctx.fillStyle = "#8c6942";
   ctx.fillRect(x + 1, y - 4, 8, 2);
-  ctx.fillStyle = "#61b157";
-  ctx.fillRect(x + 3, y - 12, 4, 6);
+  drawBlockRect(x + 3, y - 12, 4, 6, "#61b157", { shadow: false });
   ctx.fillStyle = bloom;
   ctx.fillRect(x + 1, y - 13, 2, 2);
   ctx.fillRect(x + 7, y - 13, 2, 2);
 }
 
+
 function drawParcelStack(x, y) {
-  ctx.fillStyle = "#c9a071";
-  ctx.fillRect(x, y - 8, 8, 8);
-  ctx.fillRect(x + 6, y - 12, 10, 12);
+  ctx.fillStyle = "rgba(0,0,0,0.14)";
+  ctx.fillRect(x + 1, y + 4, 16, 2);
+  drawBlockRect(x, y - 8, 8, 8, "#c9a071", { shadow: false });
+  drawBlockRect(x + 6, y - 12, 10, 12, "#b98d5e", { shadow: false });
   ctx.fillStyle = "#9f7450";
   ctx.fillRect(x + 2, y - 6, 4, 1);
   ctx.fillRect(x + 10, y - 8, 2, 6);
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.fillRect(x + 7, y - 12, 3, 2);
 }
+
 
 function drawWorkshopSmoke(x, y, drift) {
   const puff = Math.sin(drift) * 2;
@@ -8748,35 +8920,44 @@ function drawStreetFurniture() {
 }
 
 function drawCat(x, y, body = "#5b4f53", accent = "#ffe8b0") {
-  ctx.fillStyle = body;
-  ctx.fillRect(x + 2, y - 6, 8, 5);
-  ctx.fillRect(x + 4, y - 10, 5, 5);
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.fillRect(x + 1, y + 5, 11, 2);
+  drawBlockRect(x + 2, y - 6, 8, 5, body, { shadow: false });
+  drawBlockRect(x + 4, y - 10, 5, 5, shadeColor(body, 0.88), { shadow: false });
+  ctx.fillStyle = accent;
+  ctx.fillRect(x + 5, y - 8, 1, 1);
+  ctx.fillStyle = shadeColor(body, 0.6);
   ctx.fillRect(x + 2, y - 12, 2, 2);
   ctx.fillRect(x + 7, y - 12, 2, 2);
   ctx.fillRect(x + 3, y - 1, 2, 4);
   ctx.fillRect(x + 7, y - 1, 2, 4);
-  ctx.fillStyle = accent;
-  ctx.fillRect(x + 5, y - 8, 1, 1);
 }
+
 
 function drawDog(x, y, body = "#b88b57", accent = "#fff1c7") {
-  ctx.fillStyle = body;
-  ctx.fillRect(x + 1, y - 6, 10, 6);
-  ctx.fillRect(x + 7, y - 10, 5, 5);
-  ctx.fillRect(x + 2, y, 2, 4);
-  ctx.fillRect(x + 8, y, 2, 4);
-  ctx.fillRect(x, y - 5, 2, 2);
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.fillRect(x + 1, y + 6, 11, 2);
+  drawBlockRect(x + 1, y - 6, 10, 6, body, { shadow: false });
+  drawBlockRect(x + 7, y - 10, 5, 5, shadeColor(body, 0.9), { shadow: false });
   ctx.fillStyle = accent;
   ctx.fillRect(x + 8, y - 8, 1, 1);
+  ctx.fillRect(x, y - 5, 2, 2);
+  ctx.fillStyle = shadeColor(body, 0.62);
+  ctx.fillRect(x + 2, y, 2, 4);
+  ctx.fillRect(x + 8, y, 2, 4);
 }
 
+
 function drawPigeon(x, y, tone = "#66707d") {
-  ctx.fillStyle = tone;
-  ctx.fillRect(x + 2, y - 3, 5, 3);
-  ctx.fillRect(x + 5, y - 5, 3, 3);
+  ctx.fillStyle = "rgba(0,0,0,0.14)";
+  ctx.fillRect(x + 2, y + 2, 6, 2);
+  drawBlockRect(x + 2, y - 3, 5, 3, tone, { shadow: false });
+  drawBlockRect(x + 5, y - 5, 3, 3, shadeColor(tone, 1.12), { shadow: false });
+  ctx.fillStyle = shadeColor(tone, 0.7);
   ctx.fillRect(x + 3, y, 1, 2);
   ctx.fillRect(x + 6, y, 1, 2);
 }
+
 
 function drawAmbientStreetLife() {
   const catBase = tileToScreen(2, 8);
@@ -9277,9 +9458,7 @@ function drawStreetPickups() {
     const bob = Math.sin(pickup.drift) * 1.5;
     const x = Math.round(pickup.x);
     const y = Math.round(pickup.y + bob);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
-    ctx.fillRect(x - 5, y + 5, 10, 3);
-    drawSprite(def.sprite, def.palette, x - 5, y - 5, 2);
+    drawVoxelSprite(def.sprite, def.palette, x - 5, y - 5, 2);
     if (Math.sin(pickup.drift * 1.8) > 0.45) {
       ctx.fillStyle = "#fff6cf";
       ctx.fillRect(x + 5, y - 6, 2, 2);
@@ -9287,6 +9466,7 @@ function drawStreetPickups() {
     }
   }
 }
+
 
 function drawGrid() {
   for (let row = 0; row < layout.rows; row += 1) {
@@ -9345,6 +9525,15 @@ function drawGrid() {
       ctx.fillRect(pos.x + 4, pos.y + layout.tile - 14, layout.tile - 10, 6);
       ctx.fillStyle = trimColor;
       ctx.fillRect(pos.x + 6, pos.y + layout.tile - 8, layout.tile - 14, 4);
+
+      // 立体厚边（左/下暗边 + 底影），形成凸起石板
+      ctx.fillStyle = shadeColor(baseColor, 0.8);
+      ctx.fillRect(pos.x + 1, pos.y + layout.tile - 5, layout.tile - 4, 3);
+      ctx.fillRect(pos.x + layout.tile - 5, pos.y + 1, 3, layout.tile - 3);
+      ctx.fillStyle = "rgba(0,0,0,0.09)";
+      ctx.fillRect(pos.x + 3, pos.y + layout.tile - 2, layout.tile - 6, 2);
+      ctx.fillRect(pos.x + layout.tile - 2, pos.y + 3, 2, layout.tile - 6);
+
 
       if (tileKind === "lot") {
         ctx.fillStyle = "rgba(255, 253, 230, 0.18)";
@@ -9532,65 +9721,86 @@ function drawFacility(facility) {
   const def = getFacilityDef(facility.type);
   const width = facility.width * layout.tile - 6;
   const height = facility.height * layout.tile - 8;
+
   if (facility.kind === "tree") {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
-    ctx.fillRect(pos.x + 12, pos.y + height - 8, width - 18, 7);
-    ctx.fillStyle = "#d7ba83";
-    ctx.fillRect(pos.x + 10, pos.y + height - 16, width - 14, 10);
-    ctx.fillStyle = "#b48b59";
-    ctx.fillRect(pos.x + 12, pos.y + height - 13, width - 18, 4);
-    drawFittedSprite(def.sprite, def.palette, pos.x + 2, pos.y + 2, width, height);
+    drawTreeVoxel(facility, pos, width, height);
     return;
   }
-  if (facility.kind === "landmark") {
-    drawLandmarkBackdrop(facility, pos, width, height);
-  } else if (facility.kind === "public-spot") {
-    drawPublicSpotBackdrop(facility, pos, width, height);
-  }
-  ctx.fillStyle = "rgba(0, 0, 0, 0.16)";
-  ctx.fillRect(pos.x + 8, pos.y + height - 10, width - 10, 9);
 
-  ctx.fillStyle =
-    facility.kind === "landmark"
-      ? "rgba(230, 236, 242, 0.9)"
-      : facility.kind === "public-spot"
-        ? "rgba(246, 240, 225, 0.92)"
-      : facility.width * facility.height > 1
-        ? "rgba(255, 247, 214, 0.82)"
-        : "rgba(255, 247, 214, 0.64)";
-  ctx.fillRect(pos.x + 2, pos.y + 3, width, height);
-  ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
-  ctx.fillRect(pos.x + width - 8, pos.y + 10, 6, height - 16);
-  ctx.fillRect(pos.x + 10, pos.y + height - 8, width - 16, 5);
-  ctx.strokeStyle = def.color;
-  ctx.lineWidth = 4;
-  ctx.strokeRect(pos.x + 4, pos.y + 5, width - 4, height - 4);
-  ctx.fillStyle = `${def.color}33`;
-  ctx.fillRect(pos.x + 6, pos.y + 7, width - 8, 10);
-  ctx.fillStyle = "rgba(255, 250, 238, 0.26)";
-  ctx.fillRect(pos.x + 8, pos.y + 9, width - 14, 4);
-  if (facility.kind === "landmark") {
-    ctx.fillStyle = `${def.color}88`;
-    ctx.fillRect(pos.x + 12, pos.y + 18, width - 24, 8);
-    ctx.fillStyle = "rgba(255,255,255,0.22)";
-    ctx.fillRect(pos.x + 16, pos.y + 20, width - 32, 3);
-  } else if (facility.kind === "public-spot") {
-    ctx.fillStyle = `${def.color}66`;
-    ctx.fillRect(pos.x + 10, pos.y + 18, width - 20, 7);
-    ctx.fillStyle = "rgba(255,255,255,0.26)";
-    ctx.fillRect(pos.x + 14, pos.y + 20, Math.max(14, width - 28), 2);
-  } else {
-    ctx.fillStyle = `${def.color}aa`;
-    ctx.fillRect(pos.x + 10, pos.y + 18, width - 20, 10);
-    ctx.fillStyle = "rgba(255,255,255,0.26)";
-    ctx.fillRect(pos.x + 14, pos.y + 20, width - 28, 3);
-    ctx.fillStyle = "rgba(143, 107, 61, 0.42)";
-    ctx.fillRect(pos.x + Math.floor(width / 2) - 10, pos.y + height - 18, 20, 6);
+  const isLandmark = facility.kind === "landmark";
+  const isSpot = facility.kind === "public-spot";
+  const inset = 7;
+  const depth = 6;
+  const bx = pos.x + inset;
+  const by = pos.y + inset;
+  const bw = width - inset * 2;
+  const bh = height - inset * 2;
+  const mainColor = def.color;
+
+  // —— 平台底座（立体石板）——
+  const platformColor = isLandmark ? "#e9eff5" : isSpot ? "#f0e7d3" : "#f8f0d2";
+  drawBlockRect(pos.x + 2, pos.y + 2, width - 4, height - 4, platformColor, {
+    bottomFactor: 0.7,
+    sideFactor: 0.85,
+  });
+
+  // —— 建筑底部投影 ——
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.fillRect(bx + 3, by + bh + depth + 2, bw - 2, 4);
+
+  // —— 左墙（西面，带窗）——
+  ctx.fillStyle = shadeColor(mainColor, 0.58);
+  ctx.fillRect(bx - depth, by + 2, depth, bh - 2);
+  ctx.fillStyle = shadeColor(mainColor, 0.88);
+  for (let wy = by + 9; wy < by + bh - 8; wy += 13) {
+    ctx.fillRect(bx - depth + 2, wy, depth - 4, 5);
   }
 
-  drawFittedSprite(def.sprite, def.palette, pos.x + 1, pos.y + 1, width, height);
+  // —— 前墙（南面，带窗列）——
+  ctx.fillStyle = shadeColor(mainColor, 0.5);
+  ctx.fillRect(bx, by + bh, bw, depth);
+  ctx.fillStyle = shadeColor(mainColor, 0.78);
+  for (let wx = bx + 9; wx < bx + bw - 11; wx += 15) {
+    ctx.fillRect(wx, by + bh + 1, 9, depth - 2);
+  }
 
-  if (facility.kind === "landmark") {
+  // —— 顶面（贴俯视图案）——
+  ctx.fillStyle = shadeColor(mainColor, 0.84);
+  ctx.fillRect(bx, by, bw, bh);
+  drawRoofPattern(facility, def, bx, by, bw, bh);
+  ctx.strokeStyle = shadeColor(mainColor, 0.94);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.fillRect(bx + 1, by + 1, bw - 2, 2);
+
+  // —— 前脸：门 + 门头檐 + 立式招牌 ——
+  const frontY = by + bh - 2;
+  const doorW = Math.min(22, Math.floor(bw * 0.3));
+  const doorX = bx + Math.floor(bw * 0.08);
+  ctx.fillStyle = shadeColor(mainColor, 1.05);
+  ctx.fillRect(doorX - 1, frontY - 5, doorW + 2, 5);
+  ctx.fillStyle = "#3b2b34";
+  ctx.fillRect(doorX, frontY + 1, doorW, depth - 1);
+  ctx.fillStyle = "#ffe9a8";
+  ctx.fillRect(doorX + 4, frontY + 2, 3, depth - 2);
+
+  const signW = Math.min(40, Math.floor(bw * 0.5));
+  const signX = bx + bw - signW - 8;
+  const signY = frontY - 16;
+  ctx.fillStyle = "#2f2231";
+  ctx.fillRect(signX + 3, signY + 16, 4, depth + 2);
+  ctx.fillStyle = "#fff6dd";
+  ctx.fillRect(signX, signY, signW, 14);
+  ctx.strokeStyle = shadeColor(mainColor, 0.7);
+  ctx.lineWidth = 2;
+  ctx.strokeRect(signX + 1, signY + 1, signW - 2, 12);
+  ctx.fillStyle = "#2f2231";
+  ctx.font = "bold 9px Trebuchet MS";
+  ctx.fillText(fitTextToWidth(def.shortName || def.name, signW - 8, "…"), signX + 4, signY + 10);
+
+  // —— 地标 / 公共点位外设与名称 ——
+  if (isLandmark) {
     drawLandmarkOutdoorProps(facility, pos, width, height);
     ctx.fillStyle = "rgba(47, 34, 49, 0.84)";
     ctx.fillRect(pos.x + 8, pos.y + height - 22, Math.min(96, width - 14), 14);
@@ -9599,22 +9809,18 @@ function drawFacility(facility) {
     ctx.fillText(fitTextToWidth(def.name, Math.min(84, width - 18)), pos.x + 12, pos.y + height - 12);
     return;
   }
-
-  if (facility.kind === "public-spot") {
+  if (isSpot) {
     drawPublicSpotProps(facility, pos, width, height);
     const labelWidth = Math.max(38, Math.min(width - 10, 68));
     ctx.fillStyle = "rgba(47, 34, 49, 0.8)";
     ctx.fillRect(pos.x + 6, pos.y + height - 22, labelWidth, 12);
     ctx.fillStyle = "#fff4d6";
     ctx.font = "bold 8px Trebuchet MS";
-    ctx.fillText(
-      fitTextToWidth(def.shortLabel || def.name, labelWidth - 8),
-      pos.x + 10,
-      pos.y + height - 13,
-    );
+    ctx.fillText(fitTextToWidth(def.shortLabel || def.name, labelWidth - 8), pos.x + 10, pos.y + height - 13);
     return;
   }
 
+  // —— 设施 UI：Lv / 占地 / 奖牌 / 拥挤 ——
   ctx.fillStyle = "#2e2131";
   ctx.fillRect(pos.x + 6, pos.y + 6, 28, 12);
   ctx.fillStyle = "#fff4d6";
@@ -9669,6 +9875,338 @@ function drawFacility(facility) {
       ctx.fillRect(pos.x + width - 17 - index * 5, pos.y + 11, 5, 4);
     }
   }
+}
+
+// 俯视屋顶图案：按建筑类型手绘清晰可辨的顶面特写。
+function drawRoofPattern(facility, def, bx, by, bw, bh) {
+  const cx = bx + Math.floor(bw / 2);
+  const cy = by + Math.floor(bh / 2);
+  switch (facility.type) {
+    case "snack": {
+      // 红白条纹雨棚 + 热狗 + 柜台
+      const aw = bw;
+      const ah = Math.max(10, Math.round(bh * 0.42));
+      for (let i = 0; i < Math.ceil(aw / 10); i += 1) {
+        ctx.fillStyle = i % 2 === 0 ? "#e8553f" : "#fff8ea";
+        ctx.fillRect(bx + i * 10, by, Math.min(10, aw - i * 10), ah);
+      }
+      ctx.fillStyle = "rgba(0,0,0,0.16)";
+      ctx.fillRect(bx, by + ah, aw, 2);
+      const hy = by + ah + Math.max(3, Math.round((bh - ah) * 0.18));
+      const hh = Math.max(7, Math.round(bh * 0.2));
+      drawBlockRect(bx + Math.floor(aw * 0.26), hy, Math.floor(aw * 0.48), hh, "#f7c25f", {
+        shadow: false,
+        highlight: false,
+      });
+      ctx.fillStyle = "#e0703a";
+      ctx.fillRect(bx + Math.floor(aw * 0.26) + 5, hy + 2, Math.floor(aw * 0.48) - 10, 3);
+      ctx.fillStyle = "#ffe9a8";
+      ctx.fillRect(bx + Math.floor(aw * 0.26) + Math.floor(aw * 0.48 * 0.32), hy + 1, 3, hh - 2);
+      const ch = Math.max(7, Math.round(bh * 0.2));
+      drawBlockRect(bx + Math.floor(aw * 0.1), by + bh - ch, Math.floor(aw * 0.8), ch, "#d9a066", {
+        shadow: false,
+      });
+      ctx.fillStyle = "#8a5f3c";
+      ctx.fillRect(bx + Math.floor(aw * 0.16), by + bh - ch + 1, 3, ch - 2);
+      ctx.fillRect(bx + Math.floor(aw * 0.82), by + bh - ch + 1, 3, ch - 2);
+      break;
+    }
+    case "park": {
+      // 中央大树冠 + 四角花坛
+      ctx.fillStyle = "rgba(0,0,0,0.08)";
+      ctx.fillRect(bx + 3, by + 3, bw - 6, bh - 6);
+      const rw = Math.floor(bw * 0.62);
+      const rh = Math.floor(bh * 0.62);
+      drawBlockRect(cx - Math.floor(rw / 2), cy - Math.floor(rh / 2), rw, rh, "#6fbe5a", {
+        sideFactor: 0.72,
+        bottomFactor: 0.6,
+        shadow: false,
+      });
+      drawBlockRect(cx - Math.floor(rw / 2) + 3, cy - Math.floor(rh / 2) + 3, rw - 6, rh - 6, "#8bd468", {
+        sideFactor: 0.82,
+        bottomFactor: 0.7,
+        shadow: false,
+      });
+      const blooms = ["#f08ca6", "#ffd36b", "#a8d8ff", "#e8a0e0"];
+      const corners = [
+        [bx + 4, by + 4],
+        [bx + bw - 12, by + 4],
+        [bx + 4, by + bh - 12],
+        [bx + bw - 12, by + bh - 12],
+      ];
+      corners.forEach(([px, py], index) => {
+        drawBlockRect(px, py, 8, 8, blooms[index], { shadow: false });
+      });
+      break;
+    }
+    case "arcade": {
+      // 三台街机 + 亮屏 + 投币条
+      const machineW = Math.floor((bw - 10) / 3);
+      for (let m = 0; m < 3; m += 1) {
+        const mx = bx + 5 + m * (machineW + 1);
+        ctx.fillStyle = "#3f3a63";
+        ctx.fillRect(mx, by + 4, machineW, bh - 14);
+        ctx.fillStyle = "#6a63b8";
+        ctx.fillRect(mx + 1, by + 5, machineW - 2, 2);
+        ctx.fillStyle = "#2b2a4a";
+        ctx.fillRect(mx + 4, by + 8, machineW - 8, Math.floor(bh * 0.5));
+        ctx.fillStyle = "#7fe3ff";
+        ctx.fillRect(mx + 6, by + 10, machineW - 12, Math.floor(bh * 0.42));
+        ctx.fillStyle = "#eaffff";
+        ctx.fillRect(mx + 8, by + 12, 4, 3);
+      }
+      drawBlockRect(bx + 8, by + bh - 9, bw - 16, 5, "#ffd95f", { shadow: false });
+      break;
+    }
+    case "bath": {
+      // 中央浴池 + 白墙边 + 水汽
+      ctx.fillStyle = "#fff6f0";
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+      const pw = Math.floor(bw * 0.7);
+      const ph = Math.floor(bh * 0.68);
+      ctx.fillStyle = "#d8e9f7";
+      ctx.fillRect(cx - Math.floor(pw / 2), cy - Math.floor(ph / 2), pw, ph);
+      ctx.fillStyle = "#8fd2f2";
+      ctx.fillRect(cx - Math.floor(pw / 2) + 4, cy - Math.floor(ph / 2) + 4, pw - 8, ph - 8);
+      ctx.fillStyle = "#e8f9ff";
+      ctx.fillRect(cx - Math.floor(pw / 2) + 7, cy - Math.floor(ph / 2) + 7, pw - 14, 4);
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.fillRect(cx - 8, cy - 3, 5, 4);
+      ctx.fillRect(cx + 4, cy + 1, 4, 3);
+      ctx.fillRect(cx - 12, cy + 3, 4, 3);
+      break;
+    }
+    case "tower": {
+      // 舞台圆 + 聚光灯 + 星形塔尖
+      ctx.fillStyle = "#2f2a45";
+      ctx.fillRect(bx + 4, by + 4, bw - 8, bh - 8);
+      const sw = Math.floor(bw * 0.5);
+      const sh = Math.floor(bh * 0.5);
+      ctx.fillStyle = "#f6a6c9";
+      ctx.fillRect(cx - Math.floor(sw / 2), cy - Math.floor(sh / 2), sw, sh);
+      ctx.fillStyle = "#ffd0e4";
+      ctx.fillRect(cx - Math.floor(sw / 2) + 3, cy - Math.floor(sh / 2) + 3, sw - 6, sh - 6);
+      ctx.fillStyle = "#ffe27a";
+      ctx.fillRect(cx - 2, by + 2, 4, Math.max(6, Math.round(bh * 0.3)));
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(cx - 1, by + 3, 2, Math.max(4, Math.round(bh * 0.25)));
+      break;
+    }
+    case "clinic": {
+      // 白色屋顶 + 红十字 + 入口
+      ctx.fillStyle = "#fff8f4";
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+      const rw = Math.floor(bw * 0.34);
+      const rh = Math.max(8, Math.round(bh * 0.4));
+      const rx = cx - Math.floor(rw / 2);
+      const ry = cy - Math.floor(rh / 2);
+      ctx.fillStyle = "#e23b3b";
+      ctx.fillRect(rx, ry, rw, rh);
+      ctx.fillRect(cx - Math.floor(rh / 2), ry - Math.floor(rw / 2), rh, rw);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(cx - 1, ry + 2, 2, rh - 4);
+      ctx.fillRect(rx + 2, cy - 1, rw - 4, 2);
+      ctx.fillStyle = "#d9a066";
+      ctx.fillRect(bx + 3, by + bh - 6, Math.floor(bw * 0.28), 4);
+      break;
+    }
+    case "library": {
+      // 蓝色屋顶 + 彩色书脊排
+      ctx.fillStyle = "#4a6fc0";
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+      const books = ["#ffd86e", "#f08ca6", "#7fe3c0", "#a8b8ff", "#ffb36b", "#8fd8ff"];
+      const bookW = Math.floor((bw - 12) / books.length);
+      books.forEach((color, index) => {
+        const px = bx + 6 + index * bookW;
+        ctx.fillStyle = shadeColor(color, 0.92);
+        ctx.fillRect(px, by + 8, bookW - 3, bh - 14);
+        ctx.fillStyle = "#fff8e8";
+        ctx.fillRect(px + 1, by + 10, 1, bh - 18);
+      });
+      ctx.fillStyle = "#ffd86e";
+      ctx.fillRect(bx + 3, by + bh - 7, Math.floor(bw * 0.3), 4);
+      break;
+    }
+    case "post": {
+      // 米色屋顶 + 蓝色信封
+      ctx.fillStyle = "#f3d9ae";
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+      const ew = Math.floor(bw * 0.5);
+      const eh = Math.floor(bh * 0.52);
+      const ex = cx - Math.floor(ew / 2);
+      const ey = cy - Math.floor(eh / 2);
+      ctx.fillStyle = "#5e96d4";
+      ctx.fillRect(ex, ey, ew, eh);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(ex + 2, ey + 2, ew - 4, eh - 4);
+      ctx.fillStyle = "#5e96d4";
+      ctx.beginPath();
+      ctx.moveTo(ex + 2, ey + 2);
+      ctx.lineTo(ex + ew - 2, ey + eh - 2);
+      ctx.lineTo(ex + ew - 2, ey + 2);
+      ctx.lineTo(ex + 2, ey + eh - 2);
+      ctx.fill();
+      ctx.fillStyle = "#f3d9ae";
+      ctx.fillRect(bx + 3, by + 3, 4, 4);
+      ctx.fillRect(bx + bw - 7, by + 3, 4, 4);
+      break;
+    }
+    case "police": {
+      // 蓝白屋顶 + 红黄警灯
+      ctx.fillStyle = "#3f66b8";
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+      ctx.fillStyle = "#eef4ff";
+      ctx.fillRect(bx + 2, by + 2, bw - 4, Math.round(bh * 0.32));
+      ctx.fillRect(bx + 2, by + bh - 2 - Math.round(bh * 0.32), bw - 4, Math.round(bh * 0.32));
+      const lw = Math.max(8, Math.round(bw * 0.2));
+      const lh = Math.max(6, Math.round(bh * 0.24));
+      ctx.fillStyle = "#e23b3b";
+      ctx.fillRect(cx - lw - 3, cy - Math.floor(lh / 2), lw, lh);
+      ctx.fillStyle = "#ffd95f";
+      ctx.fillRect(cx + 3, cy - Math.floor(lh / 2), lw, lh);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(cx - 1, cy - 1, 2, 2);
+      break;
+    }
+    case "workshop": {
+      // 灰色屋顶 + 烟囱 + 齿轮
+      ctx.fillStyle = "#9aa6ad";
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+      ctx.fillStyle = "#6d7982";
+      ctx.fillRect(bx + 4, by + 4, 10, 8);
+      ctx.fillStyle = "#5c666e";
+      ctx.fillRect(bx + 6, by + 12, 6, 3);
+      const gw = Math.max(10, Math.round(bw * 0.3));
+      const gx = cx - Math.floor(gw / 2);
+      const gy = cy - Math.floor(gw / 2);
+      ctx.fillStyle = "#d9c06a";
+      ctx.fillRect(gx, gy, gw, gw);
+      ctx.fillStyle = "#b39a45";
+      ctx.fillRect(gx + 2, gy + 2, gw - 4, gw - 4);
+      ctx.fillStyle = "#8a7440";
+      ctx.fillRect(gx + 4, gy + 4, gw - 8, gw - 8);
+      ctx.fillStyle = "#6b5c34";
+      ctx.fillRect(cx - 2, cy - 2, 4, 4);
+      ctx.fillStyle = "#5c666e";
+      ctx.fillRect(bx + 3, by + 3, 3, 3);
+      ctx.fillRect(bx + bw - 6, by + 3, 3, 3);
+      ctx.fillRect(bx + 3, by + bh - 6, 3, 3);
+      ctx.fillRect(bx + bw - 6, by + bh - 6, 3, 3);
+      break;
+    }
+    case "pocket-plaza": {
+      // 石砖广场 + 中央绿圆 + 长椅
+      ctx.fillStyle = "#d9c29b";
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+      ctx.fillStyle = "rgba(0,0,0,0.08)";
+      for (let gx2 = bx + 2; gx2 < bx + bw - 4; gx2 += 16) {
+        ctx.fillRect(gx2, by + 2, 1, bh - 4);
+      }
+      for (let gy2 = by + 2; gy2 < by + bh - 4; gy2 += 14) {
+        ctx.fillRect(bx + 2, gy2, bw - 4, 1);
+      }
+      const rw = Math.floor(bw * 0.42);
+      const rh = Math.floor(bh * 0.42);
+      ctx.fillStyle = "#8bd468";
+      ctx.fillRect(cx - Math.floor(rw / 2), cy - Math.floor(rh / 2), rw, rh);
+      ctx.fillStyle = "#6fbe5a";
+      ctx.fillRect(cx - 4, cy - 4, 8, 8);
+      ctx.fillStyle = "#a77a54";
+      ctx.fillRect(bx + 4, by + bh - 9, 14, 4);
+      ctx.fillRect(bx + 4, by + bh - 12, 14, 3);
+      ctx.fillRect(bx + bw - 18, by + bh - 9, 14, 4);
+      ctx.fillRect(bx + bw - 18, by + bh - 12, 14, 3);
+      break;
+    }
+    case "fountain-corner": {
+      // 石砖 + 圆喷泉 + 水花
+      ctx.fillStyle = "#d9c59d";
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
+      const rw = Math.floor(bw * 0.64);
+      const rh = Math.floor(bh * 0.64);
+      ctx.fillStyle = "#c2ac82";
+      ctx.fillRect(cx - Math.floor(rw / 2), cy - Math.floor(rh / 2), rw, rh);
+      ctx.fillStyle = "#7aaed8";
+      ctx.fillRect(cx - Math.floor(rw / 2) + 4, cy - Math.floor(rh / 2) + 4, rw - 8, rh - 8);
+      ctx.fillStyle = "#e8f9ff";
+      ctx.fillRect(cx - 2, cy - 2, 4, 4);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(cx - 6, cy - 6, 3, 3);
+      ctx.fillRect(cx + 3, cy - 6, 3, 3);
+      ctx.fillRect(cx - 6, cy + 3, 3, 3);
+      ctx.fillRect(cx + 3, cy + 3, 3, 3);
+      break;
+    }
+    case "metro-entrance": {
+      // 站房 + 楼梯口 + 站牌
+      ctx.fillStyle = "#8ea2b8";
+      ctx.fillRect(bx + 2, by + 2, bw - 4, Math.round(bh * 0.42));
+      ctx.fillStyle = "#5e96d4";
+      ctx.fillRect(bx + 4, by + 4, Math.floor(bw * 0.3), Math.round(bh * 0.12));
+      ctx.fillStyle = "#f3f9ff";
+      ctx.fillRect(bx + 4, by + Math.round(bh * 0.12) + 5, Math.floor(bw * 0.3), 3);
+      const sy = by + Math.round(bh * 0.48);
+      const sh = bh - Math.round(bh * 0.48) - 4;
+      ctx.fillStyle = "#4a5c74";
+      ctx.fillRect(cx - Math.floor(bw * 0.22), sy, Math.floor(bw * 0.44), sh);
+      ctx.fillStyle = "#d9e6f2";
+      for (let i = 0; i < 4; i += 1) {
+        ctx.fillRect(cx - Math.floor(bw * 0.22) + 2 + i * 5, sy + 2, 3, sh - 4);
+      }
+      break;
+    }
+    case "street-stall": {
+      // 红白雨棚 + 货台 + 商品
+      const ah = Math.max(9, Math.round(bh * 0.42));
+      for (let i = 0; i < Math.ceil(bw / 9); i += 1) {
+        ctx.fillStyle = i % 2 === 0 ? "#ef6a4f" : "#fff8ea";
+        ctx.fillRect(bx + i * 9, by, Math.min(9, bw - i * 9), ah);
+      }
+      ctx.fillStyle = "rgba(0,0,0,0.16)";
+      ctx.fillRect(bx, by + ah, bw, 2);
+      const th = Math.max(8, Math.round(bh * 0.36));
+      drawBlockRect(bx + 3, by + ah + 3, bw - 6, th, "#d9a066", { shadow: false });
+      ctx.fillStyle = "#8a5f3c";
+      ctx.fillRect(bx + 6, by + ah + 5, 4, th - 4);
+      ctx.fillRect(bx + bw - 10, by + ah + 5, 4, th - 4);
+      ctx.fillStyle = "#ffd95f";
+      ctx.fillRect(bx + Math.floor(bw * 0.3), by + ah + 4, 5, 5);
+      ctx.fillRect(bx + Math.floor(bw * 0.6), by + ah + 4, 5, 5);
+      ctx.fillStyle = "#f08ca6";
+      ctx.fillRect(bx + Math.floor(bw * 0.44), by + ah + 6, 5, 5);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+// 立体像素树：三层方块树冠 + 体块树干 + 投影。
+function drawTreeVoxel(facility, pos, width, height) {
+  const cx = pos.x + Math.floor(width / 2);
+  const baseY = pos.y + height - 6;
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  ctx.fillRect(pos.x + 12, baseY + 4, width - 20, 4);
+  ctx.fillStyle = "#8a5f3c";
+  ctx.fillRect(cx - 4, baseY - 12, 8, 12);
+  ctx.fillStyle = "#6d4a2c";
+  ctx.fillRect(cx - 4, baseY - 2, 8, 2);
+  const tiers = [
+    { w: 36, h: 11, y: baseY - 26 },
+    { w: 30, h: 9, y: baseY - 36 },
+    { w: 22, h: 8, y: baseY - 45 },
+  ];
+  const greens = ["#6fbe5a", "#57a847", "#45903a"];
+  tiers.forEach((tier, index) => {
+    drawBlockRect(cx - Math.floor(tier.w / 2), tier.y, tier.w, tier.h, greens[index], {
+      sideFactor: 0.68,
+      bottomFactor: 0.5,
+      shadow: index === 0,
+    });
+  });
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.fillRect(cx - 9, tiers[2].y + 2, 7, 2);
+  ctx.fillRect(cx - 14, tiers[1].y + 2, 5, 2);
 }
 
 function getVisitorDrawMetrics(visitor) {
@@ -9823,206 +10361,102 @@ function drawTownChibi(look, x, y, metrics, options = {}) {
   const facing = options.facing || "down";
   const stride = options.stride || 0;
   const pose = options.pose || (Math.abs(stride) > 0.15 ? "walk" : "idle");
-  const accentBarColor = options.accentBarColor || look.accent || "#fff0ce";
-  const activeColor = options.activeColor || null;
-  const bodyShiftY =
-    pose === "walk" ? (stride > 0 ? -1 : 0) : pose === "chat" ? -1 : pose === "queue" ? 1 : 0;
-  const bodyShiftX = pose === "walk" && (facing === "left" || facing === "right") ? Math.round(stride) : 0;
-  const nearArmLift =
-    pose === "walk" ? (stride > 0 ? -1 : 1) : pose === "chat" ? -2 : pose === "queue" ? 1 : 0;
-  const farArmLift =
-    pose === "walk" ? (stride > 0 ? 1 : -1) : pose === "chat" ? 1 : pose === "queue" ? 0 : 0;
-  const leftLegOffset =
-    pose === "queue" ? 0 : pose === "walk" ? (stride > 0 ? 2 : 0) : pose === "chat" ? 1 : 0;
-  const rightLegOffset =
-    pose === "queue" ? 0 : pose === "walk" ? (stride < 0 ? 2 : 0) : pose === "chat" ? 1 : 0;
-  const shadowYOffset = pose === "walk" ? 0 : pose === "chat" ? -1 : 0;
+  const accent = options.accentBarColor || look.accent || "#fff0ce";
+  const shirt = look.shirt || "#7fd7ff";
+  const hair = look.hair || "#5c3d31";
+  const skin = look.skin || "#f4d8be";
+  const pants = look.pants || "#5f5a78";
+  const bob = pose === "walk" ? Math.abs(Math.sin(state.cameraPulse * 14)) * 1.1 : 0;
+  const cy = y - Math.round(bob);
+
+  // 地面投影
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.fillRect(x - Math.floor(metrics.shadowW / 2), y + 8, metrics.shadowW, 4);
+
+  // —— 腿：两条立体方块腿 ——
+  const legW = Math.max(3, Math.floor(metrics.bodyW * 0.3));
+  const legH = metrics.legH;
+  const legY = y + metrics.legY - 2;
+  const liftL = pose === "walk" ? (stride > 0 ? -2 : 0) : pose === "chat" ? -1 : pose === "queue" ? 1 : 0;
+  const liftR = pose === "walk" ? (stride < 0 ? -2 : 0) : pose === "chat" ? -1 : pose === "queue" ? 1 : 0;
+  drawBlockRect(x + metrics.bodyX + 1, legY + liftL, legW, legH - liftL, shadeColor(pants, 0.8), {
+    shadow: false,
+    highlight: false,
+  });
+  drawBlockRect(x + metrics.bodyX + metrics.bodyW - legW - 1, legY + liftR, legW, legH - liftR, pants, {
+    shadow: false,
+    highlight: false,
+  });
+  ctx.fillStyle = "#3a2c34";
+  ctx.fillRect(x + metrics.bodyX + 1, legY + legH - 2, legW + 1, 2);
+  ctx.fillRect(x + metrics.bodyX + metrics.bodyW - legW - 2, legY + legH - 2, legW + 1, 2);
+
+  // —— 身体：立体方块 ——
+  const bodyX = x + metrics.bodyX;
+  const bodyY = y + metrics.bodyY - 3;
+  const bodyW = metrics.bodyW;
+  const bodyH = metrics.bodyH;
+  drawBlockRect(bodyX, bodyY, bodyW, bodyH, shirt, { shadow: false });
+  ctx.fillStyle = accent;
+  ctx.fillRect(bodyX + 2, bodyY + 2, bodyW - 4, 2);
   ctx.fillStyle = "rgba(0,0,0,0.18)";
-  ctx.fillRect(x - Math.floor(metrics.shadowW / 2), y + 8 + shadowYOffset, metrics.shadowW, 4);
+  ctx.fillRect(bodyX + 2, bodyY + bodyH - 5, 3, 2);
 
-  ctx.fillStyle = "#4c3d37";
-  ctx.fillRect(
-    x + metrics.bodyX + 2 + (pose === "walk" ? -1 : 0),
-    y + metrics.legY + leftLegOffset,
-    3,
-    metrics.legH,
-  );
-  ctx.fillRect(
-    x + metrics.bodyX + metrics.bodyW - 5 + (pose === "walk" ? 1 : 0),
-    y + metrics.legY + rightLegOffset,
-    3,
-    metrics.legH,
-  );
-  ctx.fillStyle = look.pants || "#5f5a78";
-  ctx.fillRect(
-    x + metrics.bodyX + 1 + bodyShiftX,
-    y + metrics.bodyY + metrics.bodyH - 2 + bodyShiftY,
-    metrics.bodyW - 2,
-    3,
-  );
+  // —— 手臂：身体两侧体块 ——
+  const armColor = shadeColor(shirt, 0.86);
+  const armY = bodyY + 2;
+  const armH = Math.floor(bodyH * 0.7);
+  const armLift = pose === "walk" ? Math.round(stride) : pose === "chat" ? -1 : 0;
+  drawBlockRect(bodyX - 3, armY + (armLift > 0 ? -1 : 0), 3, armH, armColor, {
+    shadow: false,
+    highlight: false,
+  });
+  drawBlockRect(bodyX + bodyW, armY + (armLift < 0 ? -1 : 0), 3, armH, shadeColor(armColor, 0.88), {
+    shadow: false,
+    highlight: false,
+  });
 
-  const armY = y + metrics.bodyY + 3 + bodyShiftY;
+  // —— 头：立体方块（四向）——
+  const headW = metrics.faceW + 2;
+  const headH = metrics.faceH + 2;
+  const headX = x + metrics.faceX - 1;
+  const headY = y + metrics.faceY - 4;
   if (facing === "up") {
-    ctx.fillStyle = look.shirt;
-    ctx.fillRect(
-      x + metrics.bodyX + 1 + bodyShiftX,
-      y + metrics.bodyY + 1 + bodyShiftY,
-      metrics.bodyW - 2,
-      metrics.bodyH,
-    );
-    ctx.fillStyle = `${look.shirt}cc`;
-    ctx.fillRect(
-      x + metrics.bodyX + 2 + bodyShiftX,
-      y + metrics.bodyY + 3 + bodyShiftY,
-      metrics.bodyW - 4,
-      3,
-    );
-    ctx.fillStyle = accentBarColor;
-    ctx.fillRect(
-      x + metrics.bodyX + 2 + bodyShiftX,
-      y + metrics.bodyY + 2 + bodyShiftY,
-      3,
-      metrics.bodyH - 4,
-    );
-    ctx.fillRect(
-      x + metrics.bodyX + metrics.bodyW - 5 + bodyShiftX,
-      y + metrics.bodyY + 2 + bodyShiftY,
-      3,
-      metrics.bodyH - 4,
-    );
-    ctx.fillStyle = look.skin || "#f4d8be";
-    ctx.fillRect(x + metrics.bodyX + bodyShiftX, armY + 1 + nearArmLift, 2, 5);
-    ctx.fillRect(
-      x + metrics.bodyX + metrics.bodyW - 2 + bodyShiftX,
-      armY + 1 + farArmLift,
-      2,
-      5,
-    );
-    ctx.fillStyle = look.hair;
-    ctx.fillRect(
-      x + metrics.faceX - 1,
-      y + metrics.faceY - 1 + bodyShiftY,
-      metrics.faceW + 2,
-      metrics.faceH,
-    );
-    ctx.fillStyle = look.skin || "#f4d8be";
-    ctx.fillRect(
-      x + metrics.faceX + 2,
-      y + metrics.faceY + 5 + bodyShiftY,
-      metrics.faceW - 4,
-      3,
-    );
+    drawBlockRect(headX, headY, headW, headH, hair, { shadow: false });
+    ctx.fillStyle = shadeColor(hair, 1.18);
+    ctx.fillRect(headX + 2, headY + 2, headW - 4, 2);
   } else if (facing === "left" || facing === "right") {
     const dir = facing === "left" ? -1 : 1;
-    ctx.fillStyle = look.shirt;
-    ctx.fillRect(
-      x + metrics.bodyX + 1 + bodyShiftX,
-      y + metrics.bodyY + 1 + bodyShiftY,
-      metrics.bodyW - 3,
-      metrics.bodyH,
-    );
-    ctx.fillStyle = accentBarColor;
-    ctx.fillRect(
-      x + (dir < 0 ? metrics.bodyX + 2 : metrics.bodyX + metrics.bodyW - 5) + bodyShiftX,
-      y + metrics.bodyY + 2 + bodyShiftY,
-      3,
-      metrics.bodyH - 4,
-    );
-    ctx.fillStyle = `${look.shirt}cc`;
-    ctx.fillRect(
-      x + metrics.bodyX + 2 + bodyShiftX,
-      y + metrics.bodyY + metrics.bodyH - 5 + bodyShiftY,
-      metrics.bodyW - 5,
-      2,
-    );
-    ctx.fillStyle = look.skin || "#f4d8be";
-    ctx.fillRect(
-      x + (dir < 0 ? metrics.bodyX - 2 : metrics.bodyX + metrics.bodyW) + bodyShiftX,
-      armY + nearArmLift,
-      2,
-      6,
-    );
-    ctx.fillRect(
-      x + (dir < 0 ? metrics.bodyX + metrics.bodyW - 1 : metrics.bodyX - 1) + bodyShiftX,
-      armY + 1 + farArmLift,
-      2,
-      5,
-    );
-    ctx.fillStyle = look.skin || "#f4d8be";
-    ctx.fillRect(
-      x + metrics.faceX + (dir < 0 ? 1 : 2),
-      y + metrics.faceY + bodyShiftY,
-      metrics.faceW - 3,
-      metrics.faceH,
-    );
-    ctx.fillStyle = look.hair;
-    ctx.fillRect(x + metrics.hairX, y + metrics.hairY + bodyShiftY, metrics.hairW, 5);
-    ctx.fillRect(
-      x + (dir < 0 ? metrics.faceX - 1 : metrics.faceX + metrics.faceW - 2),
-      y + metrics.faceY + bodyShiftY,
-      2,
-      metrics.faceH - 1,
-    );
+    drawBlockRect(headX, headY, headW, headH, hair, { shadow: false });
+    const faceW = Math.floor(headW * 0.62);
+    const faceX = dir < 0 ? headX + headW - faceW : headX;
+    ctx.fillStyle = skin;
+    ctx.fillRect(faceX, headY + 1, faceW, headH - 1);
+    ctx.fillStyle = hair;
+    ctx.fillRect(headX, headY, headW, 2);
     ctx.fillStyle = "#2f2231";
-    ctx.fillRect(
-      x + (dir < 0 ? metrics.faceX + 2 : metrics.faceX + metrics.faceW - 4),
-      y + metrics.faceY + 4 + bodyShiftY,
-      1,
-      1,
-    );
+    ctx.fillRect(dir < 0 ? faceX + faceW - 4 : faceX + 3, headY + Math.floor(headH * 0.5), 1, 1);
   } else {
-    ctx.fillStyle = look.shirt;
-    ctx.fillRect(
-      x + metrics.bodyX + bodyShiftX,
-      y + metrics.bodyY + bodyShiftY,
-      metrics.bodyW,
-      metrics.bodyH,
-    );
-    ctx.fillStyle = accentBarColor;
-    ctx.fillRect(
-      x + metrics.bodyX + 1 + bodyShiftX,
-      y + metrics.bodyY + 2 + bodyShiftY,
-      metrics.bodyW - 2,
-      2,
-    );
-    ctx.fillStyle = `${look.shirt}cc`;
-    ctx.fillRect(
-      x + metrics.bodyX + 1 + bodyShiftX,
-      y + metrics.bodyY + metrics.bodyH - 4 + bodyShiftY,
-      metrics.bodyW - 2,
-      2,
-    );
-    ctx.fillStyle = look.skin || "#f4d8be";
-    ctx.fillRect(x + metrics.bodyX - 1 + bodyShiftX, armY + 1 + nearArmLift, 2, 5);
-    ctx.fillRect(
-      x + metrics.bodyX + metrics.bodyW - 1 + bodyShiftX,
-      armY + 1 + farArmLift,
-      2,
-      5,
-    );
-    ctx.fillStyle = look.skin || "#f4d8be";
-    ctx.fillRect(x + metrics.faceX, y + metrics.faceY + bodyShiftY, metrics.faceW, metrics.faceH);
-    ctx.fillStyle = look.hair;
-    ctx.fillRect(x + metrics.hairX, y + metrics.hairY + bodyShiftY, metrics.hairW, 5);
-    ctx.fillRect(x + metrics.faceX, y + metrics.faceY - 1 + bodyShiftY, metrics.faceW, 2);
+    drawBlockRect(headX, headY, headW, headH, skin, { shadow: false });
+    ctx.fillStyle = hair;
+    ctx.fillRect(headX, headY, headW, Math.max(3, Math.floor(headH * 0.35)));
+    ctx.fillRect(headX, headY + 1, 2, headH - 2);
+    ctx.fillRect(headX + headW - 2, headY + 1, 2, headH - 2);
     ctx.fillStyle = "#2f2231";
-    ctx.fillRect(x + metrics.faceX + 2, y + metrics.faceY + 3 + bodyShiftY, 1, 1);
-    ctx.fillRect(x + metrics.faceX + metrics.faceW - 4, y + metrics.faceY + 3 + bodyShiftY, 1, 1);
-    ctx.fillRect(
-      x + metrics.faceX + Math.floor(metrics.faceW / 2) - 1,
-      y + metrics.faceY + 6 + bodyShiftY,
-      2,
-      1,
-    );
+    ctx.fillRect(headX + Math.floor(headW * 0.28), headY + Math.floor(headH * 0.5), 1, 1);
+    ctx.fillRect(headX + Math.floor(headW * 0.62), headY + Math.floor(headH * 0.5), 1, 1);
+    ctx.fillStyle = "#c98a7a";
+    ctx.fillRect(headX + Math.floor(headW * 0.42), headY + Math.floor(headH * 0.72), 2, 1);
   }
 
+  // 高亮主角色环（activeColor 时）
+  if (options.activeColor) {
+    ctx.fillStyle = `${options.activeColor}aa`;
+    ctx.fillRect(bodyX - 2, bodyY - 2, bodyW + 4, 2);
+  }
+
+  // 配件
   drawVisitorAccessory(look, x, y, metrics, facing);
-
-  if (activeColor) {
-    ctx.strokeStyle = activeColor;
-    ctx.lineWidth = 3;
-    ctx.strokeRect(x - 11, y - 14, 22, 31);
-  }
 }
 
 function drawVisitorNameTag(visitor, x, topY) {
@@ -10388,7 +10822,10 @@ function drawSidebar() {
 
     ctx.fillStyle = def.color;
     ctx.fillRect(cardX + 10, cardY + 6, 28, 28);
-    drawSprite(def.sprite, def.palette, cardX + 10, cardY + 7, 2);
+    drawRoofPattern({ type: def.id }, def, cardX + 10, cardY + 6, 28, 28);
+    ctx.strokeStyle = shadeColor(def.color, 0.7);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cardX + 10.5, cardY + 6.5, 27, 27);
 
     ctx.fillStyle = "#2f2231";
     setCanvasFont(12, { weight: "bold" });

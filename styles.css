@@ -192,7 +192,7 @@ body {
 .shell {
   width: min(1720px, 100%);
   display: grid;
-  grid-template-columns: minmax(280px, 3fr) minmax(0, 9fr);
+  grid-template-columns: minmax(240px, 2fr) minmax(0, 10fr);
   gap: 18px;
   align-items: start;
   position: relative;
@@ -200,7 +200,7 @@ body {
 }
 
 .hero {
-  padding: 18px 22px;
+  padding: 12px 16px;
   border: 4px solid var(--frame);
   border-radius: 20px;
   background:
@@ -215,7 +215,7 @@ body {
   box-shadow: 0 14px 0 rgba(61, 43, 53, 0.24);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .eyebrow {
